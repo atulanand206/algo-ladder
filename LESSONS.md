@@ -42,6 +42,24 @@ Put lessons in `lessons/<area>.txt` (one file per area, for example `lessons/gra
   comments on the lines that carry the idea. Use the helper names from the code pieces where one exists (`find`, `powMod`).
   Keep each under about 45 lines. Each language must be idiomatic, not a transliteration.
 
+## Build on the code pieces (required)
+
+The site is layered: small **code pieces** (`snips/*.txt`, the method forms in `snips/z1.txt` and `snips/z2.txt`) are the lowest layer, and algorithms are
+built by calling them. A lesson must **call** the pieces it is built on, not re-implement them inline.
+
+1. Run `python3 pieces.py <topic-id>`. It lists the pieces linked to that topic, the exact method names to call in each language
+   (they differ: `push_pq` in Python, `pushPq` in Java and C++), and the piece's code.
+2. Call those methods in your Java, Python and C++. Do not paste the piece's body into your lesson. If the piece is missing something you
+   need, say so in your final report instead of inventing a second copy.
+3. Add an optional section `--uses` listing the piece ids you call, one per line (for example `u-pq` then `u-relax`).
+   Mention in `--build` where each piece is used ("step 4 calls `relax`"), so the layering is visible to the learner.
+4. Pieces of your own that no earlier piece covers (a new helper that only this algorithm needs) can be defined in the lesson itself.
+5. A lesson for an algorithm built on other **algorithms** (for example Dijkstra on a heap) should name them in `--build` and use their
+   standard form rather than a new one.
+
+`python3 check.py` fails if `--uses` lists something that is not a piece, or if any of the three languages never calls it, and it
+reports how many lessons with linked pieces actually build on them. Aim for all of them.
+
 ## Style
 
 - Plain English, short sentences, no em dashes. Explain every term the first time it appears.

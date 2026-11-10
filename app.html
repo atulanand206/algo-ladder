@@ -133,7 +133,12 @@ function loadLocal(){try{return JSON.parse(localStorage.getItem(LSK)||'{}')}catc
 function saveLocal(){if(S.live)return;try{localStorage.setItem(LSK,JSON.stringify(S.prog))}catch(e){}}
 function toggle(k){const v=!isDone(k);S.prog[k]=v;saveLocal();render();
  if(S.dbRef)S.dbRef.doc(k).set({done:v}).catch(()=>{S.live=false;render()})}
-function route(){const h=location.hash.slice(1),m=h.match(/^level-(\d+)$/);if(h==='atlas')S.view='graph';else if(m&&+m[1]>=1&&+m[1]<=levelsDef().length){S.view='level';S.lv=+m[1]}else S.view='road';S.open=S.view==='level'?S.open:null;render();if(S.view!=='graph')window.scrollTo(0,0)}
+function route(){
+ const h=location.hash.slice(1),mL=h.match(/^level-(\d+)(?:\/([\w-]+))?$/),mA=h.match(/^atlas(?:\/(\w+)(?:\/([\w-]+?)(\/focus)?)?)?$/);
+ if(mA){S.view='graph';S.hashA={view:mA[1]||null,sel:mA[2]||null,focus:!!mA[3]}}
+ else if(mL&&+mL[1]>=1&&+mL[1]<=levelsDef().length){S.view='level';S.lv=+mL[1];S.open=mL[2]||null;GS.pcard=null}
+ else{S.view='road';S.open=null}
+ render();if(S.view!=='graph')window.scrollTo(0,0)}
 window.addEventListener('hashchange',route);
 const GS={x:0,y:0,k:1,sel:null,mode:'both',all:false,view:'tech',hov:null,pcard:null,lang:'java',q:'',next:true};
 const LANGS=[['java','Java'],['py','Python'],['cpp','C++']];
@@ -188,6 +193,7 @@ function mountGraph(){
  const writePos=P=>{try{localStorage.setItem(POSK,JSON.stringify(P))}catch(e){}};
  const saveView=()=>{const P=readPos();P.view=GS.view;writePos(P)};
  let posT=0;const touchPos=()=>{clearTimeout(posT);posT=setTimeout(()=>{if(GS.view==='order'||!LY)return;const P=readPos();P.view=GS.view;P.v=P.v||{};P.v[GS.view]={x:GS.x,y:GS.y,k:GS.k,sel:GS.sel};writePos(P);syncResume()},600)};
+ if(S.hashA&&S.hashA.view&&[...VIEWS,...LEVELS].some(v=>v[0]===S.hashA.view)){GS.restored=true;GS.view=S.hashA.view}
  if(!GS.restored){GS.restored=true;const P0=readPos();if(P0.view&&[...VIEWS,...LEVELS].some(v=>v[0]===P0.view))GS.view=P0.view}
  const CNT={};PR.forEach(p=>{CNT[p.t]=(CNT[p.t]||0)+1});
  const depth={};const dep=id=>depth[id]||(depth[id]=1+Math.max(0,...pm[id].map(dep)));
@@ -264,9 +270,15 @@ const PWK='algo-ladder-popw';
   pop.classList.add('open')};
  const refresh=()=>{style();syncResume();if(GS.view==='order')renderOrder();const y=pop.scrollTop;if(GS.sel&&!GS.hov)openPop(GS.sel);else if(!GS.sel&&!GS.hov)empty();pop.scrollTop=y;document.querySelectorAll('[data-demo]').forEach(i=>demoRun(i.dataset.demo))};
  const nav=d=>{if(!GS.sel||GS.view==='order')return;const id=GS.sel;let t=null;if(d==='left')t=pm[id].find(p=>!isCode(p))||pm[id][0];else if(d==='right')t=(nxt[id]||[]).find(p=>!isCode(p))||(nxt[id]||[])[0];else{const p=LY.pos[id];if(!p)return;const sib=Object.keys(LY.pos).filter(k=>LY.pos[k].x===p.x).sort((a,b)=>LY.pos[a].y-LY.pos[b].y),i=sib.indexOf(id);t=sib[i+(d==='down'?1:-1)]}if(t)select(t,true)};
- const setView=v=>{GS.focus=false;GS.view=v;GS.sel=null;GS.pcard=null;empty();build()};
- const select=(id,c)=>{setTimeout(drawMini,0);touchPos();if(GS.focus&&GS.view!=='order'){GS.sel=id;GS.pcard=null;build();openPop(id);return}if(GS.view==='order'){GS.sel=id;GS.pcard=null;openPop(id);renderOrder();return}const v=viewOf(id);if(!LY.pos[id]){GS.view=v;GS.sel=id;GS.pcard=null;build();openPop(id);center(id);return}GS.sel=id;GS.pcard=null;style();openPop(id);if(c)center(id)};
- const clear=()=>{const was=GS.focus;GS.sel=null;GS.pcard=null;GS.focus=false;empty();if(was)build();else style()};
+const hashOf=()=>'atlas/'+GS.view+(GS.sel?'/'+GS.sel+(GS.focus&&GS.view!=='order'?'/focus':''):'');
+ const pushH=()=>{if(GS.quiet)return;const h=hashOf();if(location.hash.slice(1)!==h)location.hash=h};
+ const replaceH=()=>{const h=hashOf();if(location.hash.slice(1)!==h)history.replaceState(null,'','#'+h)};
+ const applyHash=a=>{if(!a)return;const v=a.view&&[...VIEWS,...LEVELS].some(x=>x[0]===a.view)?a.view:GS.view,sel=a.sel&&by[a.sel]?a.sel:null,foc=!!(sel&&a.focus&&v!=='order');
+  if(v===GS.view&&sel===(GS.sel||null)&&foc===!!GS.focus)return;
+  GS.quiet=true;try{GS.view=v;GS.sel=sel;GS.focus=foc;GS.pcard=null;build();if(sel){openPop(sel);if(!foc&&LY&&LY.pos[sel])center(sel)}else empty()}finally{GS.quiet=false}};
+ const setView=v=>{GS.focus=false;GS.view=v;GS.sel=null;GS.pcard=null;empty();build();pushH()};
+ const selectRaw=(id,c)=>{setTimeout(drawMini,0);touchPos();if(GS.focus&&GS.view!=='order'){GS.sel=id;GS.pcard=null;build();openPop(id);return}if(GS.view==='order'){GS.sel=id;GS.pcard=null;openPop(id);renderOrder();return}const v=viewOf(id);if(!LY.pos[id]){GS.view=v;GS.sel=id;GS.pcard=null;build();openPop(id);center(id);return}GS.sel=id;GS.pcard=null;style();openPop(id);if(c)center(id)};
+ const clear=()=>{const was=GS.focus;GS.sel=null;GS.pcard=null;GS.focus=false;empty();if(was)build();else style();pushH()};
 const msv=$('msv'),mini=$('mini');let mS=1;
  function drawMini(){mini.hidden=!(GS.view!=='order'&&LY);if(mini.hidden)return;
   const MW=Math.max(200,(GS.popw||370)-36),MH=Math.max(90,Math.min(160,innerHeight*.2));mS=Math.min(MW/LY.W,MH/LY.H);msv.setAttribute('viewBox',`0 0 ${LY.W*mS} ${LY.H*mS}`);msv.style.width=(LY.W*mS)+'px';msv.style.height=(LY.H*mS)+'px';msv.innerHTML='';
@@ -285,12 +297,13 @@ const resumeTarget=()=>{if(!LY||GS.view==='order')return null;const O=buildOrder
  const syncResume=()=>{const b=$('zr');if(!b)return;b.hidden=GS.view==='order';b.textContent=savedFor()||(resumeTarget()&&hasProg())?'Resume':'Start'};
  const goStart=()=>tween(12,10,Math.max(.9,Math.min(1,size().w/(LY.W))));
  $('zr').onclick=()=>{const sv=savedFor(),t=resumeTarget();
-  if(sv){tween(sv.x,sv.y,sv.k);if(sv.sel&&by[sv.sel]){GS.sel=sv.sel;GS.pcard=null;style();openPop(sv.sel);setTimeout(drawMini,0)}}
+  if(sv){tween(sv.x,sv.y,sv.k);if(sv.sel&&by[sv.sel]){GS.sel=sv.sel;GS.pcard=null;style();openPop(sv.sel);setTimeout(drawMini,0);pushH()}}
   else if(t&&hasProg())select(t,false);else goStart()};
  const fitSel=()=>{const r=rel();if(!r||!LY)return;const ids=[...r].filter(id=>LY.pos[id]);if(!ids.length)return;let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;ids.forEach(id=>{const p=LY.pos[id];x0=Math.min(x0,p.x);y0=Math.min(y0,p.y);x1=Math.max(x1,p.x+NW);y1=Math.max(y1,p.y+NH)});
   const s=size(),bw=x1-x0+90,bh=y1-y0+90,k=Math.max(.3,Math.min(s.w/bw,s.h/bh,1.4));tween(s.w/2-((x0+x1)/2)*k,s.h/2-((y0+y1)/2)*k,k);touchPos()};
- $('zs').onclick=()=>{if(!GS.sel)return;if(!GS.focus){GS.pre={x:GS.x,y:GS.y,k:GS.k};GS.focus=true;build();openPop(GS.sel)}else{GS.focus=false;build();if(GS.pre){GS.x=GS.pre.x;GS.y=GS.pre.y;GS.k=GS.pre.k;apply();GS.pre=null}openPop(GS.sel)}};
- window._gs={reopen:()=>{if(GS.sel)openPop(GS.sel)},refresh,select,clear,fit:()=>fit(true),nav:d=>nav(d),zoom:f=>{const s=size();zoomAt(s.w/2,s.h/2,f)},pop,by};
+ $('zs').onclick=()=>{if(!GS.sel)return;if(!GS.focus){GS.pre={x:GS.x,y:GS.y,k:GS.k};GS.focus=true;build();openPop(GS.sel);pushH()}else{GS.focus=false;build();if(GS.pre){GS.x=GS.pre.x;GS.y=GS.pre.y;GS.k=GS.pre.k;apply();GS.pre=null}openPop(GS.sel);pushH()}};
+ const select=(id,c)=>{selectRaw(id,c);pushH()};
+ window._gs={fromHash:a=>{applyHash(a);refresh()},reopen:()=>{if(GS.sel)openPop(GS.sel)},refresh,select,clear,fit:()=>fit(true),nav:d=>nav(d),zoom:f=>{const s=size();zoomAt(s.w/2,s.h/2,f)},pop,by};
  const ptrs=new Map();let drag=null,pinch=null;
  svg.addEventListener('pointerdown',e=>{ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});cancelAnimationFrame(anim);if(ptrs.size===1)drag={sx:e.clientX,sy:e.clientY,x0:GS.x,y0:GS.y,mv:0,t:e.target};else if(ptrs.size===2){const [a,b]=[...ptrs.values()];pinch={d:Math.hypot(a.x-b.x,a.y-b.y),k:GS.k,cx:(a.x+b.x)/2,cy:(a.y+b.y)/2,x:GS.x,y:GS.y};drag=null}});
  svg.addEventListener('pointermove',e=>{if(ptrs.has(e.pointerId))ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
@@ -308,7 +321,7 @@ const resumeTarget=()=>{if(!LY||GS.view==='order')return null;const O=buildOrder
  $('zi').onclick=()=>_gs.zoom(1.3);$('zo').onclick=()=>_gs.zoom(1/1.3);$('zf').onclick=()=>fit(true);
  const q=$('gq');q.addEventListener('input',()=>{GS.q=q.value;style()});q.addEventListener('keydown',e=>{if(e.key==='Enter'){GS.q=q.value;const f=style();if(f)select(f,true);else{const m=G.find(n=>n.label.toLowerCase().includes(q.value.trim().toLowerCase()));if(m)select(m.id,true)}}});
  window.addEventListener('resize',()=>{if(S.view==='graph'&&LY){fit(true);drawMini()}});
- build();empty();if(GS.sel)openPop(GS.sel);
+ build();empty();if(GS.sel)openPop(GS.sel);if(S.hashA&&S.hashA.sel)applyHash(Object.assign({},S.hashA,{view:GS.view}));replaceH();
 }
 document.addEventListener('keydown',e=>{if(S.view!=='graph'||!window._gs)return;const inp=e.target&&e.target.tagName==='INPUT';
  if(e.key==='Escape'){if(inp){e.target.blur();return}if(GS.sel)_gs.clear();return}
@@ -331,7 +344,7 @@ function demoRun(id){const e=EX[id],a=($('in-'+id).value.match(/-?\d+/g)||[]).ma
   a.sort((x,y)=>x-y);const mid=a.length>>1;let lo=a[mid],hi=a[mid]+k,rows=[];
   while(lo<hi&&rows.length<60){const m=lo+Math.floor((hi-lo+1)/2);let cost=0;for(let i=mid;i<a.length;i++)cost+=Math.max(0,m-a[i]);const ok=cost<=k;rows.push(`<tr><td>${lo}</td><td>${hi}</td><td>${m}</td><td>${cost}</td><td>${ok?'lo = m':'hi = m-1'}</td></tr>`);if(ok)lo=m;else hi=m-1}
   o.innerHTML=`<table class="trace"><tr><th>lo</th><th>hi</th><th>mid</th><th>cost</th><th>next</th></tr>${rows.join('')}</table><p style="margin-top:6px">Sorted: ${a.join(' ')}. Median: <b>${lo}</b></p>`}}
-function render(){if(S.view==='graph'){if(!$('gs'))mountGraph();else if(window._gs)_gs.refresh();return}
+function render(){if(S.view==='graph'){if(!$('gs'))mountGraph();else if(window._gs)_gs.fromHash(S.hashA);return}
  document.body.style.overflow='';const y=window.scrollY;$('app').innerHTML=S.view==='level'?levelHTML(S.lv):roadHTML();document.querySelectorAll('[data-demo]').forEach(i=>demoRun(i.dataset.demo));window.scrollTo(0,y)}
 document.addEventListener('click',ev=>{const t=ev.target.closest('[data-piece],[data-done],[data-pick],[data-next],[data-lang],[data-lv],[data-road],[data-atlas],[data-topic],[data-known],[data-prob],[data-goto]');if(!t)return;const d=t.dataset,g=S.view==='graph';
  if(d.lang){GS.lang=d.lang;render();return}
@@ -344,10 +357,10 @@ document.addEventListener('click',ev=>{const t=ev.target.closest('[data-piece],[
  if(d.lv){location.hash='level-'+d.lv;return}
  if(d.road){location.hash='';return}
  if(d.atlas){location.hash='atlas';return}
- if(d.topic){S.open=S.open===d.topic?null:d.topic;GS.pcard=null;render();return}
+ if(d.topic){location.hash='level-'+S.lv+(S.open===d.topic?'':'/'+d.topic);return}
  if(d.known){toggle('t_'+d.known);return}
  if(d.prob){GS.pcard=GS.pcard===d.prob?null:d.prob;render();return}
- if(d.goto){const L=levelsDef(),i=L.findIndex(l=>l.ids.includes(d.goto));S.open=d.goto;if(i+1===S.lv){render()}else location.hash='level-'+(i+1)}});
+ if(d.goto){const L=levelsDef(),i=L.findIndex(l=>l.ids.includes(d.goto));location.hash='level-'+(i+1)+'/'+d.goto}});
 document.addEventListener('input',ev=>{const id=ev.target.dataset&&ev.target.dataset.demo;if(id)demoRun(id)});
 const LVNAMES=["Everyday containers", "Searching and simple sorts", "Core techniques", "Graph traversal basics", "Number and memory basics", "Working with strings", "Trees, heaps and bits", "Heaps, tries and bucket tricks", "Divide and conquer sorting", "Smarter searching", "Thinking tricks and subsets", "Greedy and windows", "Graph ordering and cycles", "First DP: lines and coins", "DP on grids and strings", "Strings DP and number tools", "Sieves and counting", "Geometry and probability", "Hashing and sampling", "Range query structures", "Balanced trees", "Advanced sorting and search", "Proof and sweep techniques", "Shortest paths and flow", "Matching, tours and ancestors", "Cuts, bitmask and paths", "DP on trees and intervals", "DP optimisation warm-ups", "Probability and fast recurrences", "Modular number theory", "Combinatorics", "Geometry: hulls and polygons", "Fast string matching", "Algorithms in the wild", "Lazy and persistent trees", "Exotic data structures", "Offline and meet-in-the-middle", "Query ordering tricks", "Connectivity and trees", "Flow, matching and decomposition", "Heavy shortest-path and flow", "Profile and rerooting DP", "DP optimisation", "Transforms and discrete logs", "Factoring and games", "Generating functions and counting", "Computational geometry", "Suffix structures", "Search and randomized methods"];
 const SYSLV=[["Databases and storage",["dbindex","lsm","queryplan","joins","txn","colstore","cache"]],["Distributed systems and networks",["loadbal","sharding","merkle","dht","gossip","ratelimiter","routing","tcp"]],["Operating systems and developer tools",["sched","build","pkg","hashmapimpl","gc","paging","filesys"]],["Languages and text tools",["compiler","regex","diff","git","autocomplete","undo","spreadsheet"]],["Search and big data",["searcheng","crawler","recsys","dedup","analytics","abuse"]],["Compression and codes",["compress","codecs","genome","ecc"]],["Security and cryptography",["rsa","cryptohash","dh","blockchain"]],["AI and machine learning",["neural","dtree","vectorsearch","viterbi","llm","tokenizer"]],["Maps, games and geometry",["maps","gameai","robotics","graphics","gis"]],["Logistics, social and markets",["ridematch","timetable","calendar","social","orderbook","riskmc","filesync"]]];
@@ -381,10 +394,12 @@ const LES={},LESQ={};
 const md=t=>{const inl=x=>esc(x).replace(/`([^`]+)`/g,'<code>$1</code>');let h='',list=null;const close=()=>{if(list){h+='</'+list+'>';list=null}};
  t.split('\n').forEach(l=>{if(!l.trim()){close();return}const ul=l.match(/^- (.*)/),ol=l.match(/^\d+\. (.*)/);
   if(ul||ol){const tag=ul?'ul':'ol';if(list!==tag){close();h+='<'+tag+'>';list=tag}h+='<li>'+inl((ul||ol)[1])+'</li>'}else{close();h+='<p>'+inl(l)+'</p>'}});close();return h};
+function usesHTML(L){const ids=(L.uses||'').split('\n').map(x=>x.trim()).filter(Boolean);if(!ids.length)return '';const {by}=graphIndex();
+ return '<div class="lab">Built on these code pieces</div><div class="jcs">'+ids.filter(u=>by[u]).map(u=>`<button class="jc" ${S.view==='graph'?'data-jump':'data-piece'}="${u}" style="--nb:var(--${by[u].cat}-bg);--nf:var(--${by[u].cat}-fg)">${esc(by[u].label)}</button>`).join('')+'</div><p class="note" style="margin-top:6px">The code below calls these methods instead of rewriting them.</p>'}
 function lessonHTML(id){if(!D.lessonIds.includes(id)){const n=graphIndex().by[id];return n&&n.col>=2?'<p class="note" style="margin-top:12px">The full lesson for this topic is being written.</p>':''}
  const L=LES[id];
  if(!L){if(!LESQ[id]){LESQ[id]=1;fetch('data/lessons/'+id+'.json').then(r=>r.json()).then(j=>{LES[id]=j;window.dispatchEvent(new Event('lesson-loaded'))}).catch(()=>{LESQ[id]=0})}return '<p class="note" style="margin-top:12px">Loading the lesson&hellip;</p>'}
- return `<div class="les"><div class="lab">The idea</div>${md(L.idea)}<div class="lab">How it is built</div>${md(L.build)}<div class="lab">How to think about it</div>${md(L.think)}<div class="lab">Cost</div><p>${esc(L.cost)}</p><div class="lab">Code</div>${langBar()}<pre>${esc(L[GS.lang]||L.java)}</pre></div>`}
+ return `<div class="les"><div class="lab">The idea</div>${md(L.idea)}<div class="lab">How it is built</div>${md(L.build)}<div class="lab">How to think about it</div>${md(L.think)}<div class="lab">Cost</div><p>${esc(L.cost)}</p>${usesHTML(L)}<div class="lab">Code</div>${langBar()}<pre>${esc(L[GS.lang]||L.java)}</pre></div>`}
 window.addEventListener('lesson-loaded',()=>{if(S.view==='level')render();else if(S.view==='graph'&&window._gs&&GS.sel)window._gs.reopen()});
 function pieceHTML(c){const {by}=graphIndex(),o=pieceOpen(c),sn=D.snips[c];
  return `<li class="pi ${o?'open':''}"><button class="pb" data-piece="${c}" aria-expanded="${o}"><b>${esc(by[c].label)}</b> <span class="note">${esc(by[c].d)}</span></button>${o?(sn?`${langBar()}<pre>${esc(sn[GS.lang]||sn.java)}</pre>`:'<p class="note">Code not written yet.</p>'):''}</li>`}

@@ -7,7 +7,8 @@ The real idea is wider than "find a number in an array". Any time you have a yes
 2. Pick the middle, `mid = lo + (hi - lo) / 2`. Writing it this way cannot overflow.
 3. Ask the question about `mid`. If the answer is "too small", move `lo` to `mid + 1`. Otherwise move `hi` to `mid`.
 4. Stop when `lo == hi`. That single position is the answer (or the place where it would be inserted).
-5. Check the result: confirm `a[lo] == target` if you need an exact match.
+5. These steps are already packaged as three code pieces: `lowerBound` (first position not less than x), `upperBound` (first position greater than x) and `firstTrue` (the same loop for any yes or no question). This lesson builds on them instead of rewriting the loop.
+6. Exact search is `lowerBound` plus one comparison. Counting copies is `upperBound` minus `lowerBound`. Solving "smallest value that works" is `firstTrue` with your own test.
 --think
 - Signal: the data is sorted, or a property only ever changes from false to true as the input grows. "Minimum value such that..." and "maximum value such that..." are the classic wording.
 - Decide first what `lo` and `hi` mean, and whether `hi` itself can be the answer. Most bugs are an off-by-one in that choice.
@@ -16,66 +17,85 @@ The real idea is wider than "find a number in an array". Any time you have a yes
 - Pitfalls: overflow in `(lo + hi) / 2`, empty input, duplicates (lower bound and upper bound give the first and last position), and floating point ranges (loop a fixed number of times instead of comparing to equality).
 --cost
 Time O(log n) per search. Space O(1). Needs sorted input, or a monotone yes or no question.
+--uses
+u-lower
+u-upper
+u-first
 --java
-// first index in a sorted array with a[i] >= x (a.length if none)
-static int lowerBound(int[] a, int x) {
-    int lo = 0, hi = a.length;
-    while (lo < hi) {
-        int mid = lo + (hi - lo) / 2;
-        if (a[mid] < x) lo = mid + 1;
-        else hi = mid;
-    }
-    return lo;
-}
+// lowerBound, upperBound and firstTrue come from the code pieces
 
-// exact search built on top of it: index of x, or -1
-static int find(int[] a, int x) {
+static int find(int[] a, int x) {                 // index of x, or -1
     int i = lowerBound(a, x);
     return i < a.length && a[i] == x ? i : -1;
 }
---py
-def lower_bound(a, x):
-    """First index with a[i] >= x (len(a) if none)."""
-    lo, hi = 0, len(a)
-    while lo < hi:
-        mid = (lo + hi) // 2
-        if a[mid] < x:
-            lo = mid + 1
-        else:
-            hi = mid
-    return lo
 
-def find(a, x):
-    """Index of x, or -1."""
-    i = lower_bound(a, x)
-    return i if i < len(a) and a[i] == x else -1
---cpp
-// first index in a sorted vector with a[i] >= x (a.size() if none)
-int lowerBound(const vector<int>& a, int x) {
-    int lo = 0, hi = a.size();
-    while (lo < hi) {
-        int mid = lo + (hi - lo) / 2;
-        if (a[mid] < x) lo = mid + 1;
-        else hi = mid;
-    }
-    return lo;
+static int countOf(int[] a, int x) {              // how many copies of x
+    return upperBound(a, x) - lowerBound(a, x);
 }
 
-// exact search built on top of it: index of x, or -1
-int findIndex(const vector<int>& a, int x) {
+// "Smallest ship capacity that moves every package within `days` days" (a yes or no question that flips once)
+static int minCapacity(int[] weights, int days) {
+    int lo = 0, hi = 0;
+    for (int w : weights) { lo = Math.max(lo, w); hi += w; }
+    return firstTrue(lo, hi, cap -> daysNeeded(weights, cap) <= days);
+}
+static int daysNeeded(int[] weights, int cap) {
+    int days = 1, load = 0;
+    for (int w : weights) { if (load + w > cap) { days++; load = 0; } load += w; }
+    return days;
+}
+--py
+# lower_bound, upper_bound and first_true come from the code pieces
+
+def find(a, x):                                   # index of x, or -1
+    i = lower_bound(a, x)
+    return i if i < len(a) and a[i] == x else -1
+
+def count_of(a, x):                               # how many copies of x
+    return upper_bound(a, x) - lower_bound(a, x)
+
+# "Smallest ship capacity that moves every package within `days` days"
+def min_capacity(weights, days):
+    def days_needed(cap):
+        d, load = 1, 0
+        for w in weights:
+            if load + w > cap: d += 1; load = 0
+            load += w
+        return d
+    return first_true(max(weights), sum(weights), lambda cap: days_needed(cap) <= days)
+--cpp
+// lowerBound, upperBound and firstTrue come from the code pieces
+
+int findIndex(const vector<int>& a, int x) {      // index of x, or -1
     int i = lowerBound(a, x);
     return i < (int)a.size() && a[i] == x ? i : -1;
+}
+
+int countOf(const vector<int>& a, int x) {       // how many copies of x
+    return upperBound(a, x) - lowerBound(a, x);
+}
+
+// "Smallest ship capacity that moves every package within `days` days"
+int minCapacity(const vector<int>& weights, int days) {
+    auto daysNeeded = [&](int cap) {
+        int d = 1, load = 0;
+        for (int w : weights) { if (load + w > cap) { d++; load = 0; } load += w; }
+        return d;
+    };
+    int lo = *max_element(weights.begin(), weights.end());
+    int hi = accumulate(weights.begin(), weights.end(), 0);
+    return firstTrue(lo, hi, [&](int cap) { return daysNeeded(cap) <= days; });
 }
 ### dsu
 --idea
 Union-find keeps track of groups of items that have been joined together. It answers two questions very fast: "which group is this item in?" and "merge the groups of these two items". Think of friend circles: once A is friends with B, and B with C, all three are in the same circle, and you never need to list the friendships to know it.
 Each group is stored as a tree where every item points to a parent, and the root of the tree names the group. Two tricks keep the trees almost flat, so both questions take almost constant time.
 --build
-1. Start with every item as its own group: `parent[i] = i`.
-2. `find(x)` follows parents until it reaches an item that is its own parent. That root is the group's name.
-3. Path compression: while walking up, point every item you pass straight at the root, so the next `find` is shorter.
-4. `union(a, b)` finds both roots. If they differ, hang the smaller tree under the bigger one (union by size) and add the sizes.
-5. Two items are in the same group exactly when `find(a) == find(b)`.
+1. Start with every item as its own group: `parent[i] = i` and `size[i] = 1`.
+2. `find(x)` follows parents until it reaches an item that is its own parent. That root is the group's name. The piece `find` also does path compression: it points every item it passes straight at the root, so the next `find` is shorter.
+3. `union(a, b)` (the piece `union`) calls `find` on both, and if the roots differ it hangs the smaller tree under the bigger one (union by size) and adds the sizes.
+4. Two items are in the same group exactly when `find(a) == find(b)`.
+5. Everything on top is a few lines that call those two pieces: counting groups (start at n, subtract one for every successful union) and asking whether two items are connected.
 --think
 - Signal: items get connected over time and you keep asking "are these two connected?" or "how many groups are there?". Examples: networks, friend circles, grid islands, building a spanning tree, merging accounts.
 - It only grows groups. It cannot split one apart or remove a connection. If you need that, think offline processing or a rollback version.
@@ -84,79 +104,74 @@ Each group is stored as a tree where every item points to a parent, and the root
 - Pitfalls: forgetting to compress paths (it still works but can slow to O(n)), comparing parents instead of roots, and recursion depth in `find` on huge inputs (use the loop form).
 --cost
 Time almost O(1) per operation (inverse Ackermann, below 5 for any real input). Space O(n).
+--uses
+u-find
+u-dsuunion
 --java
-static int[] parent, size;
+static int[] p, sz;                               // the arrays the pieces work on
 
 static void init(int n) {
-    parent = new int[n]; size = new int[n];
-    for (int i = 0; i < n; i++) { parent[i] = i; size[i] = 1; }
+    p = new int[n]; sz = new int[n];
+    for (int i = 0; i < n; i++) { p[i] = i; sz[i] = 1; }
 }
+// find(x) and union(a, b) come from the code pieces
 
-static int find(int x) {
-    while (parent[x] != x) {
-        parent[x] = parent[parent[x]];   // path compression (halving)
-        x = parent[x];
+static int countGroups(int n, int[][] pairs) {
+    init(n);
+    int groups = n;
+    for (int[] e : pairs) {
+        if (find(e[0]) != find(e[1])) { union(e[0], e[1]); groups--; }
     }
-    return x;
+    return groups;
 }
 
-static boolean union(int a, int b) {     // false if already in one group
-    a = find(a); b = find(b);
-    if (a == b) return false;
-    if (size[a] < size[b]) { int t = a; a = b; b = t; }
-    parent[b] = a; size[a] += size[b];
-    return true;
-}
+static boolean connected(int a, int b) { return find(a) == find(b); }
 --py
-class DSU:
-    def __init__(self, n):
-        self.parent = list(range(n))
-        self.size = [1] * n
+p, sz = [], []                                    # the lists the pieces work on
 
-    def find(self, x):
-        while self.parent[x] != x:
-            self.parent[x] = self.parent[self.parent[x]]   # path compression
-            x = self.parent[x]
-        return x
+def init(n):
+    global p, sz
+    p = list(range(n)); sz = [1] * n
+# find(x) and union(a, b) come from the code pieces
 
-    def union(self, a, b):               # False if already in one group
-        a, b = self.find(a), self.find(b)
-        if a == b: return False
-        if self.size[a] < self.size[b]: a, b = b, a
-        self.parent[b] = a
-        self.size[a] += self.size[b]
-        return True
+def count_groups(n, pairs):
+    init(n)
+    groups = n
+    for a, b in pairs:
+        if find(a) != find(b):
+            union(a, b); groups -= 1
+    return groups
+
+def connected(a, b): return find(a) == find(b)
 --cpp
-struct DSU {
-    vector<int> parent, sz;
-    DSU(int n) : parent(n), sz(n, 1) { iota(parent.begin(), parent.end(), 0); }
+vector<int> p, sz;                                // the arrays the pieces work on
 
-    int find(int x) {
-        while (parent[x] != x) {
-            parent[x] = parent[parent[x]];   // path compression
-            x = parent[x];
-        }
-        return x;
-    }
+void init(int n) {
+    p.resize(n); sz.assign(n, 1);
+    iota(p.begin(), p.end(), 0);
+}
+// find(x) and unite(a, b) come from the code pieces
 
-    bool unite(int a, int b) {           // false if already in one group
-        a = find(a); b = find(b);
-        if (a == b) return false;
-        if (sz[a] < sz[b]) swap(a, b);
-        parent[b] = a; sz[a] += sz[b];
-        return true;
-    }
-};
+int countGroups(int n, const vector<pair<int,int>>& pairs) {
+    init(n);
+    int groups = n;
+    for (auto [a, b] : pairs)
+        if (find(a) != find(b)) { unite(a, b); groups--; }
+    return groups;
+}
+
+bool connected(int a, int b) { return find(a) == find(b); }
 ### dijkstra
 --idea
 Dijkstra finds the cheapest route from one starting point to every other point in a map where each road has a non-negative cost. It works like a ripple: the start is at distance 0, and you always settle the closest place not yet settled, because no later route can beat it (all roads cost zero or more).
 Once a place is settled, its distance is final. From it you offer better routes to its neighbours, and keep the best offer each neighbour has seen.
 --build
-1. Set `dist[start] = 0` and every other distance to infinity.
-2. Put `(0, start)` into a min-heap ordered by distance.
-3. Pop the smallest `(d, v)`. If `d` is larger than `dist[v]`, it is an old entry, skip it.
-4. For each road `v -> w` with cost `c`: if `dist[v] + c < dist[w]`, update `dist[w]` and push `(dist[w], w)`. This step is called relaxing the edge.
-5. Repeat until the heap is empty. Keep `parent[w] = v` when you relax if you also need the actual path.
+1. Set `dist[start] = 0` and every other distance to infinity. Set every `parent` to -1.
+2. Make a min-heap with the piece `newPq` (Python and C++ use their own heap types) and push `(0, start)` with `pushPq`.
+3. `popPq` gives the smallest `(d, v)`. If `d` is larger than `dist[v]`, it is an old entry, skip it.
+4. For each road `v -> w` with cost `c`, call the piece `relax(dist, parent, v, w, c)`. It lowers `dist[w]`, records `parent[w] = v`, and returns true when it improved something. Only then push `(dist[w], w)`.
+5. Repeat until the heap is empty.
+6. To get the actual route to a place, call the piece `pathTo(parent, target)`, which walks the parent links back to the start.
 --think
 - Signal: "shortest or cheapest path", costs on roads, and none of the costs are negative. All costs equal 1 means plain BFS is enough. Some costs 0 or 1 means 0-1 BFS.
 - Negative cost on any road breaks the "settled is final" argument. Use Bellman-Ford instead.
@@ -166,72 +181,85 @@ Once a place is settled, its distance is final. From it you offer better routes 
 - Pitfalls: forgetting to skip stale heap entries, using an int that overflows, and running it on a graph with negative edges.
 --cost
 Time O((V + E) log V) with a binary heap. Space O(V + E).
+--uses
+u-pq
+u-relax
+u-parentpath
 --java
-// adj.get(v) holds {neighbour, cost}
-static long[] dijkstra(List<List<int[]>> adj, int src) {
+// newPq, pushPq, popPq, relax and pathTo come from the code pieces
+
+// adj.get(v) holds {neighbour, cost}. parent must have length n.
+static long[] dijkstra(List<List<int[]>> adj, int src, int[] parent) {
     int n = adj.size();
     long[] dist = new long[n];
     Arrays.fill(dist, Long.MAX_VALUE / 4);
+    Arrays.fill(parent, -1);
     dist[src] = 0;
-    PriorityQueue<long[]> pq = new PriorityQueue<>((a, b) -> Long.compare(a[0], b[0]));
-    pq.add(new long[]{0, src});
+    PriorityQueue<long[]> pq = newPq();
+    pushPq(pq, 0, src);
     while (!pq.isEmpty()) {
-        long[] cur = pq.poll();
+        long[] cur = popPq(pq);
         int v = (int) cur[1];
-        if (cur[0] > dist[v]) continue;               // stale entry
-        for (int[] e : adj.get(v)) {
-            long nd = dist[v] + e[1];
-            if (nd < dist[e[0]]) { dist[e[0]] = nd; pq.add(new long[]{nd, e[0]}); }
-        }
+        if (cur[0] > dist[v]) continue;                       // stale entry
+        for (int[] e : adj.get(v))
+            if (relax(dist, parent, v, e[0], e[1])) pushPq(pq, dist[e[0]], e[0]);
     }
     return dist;
 }
+
+static List<Integer> route(int[] parent, int target) { return pathTo(parent, target); }
 --py
-import heapq
+# push_pq, pop_pq, relax and path_to come from the code pieces
 
 def dijkstra(adj, src):
-    """adj[v] is a list of (neighbour, cost)."""
+    """adj[v] is a list of (neighbour, cost). Returns (dist, parent)."""
     n = len(adj)
     dist = [float("inf")] * n
+    parent = [-1] * n
     dist[src] = 0
-    pq = [(0, src)]
+    pq = []
+    push_pq(pq, 0, src)
     while pq:
-        d, v = heapq.heappop(pq)
+        d, v = pop_pq(pq)
         if d > dist[v]:
-            continue                                   # stale entry
+            continue                                          # stale entry
         for w, c in adj[v]:
-            nd = d + c
-            if nd < dist[w]:
-                dist[w] = nd
-                heapq.heappush(pq, (nd, w))
-    return dist
+            if relax(dist, parent, v, w, c):
+                push_pq(pq, dist[w], w)
+    return dist, parent
+
+def route(parent, target): return path_to(parent, target)
 --cpp
+// MinPq, pushPq, popPq, relax and pathTo come from the code pieces
+
 // adj[v] holds {neighbour, cost}
-vector<long long> dijkstra(const vector<vector<pair<int,int>>>& adj, int src) {
+pair<vector<long long>, vector<int>> dijkstra(const vector<vector<pair<int,int>>>& adj, int src) {
     int n = adj.size();
     vector<long long> dist(n, LLONG_MAX / 4);
+    vector<int> parent(n, -1);
     dist[src] = 0;
-    priority_queue<pair<long long,int>, vector<pair<long long,int>>, greater<>> pq;
-    pq.push({0, src});
+    MinPq pq;
+    pushPq(pq, 0, src);
     while (!pq.empty()) {
-        auto [d, v] = pq.top(); pq.pop();
-        if (d > dist[v]) continue;                     // stale entry
-        for (auto [w, c] : adj[v]) {
-            if (d + c < dist[w]) { dist[w] = d + c; pq.push({dist[w], w}); }
-        }
+        auto [d, v] = popPq(pq);
+        if (d > dist[v]) continue;                            // stale entry
+        for (auto [w, c] : adj[v])
+            if (relax(dist, parent, v, w, c)) pushPq(pq, dist[w], w);
     }
-    return dist;
+    return {dist, parent};
 }
+
+vector<int> route(const vector<int>& parent, int target) { return pathTo(parent, target); }
 ### knapsack
 --idea
 The knapsack problem: you have items, each with a weight and a value, and a bag that holds a limited weight. Pick items to get the most value without going over. You cannot split an item, so for each one the choice is take it or leave it.
 Trying every combination is far too slow. Dynamic programming works because the best answer for "some items, some capacity" only depends on the best answers for fewer items. You build up from nothing.
 --build
-1. Define `dp[c]` as the best value you can get using the items looked at so far with a bag of capacity `c`. Start with all zeros.
-2. Take the items one at a time. For an item with weight `w` and value `v`, update every capacity from large to small: `dp[c] = max(dp[c], dp[c - w] + v)`.
-3. Going from large to small matters: it makes sure the item is used at most once, because `dp[c - w]` has not been updated for this item yet.
+1. Define `dp[c]` as the best value you can get using the items looked at so far with a bag of capacity `c`. Make the table with the piece `newTable(capacity, 0)`, so all slots start at zero.
+2. Take the items one at a time. For an item with weight `w` and value `v`, update every capacity from large to small: `chmax(dp, c, dp[c - w] + v)`. The piece `chmax` keeps the larger of the old and new value.
+3. Going from large to small matters: it makes sure the item is used at most once, because `dp[c - w]` has not been updated for this item yet. Keeping only this one row is the "rolling row" piece idea.
 4. After the last item, `dp[capacity]` is the answer.
-5. If you need which items were chosen, keep the full table of rows (items by capacity) and walk back from the end.
+5. If you need which items were chosen, keep the full table of rows (items by capacity) and walk back from the end with the `reconstruct` piece.
 --think
 - Signal: choose a subset, each choice has a cost (weight, time, money) and a gain, and there is a hard limit. The limit has to be small enough to loop over (up to about a million), otherwise think meet in the middle or branch and bound.
 - State the question as "after considering the first i items, with c left". If you can write that sentence, the DP follows.
@@ -241,27 +269,33 @@ Trying every combination is far too slow. Dynamic programming works because the 
 - Pitfalls: looping capacity upward (lets an item be used twice), forgetting that weight can exceed capacity, and starting `dp` with 0 when you need "exactly c" (then use minus infinity except `dp[0] = 0`).
 --cost
 Time O(n times capacity). Space O(capacity) with one row.
+--uses
+u-table
+u-maxupd
 --java
+// newTable and chmax come from the code pieces
 static long knapsack(int[] w, int[] v, int cap) {
-    long[] dp = new long[cap + 1];
+    long[] dp = newTable(cap, 0);
     for (int i = 0; i < w.length; i++)
-        for (int c = cap; c >= w[i]; c--)            // downward: each item once
-            dp[c] = Math.max(dp[c], dp[c - w[i]] + v[i]);
+        for (int c = cap; c >= w[i]; c--)                // downward: each item once
+            chmax(dp, c, dp[c - w[i]] + v[i]);
     return dp[cap];
 }
 --py
+# new_table and chmax come from the code pieces
 def knapsack(w, v, cap):
-    dp = [0] * (cap + 1)
+    dp = new_table(cap, 0)
     for i in range(len(w)):
-        for c in range(cap, w[i] - 1, -1):           # downward: each item once
-            dp[c] = max(dp[c], dp[c - w[i]] + v[i])
+        for c in range(cap, w[i] - 1, -1):               # downward: each item once
+            chmax(dp, c, dp[c - w[i]] + v[i])
     return dp[cap]
 --cpp
+// newTable and chmax come from the code pieces
 long long knapsack(const vector<int>& w, const vector<int>& v, int cap) {
-    vector<long long> dp(cap + 1, 0);
+    vector<long long> dp = newTable(cap, 0);
     for (size_t i = 0; i < w.size(); i++)
-        for (int c = cap; c >= w[i]; c--)            // downward: each item once
-            dp[c] = max(dp[c], dp[c - w[i]] + v[i]);
+        for (int c = cap; c >= w[i]; c--)                // downward: each item once
+            chmax(dp[c], dp[c - w[i]] + v[i]);
     return dp[cap];
 }
 ### kmp
@@ -269,11 +303,11 @@ long long knapsack(const vector<int>& w, const vector<int>& v, int cap) {
 KMP finds every place a short pattern appears inside a long text without ever stepping backwards in the text. When a match fails halfway, the naive method restarts the pattern from the next text position and re-reads letters it has already seen. KMP remembers how much of the pattern is still valid and carries on.
 What it remembers is the prefix function: for each position in the pattern, the length of the longest piece that is both a prefix of the pattern and a suffix ending at that position (a border). If you mismatch after matching `k` letters, you fall back to the border of those `k` letters rather than to zero.
 --build
-1. Build `pi` for the pattern: `pi[i]` is the length of the longest border of `pattern[0..i]`.
-2. To compute it, walk `i` from 1. Keep `k = pi[i-1]`. While `k > 0` and the letters differ, shrink `k = pi[k-1]`. If the letters now match, grow `k` by one. Store `pi[i] = k`.
-3. To search, do the same walk over `pattern + "#" + text` (the `#` is a letter that appears in neither), or run the matching loop on the text directly with the same fall-back rule.
-4. Every time the running length `k` reaches the pattern length, you found a match that ends here. Its start is `i - m + 1`.
-5. After a full match, fall back with `k = pi[k-1]` to look for overlapping matches.
+1. Build `pi` for the pattern with the piece `prefixFunction`: `pi[i]` is the length of the longest border of `pattern[0..i]` (a piece of the start that is also a piece ending at `i`).
+2. To see how that piece works: walk `i` from 1, keep `k = pi[i-1]`, while `k > 0` and the letters differ shrink `k = pi[k-1]`, and if the letters now match grow `k` by one.
+3. To search, run `prefixFunction` over `pattern + "#" + text` (the `#` is a letter that appears in neither).
+4. Every time a value in the text part equals the pattern length, you found a match that ends there. Its start is `i - 2m` in the joined string.
+5. The same piece gives the smallest repeating unit of a string: `n - pi[n-1]` when that divides `n`.
 --think
 - Signal: find one string inside another many times, or reason about repeats and borders (period of a string, shortest repeating unit). If the text length is large and a naive scan would be quadratic, reach for KMP.
 - The prefix function is the real tool. The smallest period of a string of length `n` is `n - pi[n-1]` when that divides `n`.
@@ -282,18 +316,10 @@ What it remembers is the prefix function: for each position in the pattern, the 
 - Pitfalls: not using a separator and matching across the pattern and text boundary, off-by-one when reporting positions, and forgetting the fall-back after a full match.
 --cost
 Time O(n + m). Space O(m) for the prefix function.
+--uses
+u-prefixfn
 --java
-static int[] prefixFunction(String s) {
-    int n = s.length();
-    int[] pi = new int[n];
-    for (int i = 1; i < n; i++) {
-        int k = pi[i - 1];
-        while (k > 0 && s.charAt(i) != s.charAt(k)) k = pi[k - 1];
-        if (s.charAt(i) == s.charAt(k)) k++;
-        pi[i] = k;
-    }
-    return pi;
-}
+// prefixFunction comes from the code piece
 
 // start positions of every match of p inside t
 static List<Integer> search(String t, String p) {
@@ -304,36 +330,28 @@ static List<Integer> search(String t, String p) {
         if (pi[i] == m) hits.add(i - 2 * m);
     return hits;
 }
+
+// length of the shortest piece that repeats to make s (n if none)
+static int smallestPeriod(String s) {
+    int n = s.length(), k = n - prefixFunction(s)[n - 1];
+    return n % k == 0 ? k : n;
+}
 --py
-def prefix_function(s):
-    n = len(s)
-    pi = [0] * n
-    for i in range(1, n):
-        k = pi[i - 1]
-        while k > 0 and s[i] != s[k]:
-            k = pi[k - 1]
-        if s[i] == s[k]:
-            k += 1
-        pi[i] = k
-    return pi
+# prefix_function comes from the code piece
 
 def search(t, p):
     """Start positions of every match of p inside t."""
     m = len(p)
     pi = prefix_function(p + "#" + t)
     return [i - 2 * m for i in range(m + 1, len(pi)) if pi[i] == m]
+
+def smallest_period(s):
+    """Length of the shortest piece that repeats to make s (len(s) if none)."""
+    n = len(s)
+    k = n - prefix_function(s)[n - 1]
+    return k if n % k == 0 else n
 --cpp
-vector<int> prefixFunction(const string& s) {
-    int n = s.size();
-    vector<int> pi(n);
-    for (int i = 1; i < n; i++) {
-        int k = pi[i - 1];
-        while (k > 0 && s[i] != s[k]) k = pi[k - 1];
-        if (s[i] == s[k]) k++;
-        pi[i] = k;
-    }
-    return pi;
-}
+// prefixFunction comes from the code piece
 
 // start positions of every match of p inside t
 vector<int> search(const string& t, const string& p) {
@@ -343,15 +361,21 @@ vector<int> search(const string& t, const string& p) {
         if (pi[i] == m) hits.push_back(i - 2 * m);
     return hits;
 }
+
+// length of the shortest piece that repeats to make s (n if none)
+int smallestPeriod(const string& s) {
+    int n = s.size(), k = n - prefixFunction(s)[n - 1];
+    return n % k == 0 ? k : n;
+}
 ### consistent
 --idea
 Consistent hashing spreads data over many servers so that adding or removing a server moves only a small share of the data. The simple way, `server = hash(key) % numberOfServers`, is a trap: change the number of servers and almost every key lands somewhere new.
 Instead, place both servers and keys on a circle by hashing them. A key belongs to the first server you meet going clockwise from it. When a server leaves, only its keys move on to the next server around the circle. When one joins, it takes keys only from its clockwise neighbour.
 --build
-1. Pick a hash function and a circle of positions, for example 0 to 2^32.
-2. Hash each server's name to a position and keep all positions in a sorted structure (a sorted array or a balanced tree).
-3. To place a key, hash it and find the first server position that is greater than or equal to it (a lower bound search). If you run off the end, wrap to the first server.
-4. To add a server, insert its position. To remove one, delete it. Only the keys between it and its neighbour change owner.
+1. Pick a hash function that spreads similar names far apart (a final bit mixer matters) and a circle of positions, for example 0 to 2^31.
+2. Hash each server's name to a position and keep all positions in a sorted array, next to a matching array of owner names.
+3. To place a key, hash it and find the first server position that is greater than or equal to it. That is exactly the code piece `lowerBound` run on the sorted array. If it runs off the end, wrap to the first server.
+4. To add a server, insert its positions and keep the arrays sorted. To remove one, delete them. Only the keys between it and its neighbour change owner.
 5. Give each real server many "virtual nodes" (for example 100 positions named `server#0`, `server#1`, ...) so the load spreads evenly and a failed server's keys scatter over many others.
 --think
 - Signal: data is spread across machines or caches that can come and go, and you cannot afford to reshuffle everything each time. Caches, databases, load balancers, and distributed file stores all use it.
@@ -361,82 +385,95 @@ Instead, place both servers and keys on a circle by hashing them. A key belongs 
 - Pitfalls: using a weak hash that clusters (a plain multiply-and-add hash puts similar names next to each other, so one server gets almost every key; always finish with a bit mixer), forgetting to wrap around, and rebuilding the sorted array on every change instead of keeping it ordered.
 --cost
 Lookup O(log N) for N virtual nodes. Adding or removing a server moves about 1/S of the keys for S servers.
+--uses
+u-lower
 --java
+// lowerBound comes from the code piece
 static class Ring {
-    private final TreeMap<Long, String> ring = new TreeMap<>();
+    private int[] pos = new int[0];                      // sorted positions on the circle
+    private String[] own = new String[0];                // own[i] is the server at pos[i]
     private final int replicas;
 
     Ring(int replicas) { this.replicas = replicas; }
 
-    private long hash(String s) {                        // FNV-1a, then a final mix so similar names spread out
+    private int hash(String s) {                         // FNV-1a, then a final mix so similar names spread out
         long h = 0xcbf29ce484222325L;
         for (int i = 0; i < s.length(); i++) { h ^= s.charAt(i); h *= 0x100000001b3L; }
         h ^= h >>> 30; h *= 0xbf58476d1ce4e5b9L;
         h ^= h >>> 27; h *= 0x94d049bb133111ebL;
-        return h ^ (h >>> 31);
+        return (int) ((h ^ (h >>> 31)) & 0x7fffffff);
     }
 
-    void addServer(String name) { for (int i = 0; i < replicas; i++) ring.put(hash(name + "#" + i), name); }
-    void removeServer(String name) { for (int i = 0; i < replicas; i++) ring.remove(hash(name + "#" + i)); }
+    private void rebuild(List<int[]> items, List<String> names) {   // items: {position, index into names}
+        items.sort((a, b) -> Integer.compare(a[0], b[0]));
+        pos = new int[items.size()]; own = new String[items.size()];
+        for (int i = 0; i < pos.length; i++) { pos[i] = items.get(i)[0]; own[i] = names.get(items.get(i)[1]); }
+    }
+
+    void addServer(String name) {
+        List<int[]> items = new ArrayList<>(); List<String> names = new ArrayList<>();
+        for (int i = 0; i < pos.length; i++) { names.add(own[i]); items.add(new int[]{pos[i], names.size() - 1}); }
+        for (int i = 0; i < replicas; i++) { names.add(name); items.add(new int[]{hash(name + "#" + i), names.size() - 1}); }
+        rebuild(items, names);
+    }
 
     String owner(String key) {
-        Map.Entry<Long, String> e = ring.ceilingEntry(hash(key));   // first server clockwise
-        return (e != null ? e : ring.firstEntry()).getValue();      // wrap around
+        int i = lowerBound(pos, hash(key));              // first server clockwise
+        return own[i == pos.length ? 0 : i];             // wrap around
     }
 }
 --py
-import bisect
-
+# lower_bound comes from the code piece
 class Ring:
     def __init__(self, replicas=100):
         self.replicas = replicas
-        self.keys = []            # sorted positions on the circle
-        self.owner_of = {}        # position -> server
+        self.pos = []                # sorted positions on the circle
+        self.own = []                # own[i] is the server at pos[i]
 
-    def _hash(self, s):                  # FNV-1a, then a final mix so similar names spread out
+    def _hash(self, s):              # FNV-1a, then a final mix so similar names spread out
         M = 0xFFFFFFFFFFFFFFFF
         h = 0xcbf29ce484222325
         for ch in s:
             h = ((h ^ ord(ch)) * 0x100000001b3) & M
         h ^= h >> 30; h = (h * 0xbf58476d1ce4e5b9) & M
         h ^= h >> 27; h = (h * 0x94d049bb133111eb) & M
-        return h ^ (h >> 31)
+        return (h ^ (h >> 31)) & 0x7fffffff
 
     def add_server(self, name):
-        for i in range(self.replicas):
-            pos = self._hash(f"{name}#{i}")
-            bisect.insort(self.keys, pos)
-            self.owner_of[pos] = name
-
-    def remove_server(self, name):
-        for i in range(self.replicas):
-            pos = self._hash(f"{name}#{i}")
-            self.keys.remove(pos)
-            del self.owner_of[pos]
+        items = list(zip(self.pos, self.own)) + [(self._hash(f"{name}#{i}"), name) for i in range(self.replicas)]
+        items.sort()
+        self.pos = [p for p, _ in items]; self.own = [o for _, o in items]
 
     def owner(self, key):
-        i = bisect.bisect_left(self.keys, self._hash(key))
-        return self.owner_of[self.keys[i % len(self.keys)]]   # wrap around
+        i = lower_bound(self.pos, self._hash(key))   # first server clockwise
+        return self.own[0 if i == len(self.pos) else i]  # wrap around
 --cpp
+// lowerBound comes from the code piece
 struct Ring {
-    map<unsigned long long, string> ring;
+    vector<int> pos;                 // sorted positions on the circle
+    vector<string> own;              // own[i] is the server at pos[i]
     int replicas;
     Ring(int replicas = 100) : replicas(replicas) {}
 
-    static unsigned long long hashOf(const string& s) {        // FNV-1a, then a final mix so similar names spread out
+    static int hashOf(const string& s) {          // FNV-1a, then a final mix so similar names spread out
         unsigned long long h = 0xcbf29ce484222325ULL;
         for (char ch : s) { h ^= (unsigned char)ch; h *= 0x100000001b3ULL; }
         h ^= h >> 30; h *= 0xbf58476d1ce4e5b9ULL;
         h ^= h >> 27; h *= 0x94d049bb133111ebULL;
-        return h ^ (h >> 31);
+        return (int)((h ^ (h >> 31)) & 0x7fffffff);
     }
 
-    void addServer(const string& name) { for (int i = 0; i < replicas; i++) ring[hashOf(name + "#" + to_string(i))] = name; }
-    void removeServer(const string& name) { for (int i = 0; i < replicas; i++) ring.erase(hashOf(name + "#" + to_string(i))); }
+    void addServer(const string& name) {
+        vector<pair<int,string>> items;
+        for (size_t i = 0; i < pos.size(); i++) items.push_back({pos[i], own[i]});
+        for (int i = 0; i < replicas; i++) items.push_back({hashOf(name + "#" + to_string(i)), name});
+        sort(items.begin(), items.end());
+        pos.clear(); own.clear();
+        for (auto& [p, o] : items) { pos.push_back(p); own.push_back(o); }
+    }
 
     string owner(const string& key) const {
-        auto it = ring.lower_bound(hashOf(key));               // first server clockwise
-        if (it == ring.end()) it = ring.begin();               // wrap around
-        return it->second;
+        int i = lowerBound(pos, hashOf(key));     // first server clockwise
+        return own[i == (int)pos.size() ? 0 : i]; // wrap around
     }
 };

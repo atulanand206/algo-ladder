@@ -63,7 +63,7 @@ def parse_snips():
 put("snips",parse_snips())
 # Lessons: lessons/*.txt blocks "### id" with sections --idea --build --think --cost --java --py --cpp.
 # One small JSON file per topic, loaded only when a topic is opened; lessons-index.json lists which topics have one.
-SECS=("idea","build","think","cost","java","py","cpp")
+SECS=("idea","build","think","cost","uses","java","py","cpp")
 def parse_lessons():
     out={}
     for f in sorted(glob.glob(os.path.join(here,"lessons","*.txt"))):
