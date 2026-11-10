@@ -20,6 +20,15 @@ for p in pr:
     if not meta["showCode"] and (p.get("code") or p.get("file")): errs.append(f"problem {p['id']}: personal code in a public build")
 for f in ("index.html",):
     if "__DATA__" in open("dist/"+f).read(): errs.append("template placeholder left in index.html")
+les=json.load(open(f"{D}/lessons-index.json"))
+for k in les:
+    if k not in ids: errs.append(f"lesson {k} matches no topic")
+    else:
+        L=json.load(open(f"{D}/lessons/{k}.json"))
+        for sec in ("idea","build","think","cost","java","py","cpp"):
+            if not L.get(sec,"").strip(): errs.append(f"lesson {k} is missing section {sec}")
+topics=[n for n in graph if n["col"]>=2]
+print(len(les),"of",len(topics),"topics have a lesson")
 print(len(graph),"topics,",len(code),"code pieces,",len(pr),"problems")
 if errs: print("\n".join(errs));sys.exit(1)
 print("ok")

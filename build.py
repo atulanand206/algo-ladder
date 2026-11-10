@@ -61,6 +61,21 @@ def parse_snips():
             out[head.strip()]={parts[i]:parts[i+1].rstrip("\n") for i in range(1,len(parts),2)}   # later files override
     return out
 put("snips",parse_snips())
+# Lessons: lessons/*.txt blocks "### id" with sections --idea --build --think --cost --java --py --cpp.
+# One small JSON file per topic, loaded only when a topic is opened; lessons-index.json lists which topics have one.
+SECS=("idea","build","think","cost","java","py","cpp")
+def parse_lessons():
+    out={}
+    for f in sorted(glob.glob(os.path.join(here,"lessons","*.txt"))):
+        for blk in open(f).read().split("### ")[1:]:
+            head,_,body=blk.partition("\n")
+            parts=re.split(r"^--("+"|".join(SECS)+r")\n",body,flags=re.M)
+            out[head.strip()]={parts[i]:parts[i+1].strip("\n") for i in range(1,len(parts),2)}
+    return out
+LES=parse_lessons()
+os.makedirs("dist/data/lessons",exist_ok=True)
+for k,v in LES.items(): open(f"dist/data/lessons/{k}.json","w").write(json.dumps(dict(id=k,**v),ensure_ascii=False,separators=(",",":")))
+put("lessons-index",sorted(LES))
 open("dist/index.html","w").write(open("app.html").read())
 from collections import Counter
 from collections import Counter as C2

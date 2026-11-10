@@ -1,0 +1,442 @@
+### binary-search
+--idea
+Binary search finds a value in a sorted list by repeatedly cutting the search range in half. Look at the middle item: if it is too small, everything to its left is too small as well, so throw that half away. Each step removes half of what is left, so a million items need about 20 looks.
+The real idea is wider than "find a number in an array". Any time you have a yes or no question whose answer flips only once as you move along a line (no, no, no, yes, yes, yes), you can find the flip point the same way.
+--build
+1. Keep two ends, `lo` and `hi`, that hold the part of the list that could still contain the answer.
+2. Pick the middle, `mid = lo + (hi - lo) / 2`. Writing it this way cannot overflow.
+3. Ask the question about `mid`. If the answer is "too small", move `lo` to `mid + 1`. Otherwise move `hi` to `mid`.
+4. Stop when `lo == hi`. That single position is the answer (or the place where it would be inserted).
+5. Check the result: confirm `a[lo] == target` if you need an exact match.
+--think
+- Signal: the data is sorted, or a property only ever changes from false to true as the input grows. "Minimum value such that..." and "maximum value such that..." are the classic wording.
+- Decide first what `lo` and `hi` mean, and whether `hi` itself can be the answer. Most bugs are an off-by-one in that choice.
+- Use the "first true" form: keep a range where the answer is inside, and shrink it with `hi = mid` or `lo = mid + 1`. Never write a loop that can leave `lo` and `hi` unchanged, or it runs forever.
+- If you cannot say what the question is for a single `mid`, it is not a binary search problem. If the answer does not flip only once, it will give wrong results quietly.
+- Pitfalls: overflow in `(lo + hi) / 2`, empty input, duplicates (lower bound and upper bound give the first and last position), and floating point ranges (loop a fixed number of times instead of comparing to equality).
+--cost
+Time O(log n) per search. Space O(1). Needs sorted input, or a monotone yes or no question.
+--java
+// first index in a sorted array with a[i] >= x (a.length if none)
+static int lowerBound(int[] a, int x) {
+    int lo = 0, hi = a.length;
+    while (lo < hi) {
+        int mid = lo + (hi - lo) / 2;
+        if (a[mid] < x) lo = mid + 1;
+        else hi = mid;
+    }
+    return lo;
+}
+
+// exact search built on top of it: index of x, or -1
+static int find(int[] a, int x) {
+    int i = lowerBound(a, x);
+    return i < a.length && a[i] == x ? i : -1;
+}
+--py
+def lower_bound(a, x):
+    """First index with a[i] >= x (len(a) if none)."""
+    lo, hi = 0, len(a)
+    while lo < hi:
+        mid = (lo + hi) // 2
+        if a[mid] < x:
+            lo = mid + 1
+        else:
+            hi = mid
+    return lo
+
+def find(a, x):
+    """Index of x, or -1."""
+    i = lower_bound(a, x)
+    return i if i < len(a) and a[i] == x else -1
+--cpp
+// first index in a sorted vector with a[i] >= x (a.size() if none)
+int lowerBound(const vector<int>& a, int x) {
+    int lo = 0, hi = a.size();
+    while (lo < hi) {
+        int mid = lo + (hi - lo) / 2;
+        if (a[mid] < x) lo = mid + 1;
+        else hi = mid;
+    }
+    return lo;
+}
+
+// exact search built on top of it: index of x, or -1
+int findIndex(const vector<int>& a, int x) {
+    int i = lowerBound(a, x);
+    return i < (int)a.size() && a[i] == x ? i : -1;
+}
+### dsu
+--idea
+Union-find keeps track of groups of items that have been joined together. It answers two questions very fast: "which group is this item in?" and "merge the groups of these two items". Think of friend circles: once A is friends with B, and B with C, all three are in the same circle, and you never need to list the friendships to know it.
+Each group is stored as a tree where every item points to a parent, and the root of the tree names the group. Two tricks keep the trees almost flat, so both questions take almost constant time.
+--build
+1. Start with every item as its own group: `parent[i] = i`.
+2. `find(x)` follows parents until it reaches an item that is its own parent. That root is the group's name.
+3. Path compression: while walking up, point every item you pass straight at the root, so the next `find` is shorter.
+4. `union(a, b)` finds both roots. If they differ, hang the smaller tree under the bigger one (union by size) and add the sizes.
+5. Two items are in the same group exactly when `find(a) == find(b)`.
+--think
+- Signal: items get connected over time and you keep asking "are these two connected?" or "how many groups are there?". Examples: networks, friend circles, grid islands, building a spanning tree, merging accounts.
+- It only grows groups. It cannot split one apart or remove a connection. If you need that, think offline processing or a rollback version.
+- Pair it with a sorted edge list and you get Kruskal's minimum spanning tree: take edges cheapest first and keep one only if it joins two different groups.
+- Track extra facts at the root (size, sum, smallest member) and update them when you merge.
+- Pitfalls: forgetting to compress paths (it still works but can slow to O(n)), comparing parents instead of roots, and recursion depth in `find` on huge inputs (use the loop form).
+--cost
+Time almost O(1) per operation (inverse Ackermann, below 5 for any real input). Space O(n).
+--java
+static int[] parent, size;
+
+static void init(int n) {
+    parent = new int[n]; size = new int[n];
+    for (int i = 0; i < n; i++) { parent[i] = i; size[i] = 1; }
+}
+
+static int find(int x) {
+    while (parent[x] != x) {
+        parent[x] = parent[parent[x]];   // path compression (halving)
+        x = parent[x];
+    }
+    return x;
+}
+
+static boolean union(int a, int b) {     // false if already in one group
+    a = find(a); b = find(b);
+    if (a == b) return false;
+    if (size[a] < size[b]) { int t = a; a = b; b = t; }
+    parent[b] = a; size[a] += size[b];
+    return true;
+}
+--py
+class DSU:
+    def __init__(self, n):
+        self.parent = list(range(n))
+        self.size = [1] * n
+
+    def find(self, x):
+        while self.parent[x] != x:
+            self.parent[x] = self.parent[self.parent[x]]   # path compression
+            x = self.parent[x]
+        return x
+
+    def union(self, a, b):               # False if already in one group
+        a, b = self.find(a), self.find(b)
+        if a == b: return False
+        if self.size[a] < self.size[b]: a, b = b, a
+        self.parent[b] = a
+        self.size[a] += self.size[b]
+        return True
+--cpp
+struct DSU {
+    vector<int> parent, sz;
+    DSU(int n) : parent(n), sz(n, 1) { iota(parent.begin(), parent.end(), 0); }
+
+    int find(int x) {
+        while (parent[x] != x) {
+            parent[x] = parent[parent[x]];   // path compression
+            x = parent[x];
+        }
+        return x;
+    }
+
+    bool unite(int a, int b) {           // false if already in one group
+        a = find(a); b = find(b);
+        if (a == b) return false;
+        if (sz[a] < sz[b]) swap(a, b);
+        parent[b] = a; sz[a] += sz[b];
+        return true;
+    }
+};
+### dijkstra
+--idea
+Dijkstra finds the cheapest route from one starting point to every other point in a map where each road has a non-negative cost. It works like a ripple: the start is at distance 0, and you always settle the closest place not yet settled, because no later route can beat it (all roads cost zero or more).
+Once a place is settled, its distance is final. From it you offer better routes to its neighbours, and keep the best offer each neighbour has seen.
+--build
+1. Set `dist[start] = 0` and every other distance to infinity.
+2. Put `(0, start)` into a min-heap ordered by distance.
+3. Pop the smallest `(d, v)`. If `d` is larger than `dist[v]`, it is an old entry, skip it.
+4. For each road `v -> w` with cost `c`: if `dist[v] + c < dist[w]`, update `dist[w]` and push `(dist[w], w)`. This step is called relaxing the edge.
+5. Repeat until the heap is empty. Keep `parent[w] = v` when you relax if you also need the actual path.
+--think
+- Signal: "shortest or cheapest path", costs on roads, and none of the costs are negative. All costs equal 1 means plain BFS is enough. Some costs 0 or 1 means 0-1 BFS.
+- Negative cost on any road breaks the "settled is final" argument. Use Bellman-Ford instead.
+- The heap lets you find the next closest place quickly. Without it, scanning all places each time gives O(V squared), which is fine for small dense graphs.
+- Use `long` for distances, and an infinity that can be added to without overflowing.
+- The same idea shows up whenever "cost" is not distance: time, money, risk. Build a graph whose nodes are states (place plus fuel left) and run Dijkstra over states.
+- Pitfalls: forgetting to skip stale heap entries, using an int that overflows, and running it on a graph with negative edges.
+--cost
+Time O((V + E) log V) with a binary heap. Space O(V + E).
+--java
+// adj.get(v) holds {neighbour, cost}
+static long[] dijkstra(List<List<int[]>> adj, int src) {
+    int n = adj.size();
+    long[] dist = new long[n];
+    Arrays.fill(dist, Long.MAX_VALUE / 4);
+    dist[src] = 0;
+    PriorityQueue<long[]> pq = new PriorityQueue<>((a, b) -> Long.compare(a[0], b[0]));
+    pq.add(new long[]{0, src});
+    while (!pq.isEmpty()) {
+        long[] cur = pq.poll();
+        int v = (int) cur[1];
+        if (cur[0] > dist[v]) continue;               // stale entry
+        for (int[] e : adj.get(v)) {
+            long nd = dist[v] + e[1];
+            if (nd < dist[e[0]]) { dist[e[0]] = nd; pq.add(new long[]{nd, e[0]}); }
+        }
+    }
+    return dist;
+}
+--py
+import heapq
+
+def dijkstra(adj, src):
+    """adj[v] is a list of (neighbour, cost)."""
+    n = len(adj)
+    dist = [float("inf")] * n
+    dist[src] = 0
+    pq = [(0, src)]
+    while pq:
+        d, v = heapq.heappop(pq)
+        if d > dist[v]:
+            continue                                   # stale entry
+        for w, c in adj[v]:
+            nd = d + c
+            if nd < dist[w]:
+                dist[w] = nd
+                heapq.heappush(pq, (nd, w))
+    return dist
+--cpp
+// adj[v] holds {neighbour, cost}
+vector<long long> dijkstra(const vector<vector<pair<int,int>>>& adj, int src) {
+    int n = adj.size();
+    vector<long long> dist(n, LLONG_MAX / 4);
+    dist[src] = 0;
+    priority_queue<pair<long long,int>, vector<pair<long long,int>>, greater<>> pq;
+    pq.push({0, src});
+    while (!pq.empty()) {
+        auto [d, v] = pq.top(); pq.pop();
+        if (d > dist[v]) continue;                     // stale entry
+        for (auto [w, c] : adj[v]) {
+            if (d + c < dist[w]) { dist[w] = d + c; pq.push({dist[w], w}); }
+        }
+    }
+    return dist;
+}
+### knapsack
+--idea
+The knapsack problem: you have items, each with a weight and a value, and a bag that holds a limited weight. Pick items to get the most value without going over. You cannot split an item, so for each one the choice is take it or leave it.
+Trying every combination is far too slow. Dynamic programming works because the best answer for "some items, some capacity" only depends on the best answers for fewer items. You build up from nothing.
+--build
+1. Define `dp[c]` as the best value you can get using the items looked at so far with a bag of capacity `c`. Start with all zeros.
+2. Take the items one at a time. For an item with weight `w` and value `v`, update every capacity from large to small: `dp[c] = max(dp[c], dp[c - w] + v)`.
+3. Going from large to small matters: it makes sure the item is used at most once, because `dp[c - w]` has not been updated for this item yet.
+4. After the last item, `dp[capacity]` is the answer.
+5. If you need which items were chosen, keep the full table of rows (items by capacity) and walk back from the end.
+--think
+- Signal: choose a subset, each choice has a cost (weight, time, money) and a gain, and there is a hard limit. The limit has to be small enough to loop over (up to about a million), otherwise think meet in the middle or branch and bound.
+- State the question as "after considering the first i items, with c left". If you can write that sentence, the DP follows.
+- One row of size `capacity + 1` is enough when you only need the value. This is the rolling array idea.
+- Change the direction of the loop and you get the unbounded version (each item any number of times). Change `max` to counting and you get "how many ways".
+- Related forms: subset sum (values are all 1 or yes/no), partition into two equal halves, and "can I make exactly this total".
+- Pitfalls: looping capacity upward (lets an item be used twice), forgetting that weight can exceed capacity, and starting `dp` with 0 when you need "exactly c" (then use minus infinity except `dp[0] = 0`).
+--cost
+Time O(n times capacity). Space O(capacity) with one row.
+--java
+static long knapsack(int[] w, int[] v, int cap) {
+    long[] dp = new long[cap + 1];
+    for (int i = 0; i < w.length; i++)
+        for (int c = cap; c >= w[i]; c--)            // downward: each item once
+            dp[c] = Math.max(dp[c], dp[c - w[i]] + v[i]);
+    return dp[cap];
+}
+--py
+def knapsack(w, v, cap):
+    dp = [0] * (cap + 1)
+    for i in range(len(w)):
+        for c in range(cap, w[i] - 1, -1):           # downward: each item once
+            dp[c] = max(dp[c], dp[c - w[i]] + v[i])
+    return dp[cap]
+--cpp
+long long knapsack(const vector<int>& w, const vector<int>& v, int cap) {
+    vector<long long> dp(cap + 1, 0);
+    for (size_t i = 0; i < w.size(); i++)
+        for (int c = cap; c >= w[i]; c--)            // downward: each item once
+            dp[c] = max(dp[c], dp[c - w[i]] + v[i]);
+    return dp[cap];
+}
+### kmp
+--idea
+KMP finds every place a short pattern appears inside a long text without ever stepping backwards in the text. When a match fails halfway, the naive method restarts the pattern from the next text position and re-reads letters it has already seen. KMP remembers how much of the pattern is still valid and carries on.
+What it remembers is the prefix function: for each position in the pattern, the length of the longest piece that is both a prefix of the pattern and a suffix ending at that position (a border). If you mismatch after matching `k` letters, you fall back to the border of those `k` letters rather than to zero.
+--build
+1. Build `pi` for the pattern: `pi[i]` is the length of the longest border of `pattern[0..i]`.
+2. To compute it, walk `i` from 1. Keep `k = pi[i-1]`. While `k > 0` and the letters differ, shrink `k = pi[k-1]`. If the letters now match, grow `k` by one. Store `pi[i] = k`.
+3. To search, do the same walk over `pattern + "#" + text` (the `#` is a letter that appears in neither), or run the matching loop on the text directly with the same fall-back rule.
+4. Every time the running length `k` reaches the pattern length, you found a match that ends here. Its start is `i - m + 1`.
+5. After a full match, fall back with `k = pi[k-1]` to look for overlapping matches.
+--think
+- Signal: find one string inside another many times, or reason about repeats and borders (period of a string, shortest repeating unit). If the text length is large and a naive scan would be quadratic, reach for KMP.
+- The prefix function is the real tool. The smallest period of a string of length `n` is `n - pi[n-1]` when that divides `n`.
+- Z-function gives the same information in a different shape. Choose whichever you find easier to reason about.
+- If you need to match many patterns at once, extend the idea to Aho-Corasick. If you only compare substrings, hashing is often simpler.
+- Pitfalls: not using a separator and matching across the pattern and text boundary, off-by-one when reporting positions, and forgetting the fall-back after a full match.
+--cost
+Time O(n + m). Space O(m) for the prefix function.
+--java
+static int[] prefixFunction(String s) {
+    int n = s.length();
+    int[] pi = new int[n];
+    for (int i = 1; i < n; i++) {
+        int k = pi[i - 1];
+        while (k > 0 && s.charAt(i) != s.charAt(k)) k = pi[k - 1];
+        if (s.charAt(i) == s.charAt(k)) k++;
+        pi[i] = k;
+    }
+    return pi;
+}
+
+// start positions of every match of p inside t
+static List<Integer> search(String t, String p) {
+    int m = p.length();
+    int[] pi = prefixFunction(p + "#" + t);
+    List<Integer> hits = new ArrayList<>();
+    for (int i = m + 1; i < pi.length; i++)
+        if (pi[i] == m) hits.add(i - 2 * m);
+    return hits;
+}
+--py
+def prefix_function(s):
+    n = len(s)
+    pi = [0] * n
+    for i in range(1, n):
+        k = pi[i - 1]
+        while k > 0 and s[i] != s[k]:
+            k = pi[k - 1]
+        if s[i] == s[k]:
+            k += 1
+        pi[i] = k
+    return pi
+
+def search(t, p):
+    """Start positions of every match of p inside t."""
+    m = len(p)
+    pi = prefix_function(p + "#" + t)
+    return [i - 2 * m for i in range(m + 1, len(pi)) if pi[i] == m]
+--cpp
+vector<int> prefixFunction(const string& s) {
+    int n = s.size();
+    vector<int> pi(n);
+    for (int i = 1; i < n; i++) {
+        int k = pi[i - 1];
+        while (k > 0 && s[i] != s[k]) k = pi[k - 1];
+        if (s[i] == s[k]) k++;
+        pi[i] = k;
+    }
+    return pi;
+}
+
+// start positions of every match of p inside t
+vector<int> search(const string& t, const string& p) {
+    int m = p.size();
+    vector<int> pi = prefixFunction(p + "#" + t), hits;
+    for (int i = m + 1; i < (int)pi.size(); i++)
+        if (pi[i] == m) hits.push_back(i - 2 * m);
+    return hits;
+}
+### consistent
+--idea
+Consistent hashing spreads data over many servers so that adding or removing a server moves only a small share of the data. The simple way, `server = hash(key) % numberOfServers`, is a trap: change the number of servers and almost every key lands somewhere new.
+Instead, place both servers and keys on a circle by hashing them. A key belongs to the first server you meet going clockwise from it. When a server leaves, only its keys move on to the next server around the circle. When one joins, it takes keys only from its clockwise neighbour.
+--build
+1. Pick a hash function and a circle of positions, for example 0 to 2^32.
+2. Hash each server's name to a position and keep all positions in a sorted structure (a sorted array or a balanced tree).
+3. To place a key, hash it and find the first server position that is greater than or equal to it (a lower bound search). If you run off the end, wrap to the first server.
+4. To add a server, insert its position. To remove one, delete it. Only the keys between it and its neighbour change owner.
+5. Give each real server many "virtual nodes" (for example 100 positions named `server#0`, `server#1`, ...) so the load spreads evenly and a failed server's keys scatter over many others.
+--think
+- Signal: data is spread across machines or caches that can come and go, and you cannot afford to reshuffle everything each time. Caches, databases, load balancers, and distributed file stores all use it.
+- Without virtual nodes, a few random positions can split the circle very unevenly. More virtual nodes smooth that out, at the cost of a bigger sorted list.
+- It is binary search in disguise: the ring is a sorted array, and the lookup is a lower bound.
+- Variants worth knowing: rendezvous (highest random weight) hashing, which needs no ring, and bounded-load versions that cap how full a server may get.
+- Pitfalls: using a weak hash that clusters (a plain multiply-and-add hash puts similar names next to each other, so one server gets almost every key; always finish with a bit mixer), forgetting to wrap around, and rebuilding the sorted array on every change instead of keeping it ordered.
+--cost
+Lookup O(log N) for N virtual nodes. Adding or removing a server moves about 1/S of the keys for S servers.
+--java
+static class Ring {
+    private final TreeMap<Long, String> ring = new TreeMap<>();
+    private final int replicas;
+
+    Ring(int replicas) { this.replicas = replicas; }
+
+    private long hash(String s) {                        // FNV-1a, then a final mix so similar names spread out
+        long h = 0xcbf29ce484222325L;
+        for (int i = 0; i < s.length(); i++) { h ^= s.charAt(i); h *= 0x100000001b3L; }
+        h ^= h >>> 30; h *= 0xbf58476d1ce4e5b9L;
+        h ^= h >>> 27; h *= 0x94d049bb133111ebL;
+        return h ^ (h >>> 31);
+    }
+
+    void addServer(String name) { for (int i = 0; i < replicas; i++) ring.put(hash(name + "#" + i), name); }
+    void removeServer(String name) { for (int i = 0; i < replicas; i++) ring.remove(hash(name + "#" + i)); }
+
+    String owner(String key) {
+        Map.Entry<Long, String> e = ring.ceilingEntry(hash(key));   // first server clockwise
+        return (e != null ? e : ring.firstEntry()).getValue();      // wrap around
+    }
+}
+--py
+import bisect
+
+class Ring:
+    def __init__(self, replicas=100):
+        self.replicas = replicas
+        self.keys = []            # sorted positions on the circle
+        self.owner_of = {}        # position -> server
+
+    def _hash(self, s):                  # FNV-1a, then a final mix so similar names spread out
+        M = 0xFFFFFFFFFFFFFFFF
+        h = 0xcbf29ce484222325
+        for ch in s:
+            h = ((h ^ ord(ch)) * 0x100000001b3) & M
+        h ^= h >> 30; h = (h * 0xbf58476d1ce4e5b9) & M
+        h ^= h >> 27; h = (h * 0x94d049bb133111eb) & M
+        return h ^ (h >> 31)
+
+    def add_server(self, name):
+        for i in range(self.replicas):
+            pos = self._hash(f"{name}#{i}")
+            bisect.insort(self.keys, pos)
+            self.owner_of[pos] = name
+
+    def remove_server(self, name):
+        for i in range(self.replicas):
+            pos = self._hash(f"{name}#{i}")
+            self.keys.remove(pos)
+            del self.owner_of[pos]
+
+    def owner(self, key):
+        i = bisect.bisect_left(self.keys, self._hash(key))
+        return self.owner_of[self.keys[i % len(self.keys)]]   # wrap around
+--cpp
+struct Ring {
+    map<unsigned long long, string> ring;
+    int replicas;
+    Ring(int replicas = 100) : replicas(replicas) {}
+
+    static unsigned long long hashOf(const string& s) {        // FNV-1a, then a final mix so similar names spread out
+        unsigned long long h = 0xcbf29ce484222325ULL;
+        for (char ch : s) { h ^= (unsigned char)ch; h *= 0x100000001b3ULL; }
+        h ^= h >> 30; h *= 0xbf58476d1ce4e5b9ULL;
+        h ^= h >> 27; h *= 0x94d049bb133111ebULL;
+        return h ^ (h >> 31);
+    }
+
+    void addServer(const string& name) { for (int i = 0; i < replicas; i++) ring[hashOf(name + "#" + to_string(i))] = name; }
+    void removeServer(const string& name) { for (int i = 0; i < replicas; i++) ring.erase(hashOf(name + "#" + to_string(i))); }
+
+    string owner(const string& key) const {
+        auto it = ring.lower_bound(hashOf(key));               // first server clockwise
+        if (it == ring.end()) it = ring.begin();               // wrap around
+        return it->second;
+    }
+};
