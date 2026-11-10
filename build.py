@@ -51,7 +51,16 @@ put("graph",dict(graph=_full["graph"],cats=_full["cats"]))
 put("concepts",dict(variants=_full["variants"],concepts=_full["concepts"]))
 put("problems",dict(problems=_full["problems"],unmatched=_full["unmatched"]))
 put("explain",dict(explain=_full["explain"]))
-put("snips",json.load(open("snips.json")))
+import glob
+def parse_snips():
+    out={}
+    for f in sorted(glob.glob(os.path.join(here,"snips","*.txt"))):
+        for blk in open(f).read().split("### ")[1:]:
+            head,_,body=blk.partition("\n")
+            parts=re.split(r"^--(java|py|cpp)\n",body,flags=re.M)
+            out[head.strip()]={parts[i]:parts[i+1].rstrip("\n") for i in range(1,len(parts),2)}   # later files override
+    return out
+put("snips",parse_snips())
 open("dist/index.html","w").write(open("app.html").read())
 from collections import Counter
 from collections import Counter as C2

@@ -1,0 +1,1029 @@
+### u-fact
+--java
+static long[][] buildFactorials(int n, long M) {   // {fact, invFact}
+    long[] f = new long[n + 1], inv = new long[n + 1];
+    f[0] = 1;
+    for (int i = 1; i <= n; i++) f[i] = f[i - 1] * i % M;
+    inv[n] = powMod(f[n], M - 2, M);
+    for (int i = n; i > 0; i--) inv[i - 1] = inv[i] * i % M;
+    return new long[][]{f, inv};
+}
+--py
+def build_factorials(n, M):   # (fact, inv_fact)
+    f = [1] * (n + 1)
+    for i in range(1, n + 1): f[i] = f[i - 1] * i % M
+    inv = [1] * (n + 1)
+    inv[n] = pow(f[n], M - 2, M)
+    for i in range(n, 0, -1): inv[i - 1] = inv[i] * i % M
+    return f, inv
+--cpp
+pair<vector<long long>, vector<long long>> buildFactorials(int n, long long M) {   // {fact, invFact}
+    vector<long long> f(n + 1, 1), inv(n + 1, 1);
+    for (int i = 1; i <= n; i++) f[i] = f[i - 1] * i % M;
+    inv[n] = powMod(f[n], M - 2, M);
+    for (int i = n; i > 0; i--) inv[i - 1] = inv[i] * i % M;
+    return {f, inv};
+}
+### u-factorize
+--java
+static List<Long> factorize(long n) {
+    List<Long> fs = new ArrayList<>();
+    for (long d = 2; d * d <= n; d++)
+        while (n % d == 0) { fs.add(d); n /= d; }
+    if (n > 1) fs.add(n);
+    return fs;
+}
+--py
+def factorize(n):
+    fs = []; d = 2
+    while d * d <= n:
+        while n % d == 0: fs.append(d); n //= d
+        d += 1
+    if n > 1: fs.append(n)
+    return fs
+--cpp
+vector<long long> factorize(long long n) {
+    vector<long long> fs;
+    for (long long d = 2; d * d <= n; d++)
+        while (n % d == 0) { fs.push_back(d); n /= d; }
+    if (n > 1) fs.push_back(n);
+    return fs;
+}
+### u-spf
+--java
+static int[] buildSpf(int N) {   // spf[x] = smallest prime factor of x
+    int[] spf = new int[N + 1];
+    for (int i = 2; i <= N; i++)
+        if (spf[i] == 0) for (int j = i; j <= N; j += i) if (spf[j] == 0) spf[j] = i;
+    return spf;
+}
+--py
+def build_spf(N):   # spf[x] = smallest prime factor of x
+    spf = [0] * (N + 1)
+    for i in range(2, N + 1):
+        if spf[i] == 0:
+            for j in range(i, N + 1, i):
+                if spf[j] == 0: spf[j] = i
+    return spf
+--cpp
+vector<int> buildSpf(int N) {   // spf[x] = smallest prime factor of x
+    vector<int> spf(N + 1);
+    for (int i = 2; i <= N; i++)
+        if (!spf[i]) for (int j = i; j <= N; j += i) if (!spf[j]) spf[j] = i;
+    return spf;
+}
+### u-phi
+--java
+static long phi(long n) {   // how many numbers in 1..n share no factor with n
+    long r = n;
+    for (long d = 2; d * d <= n; d++)
+        if (n % d == 0) { while (n % d == 0) n /= d; r -= r / d; }
+    if (n > 1) r -= r / n;
+    return r;
+}
+--py
+def phi(n):   # how many numbers in 1..n share no factor with n
+    r = n; d = 2
+    while d * d <= n:
+        if n % d == 0:
+            while n % d == 0: n //= d
+            r -= r // d
+        d += 1
+    if n > 1: r -= r // n
+    return r
+--cpp
+long long phi(long long n) {   // how many numbers in 1..n share no factor with n
+    long long r = n;
+    for (long long d = 2; d * d <= n; d++)
+        if (n % d == 0) { while (n % d == 0) n /= d; r -= r / d; }
+    if (n > 1) r -= r / n;
+    return r;
+}
+### u-matmul
+--java
+static long[][] matMul(long[][] a, long[][] b, long M) {
+    int n = a.length;
+    long[][] c = new long[n][n];
+    for (int i = 0; i < n; i++) for (int k = 0; k < n; k++)
+        for (int j = 0; j < n; j++) c[i][j] = (c[i][j] + a[i][k] * b[k][j]) % M;
+    return c;
+}
+--py
+def mat_mul(a, b, M):
+    n = len(a)
+    return [[sum(a[i][k] * b[k][j] for k in range(n)) % M for j in range(n)] for i in range(n)]
+--cpp
+typedef vector<vector<long long>> Mat;
+Mat matMul(const Mat& a, const Mat& b, long long M) {
+    int n = a.size();
+    Mat c(n, vector<long long>(n));
+    for (int i = 0; i < n; i++) for (int k = 0; k < n; k++)
+        for (int j = 0; j < n; j++) c[i][j] = (c[i][j] + a[i][k] * b[k][j]) % M;
+    return c;
+}
+### u-matpow
+--java
+static long[][] matPow(long[][] base, long e, long M) {
+    int n = base.length;
+    long[][] res = new long[n][n];
+    for (int i = 0; i < n; i++) res[i][i] = 1;   // identity
+    for (; e > 0; e >>= 1, base = matMul(base, base, M))
+        if ((e & 1) == 1) res = matMul(res, base, M);
+    return res;
+}
+--py
+def mat_pow(base, e, M):
+    n = len(base)
+    res = [[int(i == j) for j in range(n)] for i in range(n)]   # identity
+    while e:
+        if e & 1: res = mat_mul(res, base, M)
+        base = mat_mul(base, base, M); e >>= 1
+    return res
+--cpp
+Mat matPow(Mat base, long long e, long long M) {
+    int n = base.size();
+    Mat res(n, vector<long long>(n));
+    for (int i = 0; i < n; i++) res[i][i] = 1;   // identity
+    for (; e > 0; e >>= 1, base = matMul(base, base, M))
+        if (e & 1) res = matMul(res, base, M);
+    return res;
+}
+### u-bigadd
+--java
+static int[] bigAdd(int[] a, int[] b) {   // digits, least significant first
+    List<Integer> out = new ArrayList<>();
+    int carry = 0;
+    for (int i = 0; i < Math.max(a.length, b.length) || carry > 0; i++) {
+        int s = carry + (i < a.length ? a[i] : 0) + (i < b.length ? b[i] : 0);
+        out.add(s % 10); carry = s / 10;
+    }
+    return out.stream().mapToInt(Integer::intValue).toArray();
+}
+--py
+def big_add(a, b):   # digits, least significant first
+    out, carry = [], 0
+    for i in range(max(len(a), len(b))):
+        s = carry + (a[i] if i < len(a) else 0) + (b[i] if i < len(b) else 0)
+        out.append(s % 10); carry = s // 10
+    if carry: out.append(carry)
+    return out
+--cpp
+vector<int> bigAdd(const vector<int>& a, const vector<int>& b) {   // digits, least significant first
+    vector<int> out;
+    int carry = 0;
+    for (size_t i = 0; i < max(a.size(), b.size()) || carry; i++) {
+        int s = carry + (i < a.size() ? a[i] : 0) + (i < b.size() ? b[i] : 0);
+        out.push_back(s % 10); carry = s / 10;
+    }
+    return out;
+}
+### u-bigmul
+--java
+static int[] bigMul(int[] a, int[] b) {   // digits, least significant first
+    int[] c = new int[a.length + b.length];
+    for (int i = 0; i < a.length; i++) for (int j = 0; j < b.length; j++) c[i + j] += a[i] * b[j];
+    for (int i = 0; i + 1 < c.length; i++) { c[i + 1] += c[i] / 10; c[i] %= 10; }
+    return c;
+}
+--py
+def big_mul(a, b):   # digits, least significant first
+    c = [0] * (len(a) + len(b))
+    for i, x in enumerate(a):
+        for j, y in enumerate(b): c[i + j] += x * y
+    for i in range(len(c) - 1):
+        c[i + 1] += c[i] // 10; c[i] %= 10
+    return c
+--cpp
+vector<int> bigMul(const vector<int>& a, const vector<int>& b) {   // digits, least significant first
+    vector<int> c(a.size() + b.size());
+    for (size_t i = 0; i < a.size(); i++) for (size_t j = 0; j < b.size(); j++) c[i + j] += a[i] * b[j];
+    for (size_t i = 0; i + 1 < c.size(); i++) { c[i + 1] += c[i] / 10; c[i] %= 10; }
+    return c;
+}
+### u-bfsloop
+--java
+static int[] bfs(List<List<Integer>> adj, int s) {   // distance from s, -1 if unreachable
+    int[] dist = new int[adj.size()];
+    Arrays.fill(dist, -1); dist[s] = 0;
+    Deque<Integer> q = new ArrayDeque<>(); q.add(s);
+    while (!q.isEmpty()) {
+        int v = q.poll();
+        for (int w : adj.get(v)) if (dist[w] < 0) { dist[w] = dist[v] + 1; q.add(w); }
+    }
+    return dist;
+}
+--py
+def bfs(adj, s):   # distance from s, -1 if unreachable
+    dist = [-1] * len(adj); dist[s] = 0
+    q = deque([s])
+    while q:
+        v = q.popleft()
+        for w in adj[v]:
+            if dist[w] < 0: dist[w] = dist[v] + 1; q.append(w)
+    return dist
+--cpp
+vector<int> bfs(const vector<vector<int>>& adj, int s) {   // distance from s, -1 if unreachable
+    vector<int> dist(adj.size(), -1); dist[s] = 0;
+    queue<int> q; q.push(s);
+    while (!q.empty()) {
+        int v = q.front(); q.pop();
+        for (int w : adj[v]) if (dist[w] < 0) { dist[w] = dist[v] + 1; q.push(w); }
+    }
+    return dist;
+}
+### u-iterdfs
+--java
+static boolean[] dfsIter(List<List<Integer>> adj, int s) {   // which nodes can be reached from s
+    boolean[] seen = new boolean[adj.size()];
+    Deque<Integer> st = new ArrayDeque<>(); st.push(s);
+    while (!st.isEmpty()) {
+        int v = st.pop();
+        if (seen[v]) continue;
+        seen[v] = true;
+        for (int w : adj.get(v)) if (!seen[w]) st.push(w);
+    }
+    return seen;
+}
+--py
+def dfs_iter(adj, s):   # which nodes can be reached from s
+    seen = [False] * len(adj); st = [s]
+    while st:
+        v = st.pop()
+        if seen[v]: continue
+        seen[v] = True
+        for w in adj[v]:
+            if not seen[w]: st.append(w)
+    return seen
+--cpp
+vector<bool> dfsIter(const vector<vector<int>>& adj, int s) {   // which nodes can be reached from s
+    vector<bool> seen(adj.size()); vector<int> st = {s};
+    while (!st.empty()) {
+        int v = st.back(); st.pop_back();
+        if (seen[v]) continue;
+        seen[v] = true;
+        for (int w : adj[v]) if (!seen[w]) st.push_back(w);
+    }
+    return seen;
+}
+### u-parentpath
+--java
+static List<Integer> pathTo(int[] parent, int t) {   // parent[start] = -1
+    List<Integer> path = new ArrayList<>();
+    for (int v = t; v != -1; v = parent[v]) path.add(v);
+    Collections.reverse(path);
+    return path;
+}
+--py
+def path_to(parent, t):   # parent[start] = -1
+    path = []
+    while t != -1:
+        path.append(t); t = parent[t]
+    return path[::-1]
+--cpp
+vector<int> pathTo(const vector<int>& parent, int t) {   // parent[start] = -1
+    vector<int> path;
+    for (int v = t; v != -1; v = parent[v]) path.push_back(v);
+    reverse(path.begin(), path.end());
+    return path;
+}
+### u-relax
+--java
+static boolean relax(long[] dist, int[] parent, int u, int v, long w) {
+    if (dist[u] + w >= dist[v]) return false;
+    dist[v] = dist[u] + w; parent[v] = u;
+    return true;
+}
+--py
+def relax(dist, parent, u, v, w):
+    if dist[u] + w >= dist[v]: return False
+    dist[v] = dist[u] + w; parent[v] = u
+    return True
+--cpp
+bool relax(vector<long long>& dist, vector<int>& parent, int u, int v, long long w) {
+    if (dist[u] + w >= dist[v]) return false;
+    dist[v] = dist[u] + w; parent[v] = u;
+    return true;
+}
+### u-pq
+--java
+static PriorityQueue<long[]> newPq() {   // ordered by the first value
+    return new PriorityQueue<>((a, b) -> Long.compare(a[0], b[0]));
+}
+static void pushPq(PriorityQueue<long[]> pq, long key, long val) { pq.add(new long[]{key, val}); }
+static long[] popPq(PriorityQueue<long[]> pq) { return pq.poll(); }
+--py
+import heapq
+def push_pq(pq, key, val): heapq.heappush(pq, (key, val))
+def pop_pq(pq): return heapq.heappop(pq)
+--cpp
+typedef priority_queue<pair<long long,int>, vector<pair<long long,int>>, greater<>> MinPq;
+void pushPq(MinPq& pq, long long key, int val) { pq.push({key, val}); }
+pair<long long,int> popPq(MinPq& pq) { auto t = pq.top(); pq.pop(); return t; }
+### u-binlift
+--java
+static int[][] buildLift(int[] parent, int LOG) {   // up[k][v] = 2^k-th ancestor of v
+    int n = parent.length;
+    int[][] up = new int[LOG][n];
+    up[0] = parent.clone();
+    for (int k = 1; k < LOG; k++)
+        for (int v = 0; v < n; v++) up[k][v] = up[k - 1][up[k - 1][v]];
+    return up;
+}
+--py
+def build_lift(parent, LOG):   # up[k][v] = 2^k-th ancestor of v
+    n = len(parent)
+    up = [parent[:]]
+    for k in range(1, LOG):
+        up.append([up[k - 1][up[k - 1][v]] for v in range(n)])
+    return up
+--cpp
+vector<vector<int>> buildLift(const vector<int>& parent, int LOG) {   // up[k][v] = 2^k-th ancestor of v
+    int n = parent.size();
+    vector<vector<int>> up(LOG, vector<int>(n));
+    up[0] = parent;
+    for (int k = 1; k < LOG; k++)
+        for (int v = 0; v < n; v++) up[k][v] = up[k - 1][up[k - 1][v]];
+    return up;
+}
+### u-toposort
+--java
+static List<Integer> topoOrder(List<List<Integer>> adj) {   // shorter than n means a cycle
+    int n = adj.size();
+    int[] indeg = new int[n];
+    for (int v = 0; v < n; v++) for (int w : adj.get(v)) indeg[w]++;
+    Deque<Integer> q = new ArrayDeque<>();
+    for (int v = 0; v < n; v++) if (indeg[v] == 0) q.add(v);
+    List<Integer> order = new ArrayList<>();
+    while (!q.isEmpty()) {
+        int v = q.poll(); order.add(v);
+        for (int w : adj.get(v)) if (--indeg[w] == 0) q.add(w);
+    }
+    return order;
+}
+--py
+def topo_order(adj):   # shorter than n means a cycle
+    n = len(adj); indeg = [0] * n
+    for v in range(n):
+        for w in adj[v]: indeg[w] += 1
+    q = deque(v for v in range(n) if indeg[v] == 0); order = []
+    while q:
+        v = q.popleft(); order.append(v)
+        for w in adj[v]:
+            indeg[w] -= 1
+            if indeg[w] == 0: q.append(w)
+    return order
+--cpp
+vector<int> topoOrder(const vector<vector<int>>& adj) {   // shorter than n means a cycle
+    int n = adj.size();
+    vector<int> indeg(n), order;
+    for (int v = 0; v < n; v++) for (int w : adj[v]) indeg[w]++;
+    queue<int> q;
+    for (int v = 0; v < n; v++) if (!indeg[v]) q.push(v);
+    while (!q.empty()) {
+        int v = q.front(); q.pop(); order.push_back(v);
+        for (int w : adj[v]) if (--indeg[w] == 0) q.push(w);
+    }
+    return order;
+}
+### u-edgesort
+--java
+static void sortEdges(int[][] edges) {   // each edge is {u, v, weight}
+    Arrays.sort(edges, (a, b) -> Integer.compare(a[2], b[2]));
+}
+--py
+def sort_edges(edges):   # each edge is (u, v, weight)
+    edges.sort(key=lambda e: e[2])
+--cpp
+void sortEdges(vector<array<int,3>>& edges) {   // each edge is {u, v, weight}
+    sort(edges.begin(), edges.end(), [](auto& a, auto& b) { return a[2] < b[2]; });
+}
+### u-table
+--java
+static long[] newTable(int n, long init) {
+    long[] dp = new long[n + 1];
+    Arrays.fill(dp, init);
+    return dp;
+}
+--py
+def new_table(n, init):
+    return [init] * (n + 1)
+--cpp
+vector<long long> newTable(int n, long long init) {
+    return vector<long long>(n + 1, init);
+}
+### u-maxupd
+--java
+static boolean chmax(long[] a, int i, long v) { if (v > a[i]) { a[i] = v; return true; } return false; }
+static boolean chmin(long[] a, int i, long v) { if (v < a[i]) { a[i] = v; return true; } return false; }
+--py
+def chmax(a, i, v):
+    if v > a[i]: a[i] = v; return True
+    return False
+def chmin(a, i, v):
+    if v < a[i]: a[i] = v; return True
+    return False
+--cpp
+template <class T> bool chmax(T& a, T v) { if (v > a) { a = v; return true; } return false; }
+template <class T> bool chmin(T& a, T v) { if (v < a) { a = v; return true; } return false; }
+### u-rolling
+--java
+static long knapsack(int[] w, int[] val, int cap) {   // one row instead of a full table
+    long[] dp = new long[cap + 1];
+    for (int i = 0; i < w.length; i++)
+        for (int c = cap; c >= w[i]; c--) dp[c] = Math.max(dp[c], dp[c - w[i]] + val[i]);
+    return dp[cap];
+}
+--py
+def knapsack(w, val, cap):   # one row instead of a full table
+    dp = [0] * (cap + 1)
+    for i in range(len(w)):
+        for c in range(cap, w[i] - 1, -1):
+            dp[c] = max(dp[c], dp[c - w[i]] + val[i])
+    return dp[cap]
+--cpp
+long long knapsack(const vector<int>& w, const vector<int>& val, int cap) {   // one row instead of a full table
+    vector<long long> dp(cap + 1);
+    for (size_t i = 0; i < w.size(); i++)
+        for (int c = cap; c >= w[i]; c--) dp[c] = max(dp[c], dp[c - w[i]] + val[i]);
+    return dp[cap];
+}
+### u-recon
+--java
+static List<Integer> reconstruct(int[] from, int end) {   // from[s] = the state we came from, 0 = start
+    List<Integer> steps = new ArrayList<>();
+    for (int s = end; s != 0; s = from[s]) steps.add(s);
+    Collections.reverse(steps);
+    return steps;
+}
+--py
+def reconstruct(frm, end):   # frm[s] = the state we came from, 0 = start
+    steps = []
+    while end != 0:
+        steps.append(end); end = frm[end]
+    return steps[::-1]
+--cpp
+vector<int> reconstruct(const vector<int>& from, int end) {   // from[s] = the state we came from, 0 = start
+    vector<int> steps;
+    for (int s = end; s != 0; s = from[s]) steps.push_back(s);
+    reverse(steps.begin(), steps.end());
+    return steps;
+}
+### u-maskiter
+--java
+static List<Integer> itemsIn(int mask, int n) {   // which of items 0..n-1 are in the subset
+    List<Integer> items = new ArrayList<>();
+    for (int i = 0; i < n; i++) if ((mask >> i & 1) == 1) items.add(i);
+    return items;
+}
+// for (int mask = 0; mask < (1 << n); mask++) itemsIn(mask, n);
+--py
+def items_in(mask, n):   # which of items 0..n-1 are in the subset
+    return [i for i in range(n) if mask >> i & 1]
+# for mask in range(1 << n): items_in(mask, n)
+--cpp
+vector<int> itemsIn(int mask, int n) {   // which of items 0..n-1 are in the subset
+    vector<int> items;
+    for (int i = 0; i < n; i++) if (mask >> i & 1) items.push_back(i);
+    return items;
+}
+// for (int mask = 0; mask < (1 << n); mask++) itemsIn(mask, n);
+### u-submask
+--java
+static List<Integer> submasks(int mask) {   // every non-empty subset of mask
+    List<Integer> out = new ArrayList<>();
+    for (int sub = mask; sub > 0; sub = (sub - 1) & mask) out.add(sub);
+    return out;
+}
+--py
+def submasks(mask):   # every non-empty subset of mask
+    out, sub = [], mask
+    while sub > 0:
+        out.append(sub); sub = (sub - 1) & mask
+    return out
+--cpp
+vector<int> submasks(int mask) {   // every non-empty subset of mask
+    vector<int> out;
+    for (int sub = mask; sub > 0; sub = (sub - 1) & mask) out.push_back(sub);
+    return out;
+}
+### u-count26
+--java
+static int[] countLetters(String s) {
+    int[] cnt = new int[26];
+    for (char ch : s.toCharArray()) cnt[ch - 'a']++;
+    return cnt;
+}
+--py
+def count_letters(s):
+    cnt = [0] * 26
+    for ch in s: cnt[ord(ch) - 97] += 1
+    return cnt
+--cpp
+array<int, 26> countLetters(const string& s) {
+    array<int, 26> cnt{};
+    for (char ch : s) cnt[ch - 'a']++;
+    return cnt;
+}
+### u-prefixfn
+--java
+static int[] prefixFunction(String s) {   // pi[i] = longest border of s[0..i]
+    int n = s.length(); int[] pi = new int[n];
+    for (int i = 1; i < n; i++) {
+        int k = pi[i - 1];
+        while (k > 0 && s.charAt(i) != s.charAt(k)) k = pi[k - 1];
+        if (s.charAt(i) == s.charAt(k)) k++;
+        pi[i] = k;
+    }
+    return pi;
+}
+--py
+def prefix_function(s):   # pi[i] = longest border of s[0..i]
+    n = len(s); pi = [0] * n
+    for i in range(1, n):
+        k = pi[i - 1]
+        while k and s[i] != s[k]: k = pi[k - 1]
+        if s[i] == s[k]: k += 1
+        pi[i] = k
+    return pi
+--cpp
+vector<int> prefixFunction(const string& s) {   // pi[i] = longest border of s[0..i]
+    int n = s.size(); vector<int> pi(n);
+    for (int i = 1; i < n; i++) {
+        int k = pi[i - 1];
+        while (k && s[i] != s[k]) k = pi[k - 1];
+        if (s[i] == s[k]) k++;
+        pi[i] = k;
+    }
+    return pi;
+}
+### u-zfn
+--java
+static int[] zFunction(String s) {   // z[i] = how far s matches its own start from i
+    int n = s.length(); int[] z = new int[n];
+    for (int i = 1, l = 0, r = 0; i < n; i++) {
+        if (i < r) z[i] = Math.min(r - i, z[i - l]);
+        while (i + z[i] < n && s.charAt(z[i]) == s.charAt(i + z[i])) z[i]++;
+        if (i + z[i] > r) { l = i; r = i + z[i]; }
+    }
+    return z;
+}
+--py
+def z_function(s):   # z[i] = how far s matches its own start from i
+    n = len(s); z = [0] * n; l = r = 0
+    for i in range(1, n):
+        if i < r: z[i] = min(r - i, z[i - l])
+        while i + z[i] < n and s[z[i]] == s[i + z[i]]: z[i] += 1
+        if i + z[i] > r: l, r = i, i + z[i]
+    return z
+--cpp
+vector<int> zFunction(const string& s) {   // z[i] = how far s matches its own start from i
+    int n = s.size(); vector<int> z(n);
+    for (int i = 1, l = 0, r = 0; i < n; i++) {
+        if (i < r) z[i] = min(r - i, z[i - l]);
+        while (i + z[i] < n && s[z[i]] == s[i + z[i]]) z[i]++;
+        if (i + z[i] > r) { l = i; r = i + z[i]; }
+    }
+    return z;
+}
+### u-hashroll
+--java
+static final long B = 131, M = 1_000_000_007L;
+static long[][] buildHash(String s) {   // {h, pw}: h[i] = hash of the first i letters
+    int n = s.length();
+    long[] h = new long[n + 1], pw = new long[n + 1];
+    pw[0] = 1;
+    for (int i = 0; i < n; i++) {
+        h[i + 1] = (h[i] * B + s.charAt(i)) % M;
+        pw[i + 1] = pw[i] * B % M;
+    }
+    return new long[][]{h, pw};
+}
+--py
+B, M = 131, 1_000_000_007
+def build_hash(s):   # (h, pw): h[i] = hash of the first i letters
+    h, pw = [0], [1]
+    for ch in s:
+        h.append((h[-1] * B + ord(ch)) % M)
+        pw.append(pw[-1] * B % M)
+    return h, pw
+--cpp
+const long long B = 131, M = 1000000007;
+pair<vector<long long>, vector<long long>> buildHash(const string& s) {   // {h, pw}
+    int n = s.size();
+    vector<long long> h(n + 1), pw(n + 1, 1);
+    for (int i = 0; i < n; i++) {
+        h[i + 1] = (h[i] * B + s[i]) % M;
+        pw[i + 1] = pw[i] * B % M;
+    }
+    return {h, pw};
+}
+### u-lcp2
+--java
+static int commonPrefix(String a, String b) {
+    int k = 0;
+    while (k < Math.min(a.length(), b.length()) && a.charAt(k) == b.charAt(k)) k++;
+    return k;
+}
+--py
+def common_prefix(a, b):
+    k = 0
+    while k < min(len(a), len(b)) and a[k] == b[k]: k += 1
+    return k
+--cpp
+int commonPrefix(const string& a, const string& b) {
+    int k = 0;
+    while (k < (int)min(a.size(), b.size()) && a[k] == b[k]) k++;
+    return k;
+}
+### u-ispalin
+--java
+static boolean isPalindrome(String s) {
+    for (int i = 0, j = s.length() - 1; i < j; i++, j--)
+        if (s.charAt(i) != s.charAt(j)) return false;
+    return true;
+}
+--py
+def is_palindrome(s):
+    return s == s[::-1]
+--cpp
+bool isPalindrome(const string& s) {
+    return equal(s.begin(), s.end(), s.rbegin());
+}
+### u-trieins
+--java
+static class Trie {
+    int[][] nxt = new int[100_001][26]; boolean[] end = new boolean[100_001]; int cnt = 1;
+    void insert(String w) {
+        int v = 0;
+        for (char ch : w.toCharArray()) {
+            if (nxt[v][ch - 'a'] == 0) nxt[v][ch - 'a'] = cnt++;
+            v = nxt[v][ch - 'a'];
+        }
+        end[v] = true;
+    }
+    boolean search(String w) {
+        int v = 0;
+        for (char ch : w.toCharArray()) { v = nxt[v][ch - 'a']; if (v == 0) return false; }
+        return end[v];
+    }
+}
+--py
+class Trie:
+    def __init__(self): self.nodes = [{}]; self.end = [False]
+    def insert(self, w):
+        v = 0
+        for ch in w:
+            if ch not in self.nodes[v]:
+                self.nodes.append({}); self.end.append(False)
+                self.nodes[v][ch] = len(self.nodes) - 1
+            v = self.nodes[v][ch]
+        self.end[v] = True
+    def search(self, w):
+        v = 0
+        for ch in w:
+            if ch not in self.nodes[v]: return False
+            v = self.nodes[v][ch]
+        return self.end[v]
+--cpp
+struct Trie {
+    vector<array<int, 26>> nxt{array<int, 26>{}}; vector<bool> end{false};
+    void insert(const string& w) {
+        int v = 0;
+        for (char ch : w) {
+            if (!nxt[v][ch - 'a']) { nxt[v][ch - 'a'] = nxt.size(); nxt.push_back({}); end.push_back(false); }
+            v = nxt[v][ch - 'a'];
+        }
+        end[v] = true;
+    }
+    bool search(const string& w) {
+        int v = 0;
+        for (char ch : w) { v = nxt[v][ch - 'a']; if (!v) return false; }
+        return end[v];
+    }
+};
+### u-orientf
+--java
+static long orient(long ax, long ay, long bx, long by, long cx, long cy) {   // >0 left, <0 right, 0 straight
+    return (bx - ax) * (cy - ay) - (by - ay) * (cx - ax);
+}
+--py
+def orient(ax, ay, bx, by, cx, cy):   # >0 left, <0 right, 0 straight
+    return (bx - ax) * (cy - ay) - (by - ay) * (cx - ax)
+--cpp
+long long orient(long long ax, long long ay, long long bx, long long by, long long cx, long long cy) {   // >0 left, <0 right, 0 straight
+    return (bx - ax) * (cy - ay) - (by - ay) * (cx - ax);
+}
+### u-segon
+--java
+static boolean onSegment(long ax, long ay, long bx, long by, long px, long py) {
+    return (bx - ax) * (py - ay) - (by - ay) * (px - ax) == 0
+        && Math.min(ax, bx) <= px && px <= Math.max(ax, bx)
+        && Math.min(ay, by) <= py && py <= Math.max(ay, by);
+}
+--py
+def on_segment(ax, ay, bx, by, px, py):
+    return ((bx - ax) * (py - ay) - (by - ay) * (px - ax) == 0
+            and min(ax, bx) <= px <= max(ax, bx) and min(ay, by) <= py <= max(ay, by))
+--cpp
+bool onSegment(long long ax, long long ay, long long bx, long long by, long long px, long long py) {
+    return (bx - ax) * (py - ay) - (by - ay) * (px - ax) == 0
+        && min(ax, bx) <= px && px <= max(ax, bx) && min(ay, by) <= py && py <= max(ay, by);
+}
+### u-sortang
+--java
+static void sortByAngle(double[][] pts, double cx, double cy) {
+    Arrays.sort(pts, (a, b) -> Double.compare(Math.atan2(a[1] - cy, a[0] - cx), Math.atan2(b[1] - cy, b[0] - cx)));
+}
+--py
+import math
+def sort_by_angle(pts, cx, cy):
+    pts.sort(key=lambda p: math.atan2(p[1] - cy, p[0] - cx))
+--cpp
+void sortByAngle(vector<pair<double,double>>& pts, double cx, double cy) {
+    sort(pts.begin(), pts.end(), [&](auto& a, auto& b) {
+        return atan2(a.second - cy, a.first - cx) < atan2(b.second - cy, b.first - cx);
+    });
+}
+### u-polyarea2
+--java
+static long polygonArea2(long[] x, long[] y) {   // twice the area; take abs and halve
+    long s = 0; int n = x.length;
+    for (int i = 0; i < n; i++) { int j = (i + 1) % n; s += x[i] * y[j] - x[j] * y[i]; }
+    return s;
+}
+--py
+def polygon_area2(x, y):   # twice the area; take abs and halve
+    n = len(x)
+    return sum(x[i] * y[(i + 1) % n] - x[(i + 1) % n] * y[i] for i in range(n))
+--cpp
+long long polygonArea2(const vector<long long>& x, const vector<long long>& y) {   // twice the area; take abs and halve
+    long long s = 0; int n = x.size();
+    for (int i = 0; i < n; i++) { int j = (i + 1) % n; s += x[i] * y[j] - x[j] * y[i]; }
+    return s;
+}
+### u-segbuild
+--java
+static int[] buildSeg(int[] a) {   // leaves live at n..2n-1
+    int n = a.length;
+    int[] t = new int[2 * n];
+    for (int i = 0; i < n; i++) t[n + i] = a[i];
+    for (int i = n - 1; i > 0; i--) t[i] = t[2 * i] + t[2 * i + 1];
+    return t;
+}
+--py
+def build_seg(a):   # leaves live at n..2n-1
+    n = len(a)
+    t = [0] * n + a[:]
+    for i in range(n - 1, 0, -1): t[i] = t[2 * i] + t[2 * i + 1]
+    return t
+--cpp
+vector<int> buildSeg(const vector<int>& a) {   // leaves live at n..2n-1
+    int n = a.size();
+    vector<int> t(2 * n);
+    for (int i = 0; i < n; i++) t[n + i] = a[i];
+    for (int i = n - 1; i > 0; i--) t[i] = t[2 * i] + t[2 * i + 1];
+    return t;
+}
+### u-hpush
+--java
+static class MinHeap {
+    int[] h = new int[1 << 20]; int size = 0;
+    void push(int x) { h[size++] = x; up(size - 1); }
+    void up(int i) { while (i > 0 && h[(i - 1) / 2] > h[i]) { int p = (i - 1) / 2, t = h[i]; h[i] = h[p]; h[p] = t; i = p; } }
+}
+--py
+import heapq
+def heap_push(h, x):
+    heapq.heappush(h, x)
+--cpp
+void heapPush(vector<int>& h, int x) {
+    h.push_back(x);
+    push_heap(h.begin(), h.end(), greater<int>());
+}
+### u-hpop
+--java
+int pop() {   // method of MinHeap above
+    int top = h[0];
+    h[0] = h[--size];
+    for (int i = 0, c; (c = 2 * i + 1) < size; i = c) {
+        if (c + 1 < size && h[c + 1] < h[c]) c++;
+        if (h[i] <= h[c]) break;
+        int t = h[i]; h[i] = h[c]; h[c] = t;
+    }
+    return top;
+}
+--py
+def heap_pop(h):
+    return heapq.heappop(h)
+--cpp
+int heapPop(vector<int>& h) {
+    pop_heap(h.begin(), h.end(), greater<int>());
+    int top = h.back(); h.pop_back();
+    return top;
+}
+### u-listrev
+--java
+static ListNode reverseList(ListNode head) {
+    ListNode prev = null;
+    while (head != null) { ListNode nx = head.next; head.next = prev; prev = head; head = nx; }
+    return prev;
+}
+--py
+def reverse_list(head):
+    prev = None
+    while head:
+        head.next, prev, head = prev, head, head.next
+    return prev
+--cpp
+ListNode* reverseList(ListNode* head) {
+    ListNode* prev = nullptr;
+    while (head) { ListNode* nx = head->next; head->next = prev; prev = head; head = nx; }
+    return prev;
+}
+### u-listmerge
+--java
+static ListNode mergeLists(ListNode a, ListNode b) {
+    ListNode dummy = new ListNode(0), t = dummy;
+    while (a != null && b != null) {
+        if (a.val <= b.val) { t.next = a; a = a.next; } else { t.next = b; b = b.next; }
+        t = t.next;
+    }
+    t.next = a != null ? a : b;
+    return dummy.next;
+}
+--py
+def merge_lists(a, b):
+    dummy = t = ListNode(0)
+    while a and b:
+        if a.val <= b.val: t.next, a = a, a.next
+        else: t.next, b = b, b.next
+        t = t.next
+    t.next = a or b
+    return dummy.next
+--cpp
+ListNode* mergeLists(ListNode* a, ListNode* b) {
+    ListNode dummy(0), *t = &dummy;
+    while (a && b) {
+        if (a->val <= b->val) { t->next = a; a = a->next; } else { t->next = b; b = b->next; }
+        t = t->next;
+    }
+    t->next = a ? a : b;
+    return dummy.next;
+}
+### u-lru
+--java
+static class LRU<K, V> extends LinkedHashMap<K, V> {
+    final int cap;
+    LRU(int cap) { super(16, 0.75f, true); this.cap = cap; }   // true = order by last use
+    @Override protected boolean removeEldestEntry(Map.Entry<K, V> e) { return size() > cap; }
+}
+--py
+from collections import OrderedDict
+class LRU:
+    def __init__(self, cap): self.cap = cap; self.m = OrderedDict()
+    def get(self, k):
+        if k not in self.m: return None
+        self.m.move_to_end(k); return self.m[k]
+    def put(self, k, v):
+        self.m[k] = v; self.m.move_to_end(k)
+        if len(self.m) > self.cap: self.m.popitem(last=False)
+--cpp
+struct LRU {
+    int cap; list<pair<int,int>> order; unordered_map<int, list<pair<int,int>>::iterator> pos;
+    LRU(int c) : cap(c) {}
+    int get(int k) {
+        if (!pos.count(k)) return -1;
+        order.splice(order.begin(), order, pos[k]); return pos[k]->second;
+    }
+    void put(int k, int v) {
+        if (pos.count(k)) order.erase(pos[k]);
+        order.push_front({k, v}); pos[k] = order.begin();
+        if ((int)order.size() > cap) { pos.erase(order.back().first); order.pop_back(); }
+    }
+};
+### u-windowmv
+--java
+static int longestWindow(int[] a, int k) {   // longest stretch with at most k distinct values
+    Map<Integer, Integer> cnt = new HashMap<>();
+    int best = 0;
+    for (int l = 0, r = 0; r < a.length; r++) {
+        cnt.merge(a[r], 1, Integer::sum);                                  // add the new item
+        while (cnt.size() > k) { if (cnt.merge(a[l], -1, Integer::sum) == 0) cnt.remove(a[l]); l++; }   // drop old ones
+        best = Math.max(best, r - l + 1);
+    }
+    return best;
+}
+--py
+def longest_window(a, k):   # longest stretch with at most k distinct values
+    cnt, best, l = {}, 0, 0
+    for r, x in enumerate(a):
+        cnt[x] = cnt.get(x, 0) + 1                  # add the new item
+        while len(cnt) > k:                         # drop old ones
+            cnt[a[l]] -= 1
+            if cnt[a[l]] == 0: del cnt[a[l]]
+            l += 1
+        best = max(best, r - l + 1)
+    return best
+--cpp
+int longestWindow(const vector<int>& a, int k) {   // longest stretch with at most k distinct values
+    map<int, int> cnt; int best = 0;
+    for (int l = 0, r = 0; r < (int)a.size(); r++) {
+        cnt[a[r]]++;                                          // add the new item
+        while ((int)cnt.size() > k) { if (--cnt[a[l]] == 0) cnt.erase(a[l]); l++; }   // drop old ones
+        best = max(best, r - l + 1);
+    }
+    return best;
+}
+### u-diffadd
+--java
+static void rangeAdd(long[] d, int l, int r, long v) {   // add v to a[l..r]
+    d[l] += v;
+    d[r + 1] -= v;
+}
+static long[] materialize(long[] d) {   // running sum gives the real array
+    long[] a = new long[d.length];
+    long s = 0;
+    for (int i = 0; i < d.length; i++) { s += d[i]; a[i] = s; }
+    return a;
+}
+--py
+def range_add(d, l, r, v):   # add v to a[l..r]
+    d[l] += v
+    d[r + 1] -= v
+def materialize(d):   # running sum gives the real array
+    a, s = [], 0
+    for x in d:
+        s += x; a.append(s)
+    return a
+--cpp
+void rangeAdd(vector<long long>& d, int l, int r, long long v) {   // add v to a[l..r]
+    d[l] += v;
+    d[r + 1] -= v;
+}
+vector<long long> materialize(const vector<long long>& d) {   // running sum gives the real array
+    vector<long long> a(d.size()); long long s = 0;
+    for (size_t i = 0; i < d.size(); i++) { s += d[i]; a[i] = s; }
+    return a;
+}
+### u-pfx2d
+--java
+static long[][] build2d(int[][] a) {   // p[i][j] = sum of the top-left i x j block
+    int R = a.length, C = a[0].length;
+    long[][] p = new long[R + 1][C + 1];
+    for (int i = 1; i <= R; i++) for (int j = 1; j <= C; j++)
+        p[i][j] = a[i - 1][j - 1] + p[i - 1][j] + p[i][j - 1] - p[i - 1][j - 1];
+    return p;
+}
+--py
+def build_2d(a):   # p[i][j] = sum of the top-left i x j block
+    R, C = len(a), len(a[0])
+    p = [[0] * (C + 1) for _ in range(R + 1)]
+    for i in range(1, R + 1):
+        for j in range(1, C + 1):
+            p[i][j] = a[i - 1][j - 1] + p[i - 1][j] + p[i][j - 1] - p[i - 1][j - 1]
+    return p
+--cpp
+vector<vector<long long>> build2d(const vector<vector<int>>& a) {   // p[i][j] = sum of the top-left i x j block
+    int R = a.size(), C = a[0].size();
+    vector<vector<long long>> p(R + 1, vector<long long>(C + 1));
+    for (int i = 1; i <= R; i++) for (int j = 1; j <= C; j++)
+        p[i][j] = a[i - 1][j - 1] + p[i - 1][j] + p[i][j - 1] - p[i - 1][j - 1];
+    return p;
+}
+### u-compressv
+--java
+static int[] compress(int[] a) {   // replace each value by its rank among the distinct values
+    int[] s = Arrays.stream(a).distinct().sorted().toArray();
+    int[] out = new int[a.length];
+    for (int i = 0; i < a.length; i++) out[i] = Arrays.binarySearch(s, a[i]);
+    return out;
+}
+--py
+def compress(a):   # replace each value by its rank among the distinct values
+    rank = {v: i for i, v in enumerate(sorted(set(a)))}
+    return [rank[v] for v in a]
+--cpp
+vector<int> compress(const vector<int>& a) {   // replace each value by its rank among the distinct values
+    vector<int> s(a); sort(s.begin(), s.end()); s.erase(unique(s.begin(), s.end()), s.end());
+    vector<int> out;
+    for (int x : a) out.push_back(lower_bound(s.begin(), s.end(), x) - s.begin());
+    return out;
+}
+### u-shuffle
+--java
+static void shuffle(int[] a, Random rnd) {   // Fisher-Yates
+    for (int i = a.length - 1; i > 0; i--) {
+        int j = rnd.nextInt(i + 1);
+        int t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+}
+--py
+import random
+def shuffle(a):   # Fisher-Yates
+    for i in range(len(a) - 1, 0, -1):
+        j = random.randint(0, i)
+        a[i], a[j] = a[j], a[i]
+--cpp
+void shuffleArray(vector<int>& a, mt19937& rng) {   // Fisher-Yates
+    for (int i = (int)a.size() - 1; i > 0; i--) swap(a[i], a[rng() % (i + 1)]);
+}

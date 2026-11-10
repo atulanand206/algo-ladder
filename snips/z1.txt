@@ -1,0 +1,656 @@
+### u-swap
+--java
+static void swap(int[] a, int i, int j) {
+    int t = a[i]; a[i] = a[j]; a[j] = t;
+}
+--py
+def swap(a, i, j):
+    a[i], a[j] = a[j], a[i]
+--cpp
+void swapAt(vector<int>& a, int i, int j) {
+    swap(a[i], a[j]);
+}
+### u-minmax
+--java
+static int clamp(int x, int lo, int hi) {
+    return Math.max(lo, Math.min(hi, x));
+}
+--py
+def clamp(x, lo, hi):
+    return max(lo, min(hi, x))
+--cpp
+int clamp(int x, int lo, int hi) {
+    return max(lo, min(hi, x));
+}
+### u-abs
+--java
+static int dist(int a, int b) { return Math.abs(a - b); }
+static int sign(int x) { return Integer.signum(x); }   // -1, 0, 1
+--py
+def dist(a, b): return abs(a - b)
+def sign(x): return (x > 0) - (x < 0)   # -1, 0, 1
+--cpp
+int dist(int a, int b) { return abs(a - b); }
+int sign(int x) { return (x > 0) - (x < 0); }   // -1, 0, 1
+### u-mid
+--java
+static int mid(int lo, int hi) {
+    return lo + (hi - lo) / 2;   // never overflows
+}
+--py
+def mid(lo, hi):
+    return (lo + hi) // 2   # Python ints never overflow
+--cpp
+int mid(int lo, int hi) {
+    return lo + (hi - lo) / 2;   // never overflows
+}
+### u-bit
+--java
+static boolean getBit(int x, int i) { return (x >> i & 1) == 1; }
+static int setBit(int x, int i)     { return x | (1 << i); }
+static int clearBit(int x, int i)   { return x & ~(1 << i); }
+--py
+def get_bit(x, i):   return x >> i & 1 == 1
+def set_bit(x, i):   return x | (1 << i)
+def clear_bit(x, i): return x & ~(1 << i)
+--cpp
+bool getBit(int x, int i) { return x >> i & 1; }
+int setBit(int x, int i)   { return x | (1 << i); }
+int clearBit(int x, int i) { return x & ~(1 << i); }
+### u-lowbit
+--java
+static int lowbit(int x) {
+    return x & -x;   // lowest set bit, e.g. 12 -> 4
+}
+--py
+def lowbit(x):
+    return x & -x   # lowest set bit, e.g. 12 -> 4
+--cpp
+int lowbit(int x) {
+    return x & -x;   // lowest set bit, e.g. 12 -> 4
+}
+### u-idx
+--java
+static int idx(int r, int c, int cols) { return r * cols + c; }
+static boolean inBounds(int r, int c, int rows, int cols) {
+    return r >= 0 && r < rows && c >= 0 && c < cols;
+}
+--py
+def idx(r, c, cols): return r * cols + c
+def in_bounds(r, c, rows, cols):
+    return 0 <= r < rows and 0 <= c < cols
+--cpp
+int idx(int r, int c, int cols) { return r * cols + c; }
+bool inBounds(int r, int c, int rows, int cols) {
+    return r >= 0 && r < rows && c >= 0 && c < cols;
+}
+### u-dirs
+--java
+static int[][] dirs(boolean eight) {
+    int[][] four = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+    if (!eight) return four;
+    return new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}, {1, 1}, {1, -1}, {-1, 1}, {-1, -1}};
+}
+--py
+def dirs(eight=False):
+    four = [(1, 0), (-1, 0), (0, 1), (0, -1)]
+    return four + [(1, 1), (1, -1), (-1, 1), (-1, -1)] if eight else four
+--cpp
+vector<pair<int,int>> dirs(bool eight) {
+    vector<pair<int,int>> d = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+    if (eight) for (auto p : vector<pair<int,int>>{{1, 1}, {1, -1}, {-1, 1}, {-1, -1}}) d.push_back(p);
+    return d;
+}
+### u-cmp
+--java
+static int compare(int a, int b) {
+    return Integer.compare(a, b);   // <0, 0 or >0
+}
+--py
+def compare(a, b):
+    return (a > b) - (a < b)   # -1, 0 or 1
+--cpp
+int compare(int a, int b) {
+    return (a > b) - (a < b);   // -1, 0 or 1
+}
+### u-in
+--java
+static int[] readInts(BufferedReader br) throws IOException {
+    StringTokenizer st = new StringTokenizer(br.readLine());
+    int[] a = new int[st.countTokens()];
+    for (int i = 0; i < a.length; i++) a[i] = Integer.parseInt(st.nextToken());
+    return a;
+}
+--py
+import sys
+def read_ints():
+    return list(map(int, sys.stdin.readline().split()))
+--cpp
+vector<int> readInts(int n) {   // call ios::sync_with_stdio(false); cin.tie(nullptr); once in main
+    vector<int> a(n);
+    for (int &x : a) cin >> x;
+    return a;
+}
+### u-out
+--java
+static void printArray(int[] a) {
+    StringBuilder sb = new StringBuilder();
+    for (int x : a) sb.append(x).append(' ');
+    System.out.println(sb.toString().trim());
+}
+--py
+def print_array(a):
+    print(*a)
+--cpp
+void printArray(const vector<int>& a) {
+    for (size_t i = 0; i < a.size(); i++) cout << a[i] << (i + 1 < a.size() ? ' ' : '\n');
+}
+### u-fill
+--java
+static int[] filled(int n, int v) {
+    int[] a = new int[n];
+    Arrays.fill(a, v);
+    return a;
+}
+static int[] copy(int[] a) { return a.clone(); }
+--py
+def filled(n, v): return [v] * n
+def copy(a): return a[:]
+--cpp
+vector<int> filled(int n, int v) { return vector<int>(n, v); }
+vector<int> copyOf(const vector<int>& a) { return a; }
+### u-edge
+--java
+static void addEdge(List<List<Integer>> adj, int u, int v, boolean directed) {
+    adj.get(u).add(v);
+    if (!directed) adj.get(v).add(u);
+}
+--py
+def add_edge(adj, u, v, directed=False):
+    adj[u].append(v)
+    if not directed: adj[v].append(u)
+--cpp
+void addEdge(vector<vector<int>>& adj, int u, int v, bool directed = false) {
+    adj[u].push_back(v);
+    if (!directed) adj[v].push_back(u);
+}
+### u-sqrt
+--java
+static long sqrtFloor(long n) {
+    long r = (long) Math.sqrt(n);
+    while (r * r > n) r--;
+    while ((r + 1) * (r + 1) <= n) r++;
+    return r;
+}
+--py
+from math import isqrt
+def sqrt_floor(n): return isqrt(n)
+--cpp
+long long sqrtFloor(long long n) {
+    long long r = sqrtl(n);
+    while (r * r > n) r--;
+    while ((r + 1) * (r + 1) <= n) r++;
+    return r;
+}
+### u-digits
+--java
+static List<Integer> digits(long n) {   // most significant first
+    List<Integer> d = new ArrayList<>();
+    for (; n > 0; n /= 10) d.add((int) (n % 10));
+    Collections.reverse(d);
+    return d;
+}
+--py
+def digits(n):   # most significant first
+    return [int(c) for c in str(n)]
+--cpp
+vector<int> digits(long long n) {   // most significant first
+    vector<int> d;
+    for (; n > 0; n /= 10) d.push_back(n % 10);
+    reverse(d.begin(), d.end());
+    return d;
+}
+### u-lcm
+--java
+static long lcm(long a, long b) {
+    return a / gcd(a, b) * b;   // divide first so it cannot overflow early
+}
+--py
+from math import gcd
+def lcm(a, b): return a // gcd(a, b) * b
+--cpp
+long long lcm(long long a, long long b) {
+    return a / __gcd(a, b) * b;
+}
+### u-mulmod
+--java
+static long mulMod(long a, long b, long m) {
+    return (a % m) * (b % m) % m;   // safe while m < 2^31
+}
+--py
+def mul_mod(a, b, m): return a * b % m
+--cpp
+long long mulMod(long long a, long long b, long long m) {
+    return (__int128)a * b % m;   // safe for any m < 2^63
+}
+### u-digsum
+--java
+static int digitSum(long n) {
+    int s = 0;
+    for (; n > 0; n /= 10) s += n % 10;
+    return s;
+}
+--py
+def digit_sum(n): return sum(map(int, str(n)))
+--cpp
+int digitSum(long long n) {
+    int s = 0;
+    for (; n > 0; n /= 10) s += n % 10;
+    return s;
+}
+### u-popcount
+--java
+static int popcount(int x) { return Integer.bitCount(x); }
+--py
+def popcount(x): return bin(x).count("1")
+--cpp
+int popcount(unsigned x) { return __builtin_popcount(x); }
+### u-reverse
+--java
+static void reverse(int[] a, int i, int j) {
+    for (; i < j; i++, j--) { int t = a[i]; a[i] = a[j]; a[j] = t; }
+}
+--py
+def reverse(a, i, j):
+    a[i:j + 1] = a[i:j + 1][::-1]
+--cpp
+void reverseRange(vector<int>& a, int i, int j) {
+    reverse(a.begin() + i, a.begin() + j + 1);
+}
+### u-rotate
+--java
+static void rotate(int[] a, int k) {   // shift right by k
+    int n = a.length; k %= n;
+    reverse(a, 0, n - 1); reverse(a, 0, k - 1); reverse(a, k, n - 1);
+}
+--py
+def rotate(a, k):   # shift right by k
+    k %= len(a)
+    a[:] = a[-k:] + a[:-k]
+--cpp
+void rotateRight(vector<int>& a, int k) {
+    k %= a.size();
+    rotate(a.begin(), a.end() - k, a.end());
+}
+### u-prefix
+--java
+static long[] buildPrefix(int[] a) {
+    long[] p = new long[a.length + 1];
+    for (int i = 0; i < a.length; i++) p[i + 1] = p[i] + a[i];
+    return p;
+}
+--py
+def build_prefix(a):
+    p = [0]
+    for x in a: p.append(p[-1] + x)
+    return p
+--cpp
+vector<long long> buildPrefix(const vector<int>& a) {
+    vector<long long> p(a.size() + 1);
+    for (size_t i = 0; i < a.size(); i++) p[i + 1] = p[i] + a[i];
+    return p;
+}
+### u-rangesum
+--java
+static long rangeSum(long[] p, int l, int r) {   // sum of a[l..r]
+    return p[r + 1] - p[l];
+}
+--py
+def range_sum(p, l, r):   # sum of a[l..r]
+    return p[r + 1] - p[l]
+--cpp
+long long rangeSum(const vector<long long>& p, int l, int r) {   // sum of a[l..r]
+    return p[r + 1] - p[l];
+}
+### u-freq
+--java
+static Map<Integer, Integer> countFreq(int[] a) {
+    Map<Integer, Integer> f = new HashMap<>();
+    for (int x : a) f.merge(x, 1, Integer::sum);
+    return f;
+}
+--py
+from collections import Counter
+def count_freq(a): return Counter(a)
+--cpp
+map<int, int> countFreq(const vector<int>& a) {
+    map<int, int> f;
+    for (int x : a) f[x]++;
+    return f;
+}
+### u-lower
+--java
+static int lowerBound(int[] a, int x) {   // first index with a[i] >= x
+    int lo = 0, hi = a.length;
+    while (lo < hi) {
+        int m = lo + (hi - lo) / 2;
+        if (a[m] < x) lo = m + 1; else hi = m;
+    }
+    return lo;
+}
+--py
+def lower_bound(a, x):   # first index with a[i] >= x
+    lo, hi = 0, len(a)
+    while lo < hi:
+        m = (lo + hi) // 2
+        if a[m] < x: lo = m + 1
+        else: hi = m
+    return lo
+--cpp
+int lowerBound(const vector<int>& a, int x) {   // first index with a[i] >= x
+    int lo = 0, hi = a.size();
+    while (lo < hi) {
+        int m = lo + (hi - lo) / 2;
+        if (a[m] < x) lo = m + 1; else hi = m;
+    }
+    return lo;
+}
+### u-upper
+--java
+static int upperBound(int[] a, int x) {   // first index with a[i] > x
+    int lo = 0, hi = a.length;
+    while (lo < hi) {
+        int m = lo + (hi - lo) / 2;
+        if (a[m] <= x) lo = m + 1; else hi = m;
+    }
+    return lo;
+}
+--py
+def upper_bound(a, x):   # first index with a[i] > x
+    lo, hi = 0, len(a)
+    while lo < hi:
+        m = (lo + hi) // 2
+        if a[m] <= x: lo = m + 1
+        else: hi = m
+    return lo
+--cpp
+int upperBound(const vector<int>& a, int x) {   // first index with a[i] > x
+    int lo = 0, hi = a.size();
+    while (lo < hi) {
+        int m = lo + (hi - lo) / 2;
+        if (a[m] <= x) lo = m + 1; else hi = m;
+    }
+    return lo;
+}
+### u-first
+--java
+static int firstTrue(int lo, int hi, IntPredicate test) {   // smallest x in [lo, hi] with test(x)
+    while (lo < hi) {
+        int m = lo + (hi - lo) / 2;
+        if (test.test(m)) hi = m; else lo = m + 1;
+    }
+    return lo;
+}
+--py
+def first_true(lo, hi, test):   # smallest x in [lo, hi] with test(x)
+    while lo < hi:
+        m = (lo + hi) // 2
+        if test(m): hi = m
+        else: lo = m + 1
+    return lo
+--cpp
+int firstTrue(int lo, int hi, function<bool(int)> test) {   // smallest x in [lo, hi] with test(x)
+    while (lo < hi) {
+        int m = lo + (hi - lo) / 2;
+        if (test(m)) hi = m; else lo = m + 1;
+    }
+    return lo;
+}
+### u-part
+--java
+static int partition(int[] a, int lo, int hi) {   // returns the pivot's final index
+    int p = a[hi], i = lo;
+    for (int j = lo; j < hi; j++) if (a[j] < p) swap(a, i++, j);
+    swap(a, i, hi);
+    return i;
+}
+--py
+def partition(a, lo, hi):   # returns the pivot's final index
+    p, i = a[hi], lo
+    for j in range(lo, hi):
+        if a[j] < p:
+            a[i], a[j] = a[j], a[i]; i += 1
+    a[i], a[hi] = a[hi], a[i]
+    return i
+--cpp
+int partitionRange(vector<int>& a, int lo, int hi) {   // returns the pivot's final index
+    int p = a[hi], i = lo;
+    for (int j = lo; j < hi; j++) if (a[j] < p) swap(a[i++], a[j]);
+    swap(a[i], a[hi]);
+    return i;
+}
+### u-merge
+--java
+static int[] merge(int[] a, int[] b) {
+    int[] out = new int[a.length + b.length];
+    int i = 0, j = 0, k = 0;
+    while (i < a.length && j < b.length) out[k++] = a[i] <= b[j] ? a[i++] : b[j++];
+    while (i < a.length) out[k++] = a[i++];
+    while (j < b.length) out[k++] = b[j++];
+    return out;
+}
+--py
+def merge(a, b):
+    i = j = 0; out = []
+    while i < len(a) and j < len(b):
+        if a[i] <= b[j]: out.append(a[i]); i += 1
+        else: out.append(b[j]); j += 1
+    return out + a[i:] + b[j:]
+--cpp
+vector<int> mergeSorted(const vector<int>& a, const vector<int>& b) {
+    vector<int> out(a.size() + b.size());
+    merge(a.begin(), a.end(), b.begin(), b.end(), out.begin());
+    return out;
+}
+### u-sortidx
+--java
+static Integer[] sortIndices(int[] a) {   // positions ordered by value
+    Integer[] id = new Integer[a.length];
+    for (int i = 0; i < a.length; i++) id[i] = i;
+    Arrays.sort(id, (x, y) -> Integer.compare(a[x], a[y]));
+    return id;
+}
+--py
+def sort_indices(a):   # positions ordered by value
+    return sorted(range(len(a)), key=lambda i: a[i])
+--cpp
+vector<int> sortIndices(const vector<int>& a) {   // positions ordered by value
+    vector<int> id(a.size());
+    iota(id.begin(), id.end(), 0);
+    sort(id.begin(), id.end(), [&](int x, int y) { return a[x] < a[y]; });
+    return id;
+}
+### u-adj
+--java
+static List<List<Integer>> buildAdj(int n, int[][] edges) {
+    List<List<Integer>> adj = new ArrayList<>();
+    for (int i = 0; i < n; i++) adj.add(new ArrayList<>());
+    for (int[] e : edges) { adj.get(e[0]).add(e[1]); adj.get(e[1]).add(e[0]); }
+    return adj;
+}
+--py
+def build_adj(n, edges):
+    adj = [[] for _ in range(n)]
+    for u, v in edges:
+        adj[u].append(v); adj[v].append(u)
+    return adj
+--cpp
+vector<vector<int>> buildAdj(int n, const vector<pair<int,int>>& edges) {
+    vector<vector<int>> adj(n);
+    for (auto [u, v] : edges) { adj[u].push_back(v); adj[v].push_back(u); }
+    return adj;
+}
+### u-nbr
+--java
+static List<int[]> neighbors(int r, int c, int rows, int cols) {
+    List<int[]> out = new ArrayList<>();
+    int[] dx = {1, -1, 0, 0}, dy = {0, 0, 1, -1};
+    for (int d = 0; d < 4; d++) {
+        int nr = r + dx[d], nc = c + dy[d];
+        if (nr >= 0 && nr < rows && nc >= 0 && nc < cols) out.add(new int[]{nr, nc});
+    }
+    return out;
+}
+--py
+def neighbors(r, c, rows, cols):
+    out = []
+    for dr, dc in [(1, 0), (-1, 0), (0, 1), (0, -1)]:
+        nr, nc = r + dr, c + dc
+        if 0 <= nr < rows and 0 <= nc < cols: out.append((nr, nc))
+    return out
+--cpp
+vector<pair<int,int>> neighbors(int r, int c, int rows, int cols) {
+    vector<pair<int,int>> out;
+    int dx[] = {1, -1, 0, 0}, dy[] = {0, 0, 1, -1};
+    for (int d = 0; d < 4; d++) {
+        int nr = r + dx[d], nc = c + dy[d];
+        if (nr >= 0 && nr < rows && nc >= 0 && nc < cols) out.push_back({nr, nc});
+    }
+    return out;
+}
+### u-inf
+--java
+static final int INF = 1_000_000_000;   // INF + INF still fits in an int
+static int safeAdd(int a, int b) {
+    return (a >= INF || b >= INF) ? INF : a + b;
+}
+--py
+INF = float("inf")
+def safe_add(a, b): return a + b   # inf + x stays inf
+--cpp
+const int INF = 1e9;   // INF + INF still fits in an int
+int safeAdd(int a, int b) {
+    return (a >= INF || b >= INF) ? INF : a + b;
+}
+### u-modadd
+--java
+static int addMod(int a, int b, int m) { return (int) (((long) a + b) % m); }
+static int subMod(int a, int b, int m) { return (int) ((((long) a - b) % m + m) % m); }
+--py
+def add_mod(a, b, m): return (a + b) % m
+def sub_mod(a, b, m): return (a - b) % m
+--cpp
+int addMod(int a, int b, int m) { return ((long long)a + b) % m; }
+int subMod(int a, int b, int m) { return (((long long)a - b) % m + m) % m; }
+### u-rand
+--java
+static final Random RNG = new Random();
+static int randInt(int lo, int hi) {   // inclusive
+    return lo + RNG.nextInt(hi - lo + 1);
+}
+--py
+import random
+def rand_int(lo, hi):   # inclusive
+    return random.randint(lo, hi)
+--cpp
+mt19937 rng(chrono::steady_clock::now().time_since_epoch().count());
+int randInt(int lo, int hi) {   // inclusive
+    return lo + rng() % (hi - lo + 1);
+}
+### u-dist2
+--java
+static long dist2(int x1, int y1, int x2, int y2) {
+    long dx = x1 - x2, dy = y1 - y2;
+    return dx * dx + dy * dy;
+}
+--py
+def dist2(x1, y1, x2, y2):
+    return (x1 - x2) ** 2 + (y1 - y2) ** 2
+--cpp
+long long dist2(int x1, int y1, int x2, int y2) {
+    long long dx = x1 - x2, dy = y1 - y2;
+    return dx * dx + dy * dy;
+}
+### u-charidx
+--java
+static int charIdx(char ch) { return ch - 'a'; }
+--py
+def char_idx(ch): return ord(ch) - ord("a")
+--cpp
+int charIdx(char ch) { return ch - 'a'; }
+### u-pair
+--java
+static int comparePairs(int[] a, int[] b) {   // first value, then second
+    return a[0] != b[0] ? Integer.compare(a[0], b[0]) : Integer.compare(a[1], b[1]);
+}
+// Arrays.sort(pairs, Main::comparePairs);
+--py
+def pair_key(p):   # first value, then second
+    return (p[0], p[1])
+# pairs.sort(key=pair_key)
+--cpp
+bool pairLess(const pair<int,int>& a, const pair<int,int>& b) {   // first value, then second
+    return a.first != b.first ? a.first < b.first : a.second < b.second;
+}
+// sort(pairs.begin(), pairs.end(), pairLess);
+### u-stackop
+--java
+static void push(Deque<Integer> st, int x) { st.push(x); }
+static int peek(Deque<Integer> st) { return st.peek(); }
+static int pop(Deque<Integer> st) { return st.pop(); }
+--py
+def push(st, x): st.append(x)
+def peek(st): return st[-1]
+def pop(st): return st.pop()
+--cpp
+void push(stack<int>& st, int x) { st.push(x); }
+int peek(stack<int>& st) { return st.top(); }
+int pop(stack<int>& st) { int x = st.top(); st.pop(); return x; }
+### u-queueop
+--java
+static void enqueue(Deque<Integer> q, int x) { q.offer(x); }
+static int dequeue(Deque<Integer> q) { return q.poll(); }
+--py
+from collections import deque
+def enqueue(q, x): q.append(x)
+def dequeue(q): return q.popleft()
+--cpp
+void enqueue(queue<int>& q, int x) { q.push(x); }
+int dequeue(queue<int>& q) { int x = q.front(); q.pop(); return x; }
+### u-hget
+--java
+static int getOrDefault(Map<Integer, Integer> m, int key, int dflt) {
+    return m.getOrDefault(key, dflt);
+}
+--py
+def get_or_default(d, key, dflt=0): return d.get(key, dflt)
+--cpp
+int getOrDefault(const map<int, int>& m, int key, int dflt) {
+    auto it = m.find(key);
+    return it == m.end() ? dflt : it->second;
+}
+### u-log2
+--java
+static int floorLog2(int x) { return 31 - Integer.numberOfLeadingZeros(x); }
+--py
+def floor_log2(x): return x.bit_length() - 1
+--cpp
+int floorLog2(unsigned x) { return 31 - __builtin_clz(x); }
+### u-pow2
+--java
+static boolean isPowerOfTwo(int x) { return x > 0 && (x & (x - 1)) == 0; }
+--py
+def is_power_of_two(x): return x > 0 and x & (x - 1) == 0
+--cpp
+bool isPowerOfTwo(int x) { return x > 0 && (x & (x - 1)) == 0; }
+### u-modinv
+--java
+static long modInverse(long a, long m) {   // m prime
+    return powMod(a, m - 2, m);
+}
+--py
+def mod_inverse(a, m): return pow(a, -1, m)
+--cpp
+long long modInverse(long long a, long long m) {   // m prime
+    return powMod(a, m - 2, m);
+}
