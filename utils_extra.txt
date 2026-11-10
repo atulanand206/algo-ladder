@@ -1,0 +1,72 @@
+u-inf|INF without overflow|0|prim||Pick a big number that can still be added to.
+u-modadd|Modular add and subtract|0|prim||Add and subtract under a modulus.
+u-rand|Random integer|0|prim||A random number in a range.
+u-cross|cross(a, b)|0|prim||Signed area of two vectors.
+u-dot|dot(a, b)|0|prim||How much one vector points along another.
+u-dist2|Squared distance|0|prim||Distance without square roots.
+u-charidx|Letter to index|0|prim||Map a letter to 0, 1, 2 and so on.
+u-pair|Pair ordering|0|prim||Compare pairs by first, then second.
+u-stackop|push, pop, peek|0|prim||The three stack moves.
+u-queueop|enqueue, dequeue|0|prim||The two queue moves.
+u-hget|getOrDefault|0|prim||Read a map, with a default for missing keys.
+u-log2|floor(log2 x)|0|prim||Position of the highest bit.
+u-pow2|Is a power of two|0|prim||Test x with one bit trick.
+u-extgcd|extGcd(a, b)|1|util|u-gcd|Find x and y with ax + by = gcd.
+u-modinv|modInverse(a, m)|1|util|u-powmod,u-extgcd|Divide under a modulus.
+u-fact|Factorial and inverse tables|1|util|u-modinv|Precompute n! and 1/n! for fast binomials.
+u-ncr|binomial(n, k)|1|util|u-fact|Choose k from n under a modulus.
+u-factorize|factorize(n)|1|util|u-sqrt|List the prime factors of a number.
+u-spf|Smallest prime factor table|1|util|u-fill,u-sqrt|Factor any number up to n in log steps.
+u-phi|phi(n)|1|util|u-factorize|Count numbers coprime to n.
+u-matmul|Matrix multiply|1|util|u-fill,u-modadd|Multiply two matrices under a modulus.
+u-matpow|Matrix power|1|util|u-matmul|Raise a matrix to a big power.
+u-bigadd|Big number add|1|util|u-digits|Add numbers stored as digit arrays.
+u-bigmul|Big number multiply|1|util|u-bigadd|Multiply numbers stored as digit arrays.
+u-dfsvisit|dfs(v) visit|1|util|u-adj|Mark a node and recurse into its neighbours.
+u-bfsloop|bfs(src) distances|1|util|u-adj,u-queueop|Pop a node, push unseen neighbours, record distance.
+u-iterdfs|Iterative DFS|1|util|u-stackop,u-adj|DFS with an explicit stack, safe for deep graphs.
+u-parentpath|Rebuild path from parents|1|util|u-fill|Walk parent links back to the start.
+u-relax|relax(u, v, w)|1|util|u-inf,u-minmax|Improve a distance if the new route is shorter.
+u-pq|Priority queue of pairs|1|util|u-sift,u-pair|A heap ordered by the first value.
+u-dsuunion|union(a, b)|1|util|u-find|Merge two groups.
+u-binlift|Binary lifting table|1|util|u-fill,u-log2|Store each node's 1st, 2nd, 4th, 8th ancestor.
+u-lcaq|lca(u, v)|1|util|u-binlift|Lift both nodes until they meet.
+u-entry|Enter and exit times|1|util|u-dfsvisit|Number nodes on entry and exit of a DFS.
+u-toposort|Topological order|1|util|u-dfsvisit|Order nodes after all their prerequisites.
+u-edgesort|Sort edges by weight|1|util|u-sortidx,u-pair|Order edges from cheapest to dearest.
+u-table|New DP table|1|util|u-fill,u-inf|Allocate a table filled with a start value.
+u-maxupd|chmax, chmin|1|util|u-minmax|Keep the better of the old and new value.
+u-rolling|Rolling rows|1|util|u-fill|Keep only the last row of a DP table.
+u-recon|Reconstruct choices|1|util|u-parentpath|Recover which choices led to the answer.
+u-maskiter|Iterate masks|1|util|u-bit|Loop over every subset as a number.
+u-submask|Iterate submasks|1|util|u-bit|Loop over the subsets of one mask.
+u-count26|Count letters|1|util|u-charidx,u-fill|Tally each letter of an alphabet.
+u-prefixfn|Prefix function|1|util|u-fill|For each position, the longest border so far.
+u-zfn|Z array|1|util|u-fill|For each position, how far it matches the start.
+u-hashroll|Rolling hash|1|util|u-powmod,u-charidx|Hash of every prefix of a string.
+u-substrhash|Hash of a substring|1|util|u-hashroll|Compare two pieces in constant time.
+u-lcp2|Common prefix length|1|util|u-minmax|How many leading characters two strings share.
+u-ispalin|Is palindrome|1|util|u-swap|Compare a string with its mirror.
+u-trieins|Trie insert and search|1|util|u-charidx|Add or look up a word letter by letter.
+u-orientf|orient(a, b, c)|1|util|u-cross|Sign of a turn from three points.
+u-segon|Point on segment|1|util|u-cross,u-minmax|Is a point between two ends.
+u-sortang|Sort by angle|1|util|u-cross,u-cmp|Order points around a centre.
+u-polyarea2|Shoelace sum|1|util|u-cross|Twice the area of a polygon.
+u-segbuild|Build segment tree|1|util|u-fill|Fill a tree of range summaries.
+u-segq|Segment query|1|util|u-segbuild|Combine O(log n) nodes into an answer.
+u-segupd|Segment point update|1|util|u-segbuild|Change one leaf and fix its ancestors.
+u-bitadd|Fenwick add|1|util|u-lowbit|Add a value and update the covering cells.
+u-bitsum|Fenwick prefix sum|1|util|u-lowbit|Add the cells that cover a prefix.
+u-hpush|Heap push|1|util|u-sift|Add at the end, sift up.
+u-hpop|Heap pop|1|util|u-sift|Swap the top out, sift down.
+u-listrev|Reverse a linked list|1|util|u-swap|Flip every pointer in one pass.
+u-listmerge|Merge two lists|1|util|u-cmp|Zip two sorted lists into one.
+u-treeins|BST insert and find|1|util|u-cmp|Walk left or right until you reach the spot.
+u-treeh|Tree height|1|util|u-minmax|Depth of the deepest node.
+u-inorder|In-order walk|1|util|u-stackop|Visit left, node, right.
+u-lru|LRU touch|1|util|u-hget|Move an item to the front on use.
+u-windowmv|Move window ends|1|util|u-hget|Add the new item, drop the old one, update counts.
+u-diffadd|Range add by difference|1|util|u-prefix|Mark a start and an end instead of every cell.
+u-pfx2d|2D prefix build|1|util|u-prefix,u-idx|Running totals over rows and columns.
+u-compressv|Compress values|1|util|u-sortidx,u-lower|Replace values by their rank.
+u-shuffle|Shuffle array|1|util|u-rand,u-swap|Swap each item with a random earlier one.

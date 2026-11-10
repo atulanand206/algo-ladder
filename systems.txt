@@ -1,0 +1,61 @@
+dbindex|Database indexes|4|sys|btree,hash,binary-search|A B-tree index turns a search over millions of rows into a few page reads. A hash index answers exact matches in one step.
+lsm|LSM trees and key-value stores|4|sys|merge-sort,bloom,skiplist,heap|Writes sit in a sorted memory table, flush as sorted files, and merge in the background. Bloom filters skip files that cannot hold the key.
+queryplan|SQL query planning|4|sys|bitmask,greedy,heap|The planner searches join orders with bitmask DP and prunes with cost estimates.
+joins|Join algorithms|4|sys|hash,merge-sort,binary-search|Nested loop, hash join and sort-merge join are three ways to match rows from two tables.
+txn|Transactions and deadlock detection|4|sys|cycledir,topo|A wait-for graph with a cycle means a deadlock. A serial order of transactions is a topological order.
+colstore|Columnar storage and compression|4|sys|rle,huffman,bitset|Columns of similar values compress well with run-length and entropy coding, and bitsets filter fast.
+cache|CPU, web and database caches|4|sys|lru,lfu,hash|Keep what you used lately or often so repeat reads skip the slow source.
+loadbal|Load balancing|4|sys|consistent,heap,random|Pick a server by hashing, by fewest connections from a heap, or by two random choices.
+sharding|Sharding and partitioning|4|sys|consistent,hash|Split data over machines so adding one moves only a small share of keys.
+merkle|Merkle trees|4|sys|hashing,tree|A tree of hashes lets two copies find exactly which part differs without comparing everything.
+dht|Distributed hash tables|4|sys|consistent,xortricks,trie|Peers find each other in log steps, using XOR distance as in Kademlia.
+gossip|Gossip protocols|4|sys|random,bfs|Each machine tells a few random peers, and news reaches everyone in about log n rounds.
+ratelimiter|Rate limiting|4|sys|ratelimit,window,deque|Token buckets and sliding windows decide whether a request may pass.
+routing|Network routing|4|sys|dijkstra,bellman,graph-rep|OSPF runs Dijkstra on the link graph. RIP runs Bellman-Ford across neighbours.
+tcp|Sliding-window protocols and TCP|4|sys|window,circbuf,queue|A window of unacknowledged packets slides forward as acknowledgements arrive.
+sched|CPU and job scheduling|4|sys|heap,queue,greedy,intervals|Run the shortest or most urgent job next using a priority queue and greedy rules.
+build|Build systems and dependency order|4|sys|topo,dfs,cycledir|Build each target after the things it depends on, and report cycles.
+pkg|Package managers and version solving|4|sys|backtrack,topo,twosat|Choose versions that satisfy every constraint with search and propagation.
+hashmapimpl|How hash maps work inside|4|sys|hash,modular,linked,amortized|Buckets, collisions and resizing explain why lookups are constant on average.
+gc|Garbage collection|4|sys|dfs,bfs,dll|Mark everything reachable from the roots by graph search, then free the rest.
+paging|Virtual memory and page replacement|4|sys|lru,queue,hash|The OS keeps recently used pages in memory and evicts the least recently used.
+filesys|File systems|4|sys|btree,tree,bitset|Directories are trees, free space is a bitset, and large directories are indexed by B-trees.
+compiler|Compilers and parsers|4|sys|strparse,stack,treetrav,dfa,graphcolor|A lexer is an automaton, a parser builds a tree with a stack, and register allocation is graph colouring.
+regex|Regular expression engines|4|sys|dfa,wildcard,backtrack|Compile a pattern to an automaton, or backtrack through the alternatives.
+diff|Diff and merge tools|4|sys|lcs,editdist,hashing|A diff is the longest common subsequence of two files shown as edits.
+git|Git internals and merge base|4|sys|hashing,lca,topo|Commits form a DAG named by hashes, and the merge base is a lowest common ancestor.
+autocomplete|Autocomplete and spell check|4|sys|trie,editdist,topk|A trie finds words by prefix, edit distance finds near misses, and a heap keeps the best few.
+undo|Text editors and undo history|4|sys|rope,stack,dll|A rope edits big text cheaply, and a stack of changes gives undo and redo.
+spreadsheet|Spreadsheet recalculation|4|sys|topo,cycledir,dfs|Cells that depend on others are recomputed in dependency order, and a cycle is an error.
+searcheng|Search engines|4|sys|trie,merge-sort,heap,topk|An inverted index lists documents per word, lists are merged, and a heap keeps the top results.
+crawler|Web crawlers|4|sys|bfs,bloom,heap|Breadth-first search over links, a Bloom filter for seen pages, a heap for what to fetch next.
+recsys|Recommendation systems|4|sys|knn,topk,gradient|Find similar users or items, then rank the best few. Many models are trained by gradient descent.
+dedup|Near-duplicate detection|4|sys|hashing,bloom,random|Hash small pieces of each document and compare the samples to spot copies.
+analytics|Streaming analytics|4|sys|cms,hll,reservoir,medstream|Count, estimate distinct items and sample from a stream that is too big to store.
+abuse|Spam and abuse detection|4|sys|bloom,cms,window|Track how often something happens in a recent window using small sketches.
+compress|File compression (zip, bzip2)|4|sys|huffman,lz,bwt|Zip pairs LZ77 with Huffman coding, and bzip2 uses the Burrows-Wheeler transform.
+codecs|Image, audio and video codecs|4|sys|fft,huffman,rle|Transform to frequencies, drop what the eye or ear misses, then code what is left.
+genome|Genome sequencing and alignment|4|sys|bwt,suffix,editdist|Aligners index a genome with a suffix array or BWT and extend matches with edit distance.
+ecc|Error correction codes|4|sys|crc,gaussmod2|Checksums spot errors, and algebraic codes repair them.
+rsa|RSA and public-key encryption|4|sys|modpow,millerrabin,extgcd,crt|Find big primes, then use modular powers and inverses to encrypt and decrypt.
+cryptohash|Cryptographic hashes and passwords|4|sys|hashing,bits|Mix bits so thoroughly that no two inputs are found with the same output.
+dh|Diffie-Hellman and elliptic curves|4|sys|bsgs,primroot,modpow|Two parties agree on a secret because the discrete logarithm is hard.
+blockchain|Blockchains|4|sys|merkle,hashing,linked|Blocks linked by hashes, with a Merkle tree summarising the transactions in each.
+neural|Neural network training|4|sys|gradient,topo,u-matmul|A network is a graph of matrix steps. Backpropagation walks it in reverse order and gradient descent updates it.
+dtree|Decision trees and random forests|4|sys|greedy,tree,random,sorting|Pick the split that separates the data best, then repeat down the tree.
+vectorsearch|Vector search and clustering|4|sys|kmeans,kdtree,knn|Group similar vectors and search nearby cells instead of everything.
+viterbi|Speech recognition and Viterbi decoding|4|sys|markov,statem|Find the most likely hidden sequence with DP over states.
+llm|LLM text generation|4|sys|topk,random,heap|Pick the next token by top-k sampling or keep the best few paths with beam search.
+tokenizer|Tokenisers (byte-pair encoding)|4|sys|hash,heap,trie|Repeatedly merge the most frequent pair of symbols into a new token.
+maps|Maps and GPS navigation|4|sys|dijkstra,astar,bibfs,kdtree|Shortest routes with Dijkstra or A* from both ends, and nearest-place lookups with a k-d tree.
+gameai|Game engines and AI|4|sys|minimax,alphabeta,mcts|Search the game tree, cut off bad branches, and sample the rest.
+robotics|Robot path planning|4|sys|astar,voronoi,floodfill|Plan a route on a grid or around obstacles using A* and Voronoi diagrams.
+graphics|Collision detection and rendering|4|sys|hull,seginter,rotation,kdtree|Hulls, segment tests and spatial trees decide what touches and what is visible.
+gis|Spatial databases and GIS|4|sys|kdtree,itree,pip|Find the places inside a region or near a point without scanning them all.
+ridematch|Ride matching and logistics|4|sys|hungarian,mcmf,tspdp|Assign drivers to riders with min-cost flow and plan stops with travelling-salesman search.
+timetable|Timetabling and exam scheduling|4|sys|graphcolor,backtrack,mcmf|Give each exam a slot so conflicting ones never share, which is graph colouring.
+calendar|Calendars and meeting scheduling|4|sys|intervals,sweep,itree|Find free slots and overlaps by sweeping over intervals.
+social|Social graphs and friend suggestions|4|sys|bfs,components,msbfs|People two steps away are friend suggestions, and components are communities.
+orderbook|Exchange order books|4|sys|heap,tmap,multiset|Keep best bids and asks in sorted structures so matching takes log time.
+riskmc|Risk and option pricing by simulation|4|sys|randwalk,markov,probdp|Simulate many random paths, or solve a lattice with DP, to price uncertain outcomes.
+filesync|File sync and BitTorrent|4|sys|hashing,rabinkarp,bitset|Rolling hashes find changed chunks, and bitsets track which pieces each peer has.

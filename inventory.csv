@@ -1,0 +1,313 @@
+file,problem_id,name,rating,tags,match
+CodeForces/A/businesstrip/Solution.java,149A,Business trip,900,greedy;implementation;sortings,title
+CodeForces/A/chipsmoving/Solution.java,1213A,Chips Moving,900,math,title
+CodeForces/A/closingthegap/Solution.java,1615A,Closing The Gap,800,greedy;math,title
+CodeForces/A/colorfulstones/Solution.java,264D,Colorful Stones,2500,dp;two pointers,title
+CodeForces/A/computergame/Solution.java,1598A,Computer Game,800,brute force;dfs and similar;dp;implementation,ambiguous
+CodeForces/A/dislikeofthrees/Solution.java,1560A,Dislike of Threes,800,implementation,title
+CodeForces/A/divideandmultiply/Solution.java,1609A,Divide and Multiply,900,greedy;implementation;math;number theory,title
+CodeForces/A/dreamoonranking/Solution.java,,,,,unmatched
+CodeForces/A/dubstep/Solution.java,208A,Dubstep,900,strings,title
+CodeForces/A/elections/Solution.java,1978D,Elections,1600,data structures;greedy;implementation;math,ambiguous
+CodeForces/A/equidistant/Solution.java,,,,,unmatched
+CodeForces/A/escapefromstones/Solution.java,264A,Escape from Stones,1200,constructive algorithms;data structures;implementation;two pointers,title
+CodeForces/A/fancyfence/Solution.java,1402A,Fancy Fence,1800,*special;data structures;dsu;implementation;math;sortings,ambiguous
+CodeForces/A/favoritesequence/Solution.java,1462A,Favorite Sequence,800,implementation;two pointers,title
+CodeForces/A/football/Solution.java,1773F,Football,800,constructive algorithms,ambiguous
+CodeForces/A/gamerhemose/Solution.java,1592A,Gamer Hemose,800,binary search;greedy;math;sortings,title
+CodeForces/A/gennadycard/Solution.java,,,,,unmatched
+CodeForces/A/georgeacco/Solution.java,,,,,unmatched
+CodeForces/A/iqtest/Solution.java,328A,IQ Test,1800,implementation,ambiguous
+CodeForces/A/johnyancientcomputers/Solution.java,,,,,unmatched
+CodeForces/A/kdivisiblesum/Solution.java,1476A,K-divisible Sum,1000,binary search;constructive algorithms;greedy;math,title
+CodeForces/A/keyboard/Solution.java,474A,Keyboard,900,implementation,ambiguous
+CodeForces/A/kirillgame/Solution.java,,,,,unmatched
+CodeForces/A/levelstatistics/Solution.java,1334A,Level Statistics,1200,implementation;math,title
+CodeForces/A/lifeofaflower/Solution.java,1585A,Life of a Flower,800,implementation,title
+CodeForces/A/linearkeyboard/Solution.java,1607A,Linear Keyboard,800,implementation;strings,title
+CodeForces/A/makeeven/Solution.java,1611A,Make Even,800,constructive algorithms;math,title
+CodeForces/A/modularexpo/Solution.java,,,,,unmatched
+CodeForces/A/odddivisor/Solution.java,1475A,Odd Divisor,900,math;number theory,title
+CodeForces/A/oddselection/Solution.java,1363A,Odd Selection,1200,brute force;implementation;math,title
+CodeForces/A/pashmakandgarden/Solution.java,459A,Pashmak and Garden,1200,implementation,title
+CodeForces/A/reverse/C/Solution.java,1368A,C+=,800,brute force;greedy;implementation;math,title
+CodeForces/A/serejadima/Solution.java,,,,,unmatched
+CodeForces/A/shovelsswords/Solution.java,,,,,unmatched
+CodeForces/A/tavasnafas/Solution.java,,,,,unmatched
+CodeForces/A/threeindices/Solution.java,1380A,Three Indices,900,brute force;data structures,title
+CodeForces/A/trickysum/Solution.java,598A,Tricky Sum,900,math,title
+CodeForces/A/twins/Solution.java,160A,Twins,900,greedy;sortings,title
+CodeForces/A/twosubsequences/Solution.java,1602A,Two Subsequences,800,implementation,ambiguous
+CodeForces/B/antoncurrency/Solution.java,,,,,unmatched
+CodeForces/B/arrayeversion/Solution.java,1585B,Array Eversion,900,greedy,title
+CodeForces/B/badboys/Solution.java,,,,,unmatched
+CodeForces/B/balancedtunnel/Solution.java,1237B,Balanced Tunnel,1300,data structures;sortings;two pointers,title
+CodeForces/B/berlandmusic/Solution.java,1622B,Berland Music,1000,data structures;greedy;math;sortings,title
+CodeForces/B/cardconstructions/Solution.java,1345B,Card Constructions,1100,binary search;brute force;dp;math,title
+CodeForces/B/completeword/Solution.java,,,,,unmatched
+CodeForces/B/fedornewgame/Solution.java,,,,,unmatched
+CodeForces/B/georgeround/Solution.java,,,,,unmatched
+CodeForces/B/groups/Solution.java,1598B,Groups,1000,brute force;implementation,title
+CodeForces/B/johnyhobbies/Solution.java,,,,,unmatched
+CodeForces/B/justeatit/Solution.java,1285B,Just Eat It!,1300,dp;greedy;implementation,title
+CodeForces/B/minorreduction/Solution.java,1626B,Minor Reduction,1100,greedy;strings,title
+CodeForces/B/mirrorstring/Solution.java,,,,,unmatched
+CodeForces/B/nicematrix/Solution.java,1422B,Nice Matrix,1300,greedy;implementation;math,title
+CodeForces/B/orinmatrix/Solution.java,486B,OR in Matrix,1300,greedy;hashing;implementation,title
+CodeForces/B/petrcombinationlock/Solution.java,,,,,unmatched
+CodeForces/B/queriesaboutless/Solution.java,,,,,unmatched
+CodeForces/B/restrictedrps/Solution.java,1245B,Restricted RPS,1200,constructive algorithms;dp;greedy,title
+CodeForces/B/roadsidetrees/Solution.java,264E,Roadside Trees,3000,data structures;dp,title
+CodeForces/B/sale/Solution.java,34B,Sale,900,greedy;sortings,title
+CodeForces/B/tavasandsaddas/Solution.java,535B,Tavas and SaDDas,1100,bitmasks;brute force;combinatorics;implementation,title
+CodeForces/B/worldcup/Solution.java,996B,World Cup,1300,binary search;math,ambiguous
+CodeForces/B/xeniacolorfulgems/Solution.java,,,,,unmatched
+CodeForces/C/alicebobchocolate/Solution.java,,,,,unmatched
+CodeForces/C/deepdownbelow/Solution.java,1561C,Deep Down Below,1300,binary search;greedy;sortings,title
+CodeForces/C/georgejob/Solution.java,,,,,unmatched
+CodeForces/C/letters/Solution.java,978C,Letters,1000,binary search;implementation;two pointers,title
+CodeForces/C/memeproblem/Solution.java,1076C,Meme Problem,1300,binary search;math,title
+CodeForces/C/pairprogramming/Solution.java,1547C,Pair Programming,1100,greedy;two pointers,title
+CodeForces/C/wrongaddition/Solution.java,1619C,Wrong Addition,1200,implementation,title
+CodeForces/D/maxxorsecondary/Solution.java,,,,,unmatched
+CodeForces/abCompilation/Solution.java,,,,,unmatched
+CodeForces/abPalindrome/Solution.java,1512C,A-B Palindrome,1200,constructive algorithms;implementation;strings,title
+CodeForces/addAndDivide/Solution.java,1485A,Add and Divide,1000,brute force;greedy;math;number theory,title
+CodeForces/alexandbrokencontest/Solution.java,877A,Alex and broken contest,1100,implementation;strings,title
+CodeForces/almostRectangle/Solution.java,1512B,Almost Rectangle,800,implementation,title
+CodeForces/amrandmusic/Solution.java,507A,Amr and Music,1000,greedy;implementation;sortings,title
+CodeForces/arcconner/Solution.java,,,,,unmatched
+CodeForces/arrayAndPeaks/Solution.java,1513A,Array and Peaks,800,constructive algorithms;implementation,title
+CodeForces/arrayCancellation/Solution.java,1405B,Array Cancellation,1000,constructive algorithms;implementation,title
+CodeForces/arrayReorder/Solution.java,,,,,unmatched
+CodeForces/arrayelimination/Solution.java,1601A,Array Elimination,1300,bitmasks;greedy;math;number theory,title
+CodeForces/arrayoperations/Solution.java,,,,,unmatched
+CodeForces/avoidTrygub/Solution.java,1450A,Avoid Trygub,800,constructive algorithms;sortings,title
+CodeForces/bMail/Solution.java,,,,,unmatched
+CodeForces/badge/Solution.java,1020B,Badge,1000,brute force;dfs and similar;graphs,title
+CodeForces/bearandraspberry/Solution.java,385A,Bear and Raspberry,1000,brute force;greedy;implementation,title
+CodeForces/beautifulMatrix/Solution.java,1085G,Beautiful Matrix,2900,combinatorics;data structures;dp,ambiguous
+CodeForces/beautifulString/Solution.java,2162B,Beautiful String,1000,brute force;constructive algorithms,ambiguous
+CodeForces/bitPlusPlus/Solution.java,,,,,unmatched
+CodeForces/bitmasks/abcstring/Solution.java,1494A,ABC String,900,bitmasks;brute force;implementation,title
+CodeForces/bitmasks/maxmexcut/Solution.java,1566C,MAX-MEX Cut,1000,bitmasks;constructive algorithms;dp;greedy,title
+CodeForces/bitmasks/minmexcut/Solution.java,1566B,MIN-MEX Cut,800,bitmasks;constructive algorithms;dp;greedy,title
+CodeForces/bitmasks/mochaandmath/Solution.java,1559A,Mocha and Math,900,bitmasks;constructive algorithms;math,title
+CodeForces/bitmasks/raisingbacteria/Solution.java,579A,Raising Bacteria,1000,bitmasks,title
+CodeForces/boardMoves/Solution.java,1353C,Board Moves,1000,math,title
+CodeForces/boyOrGirl/Solution.java,236A,Boy or Girl,800,brute force;implementation;strings,title
+CodeForces/brokenKeyboard/Solution.java,1765B,Broken Keyboard,800,greedy,ambiguous
+CodeForces/buyingTorches/Solution.java,1418A,Buying Torches,1000,math,title
+CodeForces/capsLock/Solution.java,131A,cAPS lOCK,1000,implementation;strings,title
+CodeForces/chatRoom/Solution.java,58A,Chat room,1000,greedy;strings,title
+CodeForces/chatban/Solution.java,1612C,Chat Ban,1300,binary search;math,title
+CodeForces/christmasSpruce/Solution.java,913B,Christmas Spruce,1200,implementation;trees,title
+CodeForces/comlexmarketanalysis/Solution.java,,,,,unmatched
+CodeForces/comparingstrings/Solution.java,186A,Comparing Strings,1100,implementation;strings,title
+CodeForces/corruptedArray/Solution.java,1512D,Corrupted Array,1200,constructive algorithms;data structures;greedy,title
+CodeForces/distance/Solution.java,1612A,Distance,800,brute force;constructive algorithms,title
+CodeForces/div2/ER111/A/Solution.java,1550A,Find The Array,800,greedy;math,contest
+CodeForces/div2/ER111/B/Solution.java,1550B,Maximum Cost Deletion,1000,greedy;math,contest
+CodeForces/div2/ER111/C/Solution.java,1550C,Manhattan Subarrays,1700,brute force;geometry;greedy;implementation,contest
+CodeForces/div2/ER123/A/Solution.java,1644A,Doors and Keys,800,implementation,contest
+CodeForces/div2/ER123/B/Solution.java,1644B,Anti-Fibonacci Permutation,800,brute force;constructive algorithms;implementation,contest
+CodeForces/div2/ER123/C/Solution.java,1644C,Increase Subarray Sums,1400,brute force;dp;greedy;implementation,contest
+CodeForces/div2/R717/A/Solution.java,1516A,Tit for Tat,800,greedy,contest
+CodeForces/div2/R717/B/Solution.java,1516B,AGAGA XOOORRR,1500,bitmasks;brute force;dp;greedy,contest
+CodeForces/div2/R717/cut/Solution.java,1516D,Cut,2100,binary search;data structures;dp;graphs;number theory;two pointers,title
+CodeForces/div2/R723/ihate1111/Solution.java,1526B,I Hate 1111,1400,dp;math;number theory,title
+CodeForces/div2/R723/meaninequality/Solution.java,1526A,Mean Inequality,800,constructive algorithms;sortings,title
+CodeForces/div2/R724/A/Solution.java,1536A,Omkar and Bad Story,800,brute force;constructive algorithms,contest
+CodeForces/div2/R724/B/Solution.java,1536B,Prinzessin der Verurteilung,1200,brute force;constructive algorithms;strings,contest
+CodeForces/div2/R727/A/Solution.java,1539A,Contest Start,1000,combinatorics;geometry;greedy;math,contest
+CodeForces/div2/R727/B/Solution.java,1539B,Love Song,800,dp;implementation;strings,contest
+CodeForces/div2/R727/C/Solution.java,1539C,Stable Groups,1200,greedy;sortings,contest
+CodeForces/div2/R727/D/Solution.java,1539D,PriceFixed,1600,binary search;greedy;implementation;sortings;two pointers,contest
+CodeForces/div2/R728/pleasantpairs/Solution.java,1541B,Pleasant Pairs,1200,brute force;implementation;math;number theory,title
+CodeForces/div2/R728/prettypermutations/Solution.java,1541A,Pretty Permutations,800,constructive algorithms;greedy;implementation,title
+CodeForces/div2/R729/oddset/Solution.java,1542A,Odd Set,800,math,title
+CodeForces/div2/R729/plusandmultiply/Solution.java,1542B,Plus and Multiply,1500,constructive algorithms;math;number theory,title
+CodeForces/div2/R730/excitingbets/Solution.java,1543A,Exciting Bets,900,greedy;math;number theory,title
+CodeForces/div2/R732/A/Solution.java,1546A,AquaMoon and Two Arrays,800,brute force;greedy,contest
+CodeForces/div2/R732/B/Solution.java,1546B,AquaMoon and Stolen String,1200,interactive;math,contest
+CodeForces/div2/R732/C/Solution.java,,,,,unmatched
+CodeForces/div2/R772/A/Solution.java,1635A,Min Or Sum,800,bitmasks;greedy,contest
+CodeForces/div2/R772/B/Solution.java,1635B,Avoid Local Maximums,800,greedy,contest
+CodeForces/div2/er119/A/Solution.java,1620A,Equal or Not Equal,800,constructive algorithms;dsu;implementation,contest
+CodeForces/div2/er120/A/Solution.java,1622A,Construct a Rectangle,800,geometry;math,contest
+CodeForces/div2/r766/A/Solution.java,1627A,Not Shading,800,constructive algorithms;implementation,contest
+CodeForces/div2/r766/B/Solution.java,1627B,Not Sitting,1300,games;greedy;sortings,contest
+CodeForces/div2/r767/A/Solution.java,1629A,Download More RAM,800,brute force;greedy;sortings,contest
+CodeForces/div2/r767/B/Solution.java,1629B,GCD Arrays,800,greedy;math;number theory,contest
+CodeForces/div2/r767/C/Solution.java,,,,,unmatched
+CodeForces/div2/r767/D/Solution.java,,,,,unmatched
+CodeForces/div2/r768/A/Solution.java,1631A,Min Max Swap,800,greedy,contest
+CodeForces/div2/r768/B/Solution.java,1631B,Fun with Even Subarrays,1100,dp;greedy,contest
+CodeForces/div2/r768/C/Solution.java,,,,,unmatched
+CodeForces/div2/r768/D/Solution.java,,,,,unmatched
+CodeForces/div2/r769/A/Solution.java,1632A,ABC,800,implementation,contest
+CodeForces/div3/R725/A/Solution.java,1538A,Stone Game,800,brute force;dp;greedy,contest
+CodeForces/div3/R725/B/Solution.java,1538B,Friends and Candies,800,greedy;math,contest
+CodeForces/div3/R725/C/Solution.java,1538C,Number of Pairs,1300,binary search;data structures;math;two pointers,contest
+CodeForces/div3/R725/D/Solution.java,1538D,Another Problem About Dividing Numbers,1700,constructive algorithms;math;number theory,contest
+CodeForces/div3/R731/A/Solution.java,1547A,Shortest Path with Obstacle,800,implementation;math,contest
+CodeForces/div3/R731/B/Solution.java,1547B,Alphabetical Strings,800,greedy;implementation;strings,contest
+CodeForces/div3/R731/C/Solution.java,1547C,Pair Programming,1100,greedy;two pointers,contest
+CodeForces/div3/r760/A/Solution.java,1618A,Polycarp and Sums of Subsequences,800,math;sortings,contest
+CodeForces/div3/r760/B/Solution.java,1618B,Missing Bigram,800,implementation,contest
+CodeForces/div3/r762/A/Solution.java,1619A,Square String?,800,implementation;strings,contest
+CodeForces/div3/r762/B/Solution.java,1619B,Squares and Cubes,800,implementation;math,contest
+CodeForces/div3/r763/A/Solution.java,,,,,unmatched
+CodeForces/div3/r764/A/Solution.java,1624A,Plus One on the Subset,800,math,contest
+CodeForces/div3/r764/B/Solution.java,1624B,Make AP,900,implementation;math,contest
+CodeForces/div3/r764/C/Solution.java,1624C,Division by Two and Permutation,1100,constructive algorithms;flows;graph matchings;greedy;math,contest
+CodeForces/div3/r764/D/Solution.java,1624D,Palindromes Coloring,1400,binary search;greedy;sortings;strings,contest
+CodeForces/div3/r765/A/Solution.java,,,,,unmatched
+CodeForces/div3/r765/B/Solution.java,,,,,unmatched
+CodeForces/div3/r776/A/Solution.java,1650A,Deletions of Two Adjacent Letters,800,implementation;strings,contest
+CodeForces/div3/r776/B/Solution.java,1650B,DIV + MOD,900,math,contest
+CodeForces/div3/r776/C/Solution.java,1650C,Weight of the System of Nested Segments,1200,greedy;hashing;implementation;sortings,contest
+CodeForces/div3/r776/D/Solution.java,1650D,Twist the Permutation,1300,brute force;constructive algorithms;implementation;math,contest
+CodeForces/div3/r776/E/Solution.java,1650E,Rescheduling the Exam,1900,binary search;data structures;greedy;implementation;math;sortings,contest
+CodeForces/divanStore/Solution.java,,,,,unmatched
+CodeForces/divannewproject/Solution.java,,,,,unmatched
+CodeForces/diverseSubstring/Solution.java,1073A,Diverse Substring,1000,implementation;strings,title
+CodeForces/diversity/Solution.java,844A,Diversity,1000,greedy;implementation;strings,title
+CodeForces/doNotBeDistracted/Solution.java,1520A,Do Not Be Distracted!,800,brute force;implementation,title
+CodeForces/dominoPiling/Solution.java,50A,Domino piling,800,greedy;math,title
+CodeForces/doubleEndedStrings/Solution.java,1506C,Double-ended Strings,1000,brute force;implementation;strings,title
+CodeForces/dragons/Solution.java,230A,Dragons,1000,greedy;sortings,title
+CodeForces/eevee/Solution.java,452A,Eevee,1000,brute force;implementation;strings,title
+CodeForces/ehabfailstobethanos/Solution.java,1174A,Ehab Fails to Be Thanos,1000,constructive algorithms;greedy;sortings,title
+CodeForces/expression/Solution.java,479A,Expression,1000,brute force;math,ambiguous
+CodeForces/fairPlayOff/Solution.java,1535A,Fair Playoff,800,brute force;implementation,title
+CodeForces/fillomino/Solution.java,,,,,unmatched
+CodeForces/findamir/Solution.java,804A,Find Amir,1000,constructive algorithms;greedy;math,title
+CodeForces/football/Solution.java,1773F,Football,800,constructive algorithms,ambiguous
+CodeForces/forbiddensequence/Solution.java,,,,,unmatched
+CodeForces/fridgeLockers/Solution.java,1255B,Fridge Lockers,1100,graphs;implementation,title
+CodeForces/generatelogin/Solution.java,909A,Generate Login,1000,brute force;greedy;sortings,title
+CodeForces/helpfulMaths/Solution.java,339A,Helpful Maths,800,greedy;implementation;sortings;strings,title
+CodeForces/ilyaAndQueries/Solution.java,313B,Ilya and Queries,1100,dp;implementation,title
+CodeForces/importantExam/Solution.java,1201A,Important Exam,900,implementation;strings,title
+CodeForces/integerdiversity/Solution.java,1616A,Integer Diversity,800,implementation,title
+CodeForces/interceptedMessage/Solution.java,950B,Intercepted Message,1100,greedy;implementation,title
+CodeForces/interestingDrink/Solution.java,706B,Interesting drink,1100,binary search;dp;implementation,title
+CodeForces/kString/Solution.java,219A,k-String,1000,implementation;strings,title
+CodeForces/kalindrome/Solution.java,,,,,unmatched
+CodeForces/kingEscape/Solution.java,1033A,King Escape,1000,dfs and similar;graphs;implementation,title
+CodeForces/kitayuta/Solution.java,,,,,unmatched
+CodeForces/kperiodic/Solution.java,,,,,unmatched
+CodeForces/laToken/A/Solution.java,,,,,unmatched
+CodeForces/laToken/B/Solution.java,,,,,unmatched
+CodeForces/laptops/Solution.java,456A,Laptops,1100,sortings,title
+CodeForces/lecture/Solution.java,499B,Lecture,1000,implementation;strings,title
+CodeForces/littleElephantAndChess/Solution.java,259A,Little Elephant and Chess,1000,brute force;strings,title
+CodeForces/longJumps/Solution.java,1472C,Long Jumps,1100,dp;graphs,ambiguous
+CodeForces/longcomparison/Solution.java,1613A,Long Comparison,900,implementation;math,title
+CodeForces/loveTriangle/Solution.java,939A,Love Triangle,800,graphs,title
+CodeForces/luckyDivision/Solution.java,122A,Lucky Division,1000,brute force;number theory,title
+CodeForces/makeProductEqualOne/Solution.java,1206B,Make Product Equal One,900,dp;implementation,title
+CodeForces/maximandbiology/Solution.java,1151A,Maxim and Biology,1000,brute force;strings,title
+CodeForces/metro/Solution.java,1055A,Metro,900,graphs,title
+CodeForces/mexormixup/Solution.java,1567B,MEXor Mixup,1000,bitmasks;greedy,title
+CodeForces/mikeAndPalindrome/Solution.java,798A,Mike and palindrome,1000,brute force;constructive algorithms;strings,title
+CodeForces/mikeandfax/Solution.java,548A,Mike and Fax,1100,brute force;implementation;strings,title
+CodeForces/minimumInteger/Solution.java,1101A,Minimum Integer,1000,math,title
+CodeForces/multiply2Divide6/Solution.java,,,,,unmatched
+CodeForces/networkTopology/Solution.java,292B,Network Topology,1200,graphs;implementation,title
+CodeForces/newYearTransportation/Solution.java,500A,New Year Transportation,1000,dfs and similar;graphs;implementation,title
+CodeForces/nextRound/Solution.java,158A,Next Round,800,*special;implementation,title
+CodeForces/oddgrashoppers/Solution.java,,,,,unmatched
+CodeForces/ordinaryNumbers/Solution.java,1520B,Ordinary Numbers,800,brute force;math;number theory,title
+CodeForces/paintarray/Solution.java,,,,,unmatched
+CodeForces/palindromicTwist/Solution.java,1027A,Palindromic Twist,1000,implementation;strings,title
+CodeForces/palindromictimes/Solution.java,108A,Palindromic Times,1000,implementation;strings,title
+CodeForces/pangram/Solution.java,520A,Pangram,800,implementation;strings,title
+CodeForces/paperwork/Solution.java,250A,Paper Work,1000,greedy,title
+CodeForces/partialReplacement/Solution.java,1506B,Partial Replacement,1100,greedy;implementation,title
+CodeForces/party/Solution.java,1711B,Party,1300,brute force;graphs,ambiguous
+CodeForces/perfectlyImperfectArray/Solution.java,1514A,Perfectly Imperfect Array,800,math;number theory,title
+CodeForces/petyaAndStrings/Solution.java,112A,Petya and Strings,800,implementation;strings,title
+CodeForces/polandBallHypothesis/Solution.java,,,,,unmatched
+CodeForces/polycarpAndLetters/Solution.java,864B,Polycarp and Letters,1000,brute force;implementation;strings,title
+CodeForces/polycarprecoverpermutation/Solution.java,,,,,unmatched
+CodeForces/potionMaking/Solution.java,1525A,Potion-making,800,math;number theory,title
+CodeForces/princessesAndPrinces/Solution.java,1327B,Princesses and Princes,1200,brute force;graphs;greedy,title
+CodeForces/protectSheep/Solution.java,948A,Protect Sheep,900,brute force;dfs and similar;graphs;implementation,title
+CodeForces/rbk/Solution.java,,,,,unmatched
+CodeForces/redAndBlueBeans/Solution.java,1519A,Red and Blue Beans,800,math,title
+CodeForces/reposts/Solution.java,522A,Reposts,1200,*special;dfs and similar;dp;graphs;trees,title
+CodeForces/reverseasubstring/Solution.java,1155A,Reverse a Substring,1000,implementation;sortings;strings,title
+CodeForces/roadtozero/Solution.java,1342A,Road To Zero,1000,greedy;math,title
+CodeForces/runForYourPrize/Solution.java,938B,Run For Your Prize,1100,brute force;greedy,title
+CodeForces/santaclausandcandies/Solution.java,753A,Santa Claus and Candies,1000,dp;greedy;math,title
+CodeForces/serejaAndSuffixes/Solution.java,368B,Sereja and Suffixes,1100,data structures;dp,title
+CodeForces/setofstrings/Solution.java,544A,Set of Strings,1100,implementation;strings,title
+CodeForces/shortestpathoftheking/Solution.java,3A,Shortest path of the king,1000,greedy;shortest paths,title
+CodeForces/shuffleHashing/Solution.java,1278A,Shuffle Hashing,1000,brute force;implementation;strings,title
+CodeForces/simpleMolecules/Solution.java,344B,Simple Molecules,1200,brute force;graphs;math,title
+CodeForces/spclpermutation/Solution.java,,,,,unmatched
+CodeForces/specialnumbers/Solution.java,1594B,Special Numbers,1100,bitmasks;math,title
+CodeForces/splitIt/Solution.java,1496A,Split it!,900,brute force;constructive algorithms;greedy;strings,title
+CodeForces/sportMafia/Solution.java,1195B,Sport Mafia,1000,binary search;brute force;math,title
+CodeForces/spyDetected/Solution.java,1512A,Spy Detected!,800,brute force;implementation,title
+CodeForces/square/Solution.java,2167A,Square?,800,math;sortings,ambiguous
+CodeForces/stablerooks/Solution.java,,,,,unmatched
+CodeForces/stickersAndToys/Solution.java,1187A,Stickers and Toys,900,math,title
+CodeForces/stonesOnTheTable/Solution.java,266A,Stones on the Table,800,implementation,title
+CodeForces/strangeTable/Solution.java,1506A,Strange Table,800,math,title
+CodeForces/stringTask/Solution.java,118A,String Task,1000,implementation;strings,title
+CodeForces/sumOf2050/Solution.java,1517A,Sum of 2050,800,greedy;math,title
+CodeForces/sumOfOddIntegers/Solution.java,1327A,Sum of Odd Integers,1100,math,title
+CodeForces/sumofcubes/Solution.java,1490C,Sum of Cubes,1100,binary search;brute force;math,title
+CodeForces/superheroTransformation/Solution.java,1111A,Superhero Transformation,1000,implementation;strings,title
+CodeForces/sushiForTwo/Solution.java,1138A,Sushi for Two,900,binary search;greedy;implementation,title
+CodeForces/table/Solution.java,359A,Table,1000,constructive algorithms;greedy;implementation,ambiguous
+CodeForces/taxi/Solution.java,158B,Taxi,1100,*special;greedy;implementation,title
+CodeForces/team/Solution.java,401C,Team,1400,constructive algorithms;greedy;implementation,ambiguous
+CodeForces/theCakeIsALie/Solution.java,2232F,The Cake Is a Lie,3000,greedy;math;number theory,ambiguous
+CodeForces/theFestiveEvening/Solution.java,834B,The Festive Evening,1100,data structures;implementation,title
+CodeForces/theatreSquare/Solution.java,1A,Theatre Square,1000,math,title
+CodeForces/two048/Solution.java,,,,,unmatched
+CodeForces/twoTeamsComposing/Solution.java,1335C,Two Teams Composing,1100,binary search;greedy;implementation;sortings,title
+CodeForces/vitaliyandpie/Solution.java,525A,Vitaliy and Pie,1100,greedy;hashing;strings,title
+CodeForces/watermelon/Solution.java,4A,Watermelon,800,brute force;math,title
+CodeForces/wayTooLongWords/Solution.java,71A,Way Too Long Words,800,strings,title
+CodeForces/wordCapitalization/Solution.java,281A,Word Capitalization,800,implementation;strings,title
+CodeForces/yetAnotherCardDeck/Solution.java,1511C,Yet Another Card Deck,1100,brute force;data structures;implementation;trees,title
+CodeForces/youngPhysicist/Solution.java,69A,Young Physicist,1000,implementation;math,title
+problemset/binarysearch/kdivisiblesum/Solution.java,1476A,K-divisible Sum,1000,binary search;constructive algorithms;greedy;math,title
+problemset/binarysearch/letswatchfootball/Solution.java,195A,Let's Watch Football,1000,binary search;brute force;math,title
+problemset/binarysearch/newyearandhurry/Solution.java,750A,New Year and Hurry,800,binary search;brute force;implementation;math,title
+problemset/dp/cutribbon/Solution.java,189A,Cut Ribbon,1300,brute force;dp,title
+problemset/ds/aftertraining/Solution.java,195B,After Training,1300,data structures;implementation;math,title
+problemset/ds/cosmictables/Solution.java,222B,Cosmic Tables,1300,data structures;implementation,title
+problemset/games/cardgame/Solution.java,2104C,Card Game,1100,brute force;constructive algorithms;games;greedy;math,ambiguous
+problemset/games/digitgame/Solution.java,1419A,Digit Game,900,games;greedy;implementation,title
+problemset/games/dinnerwithemma/Solution.java,616B,Dinner with Emma,1000,games;greedy,title
+problemset/games/evenoddgame/Solution.java,1472D,Even-Odd Game,1200,dp;games;greedy;sortings,title
+problemset/games/sashaandsticks/Solution.java,832A,Sasha and Sticks,800,games;math,title
+problemset/games/yetanotherstringgame/Solution.java,1480A,Yet Another String Game,800,games;greedy;strings,title
+problemset/greedy/cableway/Solution.java,90A,Cableway,1000,greedy;math,title
+problemset/greedy/nonsubstringsubsequence/Solution.java,1451B,Non-Substring Subsequence,900,dp;greedy;implementation;strings,title
+problemset/greedy/yellowcards/Solution.java,1215A,Yellow Cards,1000,greedy;implementation;math,title
+problemset/math/averagesleeptime/Solution.java,808B,Average Sleep Time,1300,data structures;implementation;math,title
+problemset/sortings/aprilfoolsm/Solution.java,,,,,unmatched
+problemset/sortings/cardswithnumbers/Solution.java,254A,Cards with Numbers,1200,constructive algorithms;sortings,title
+problemset/sortings/chesstourney/Solution.java,845A,Chess Tourney,1100,implementation;sortings,title
+problemset/sortings/cottagevillage/Solution.java,15A,Cottage Village,1200,implementation;sortings,title
+problemset/sortings/diamondminer/Solution.java,1495A,Diamond Miner,1200,geometry;greedy;math;sortings,title
+problemset/sortings/fairgame/Solution.java,864A,Fair Game,1000,implementation;sortings,title
+problemset/sortings/geraldioncurrency/Solution.java,,,,,unmatched
+problemset/sortings/ksushaandarray/Solution.java,299A,Ksusha and Array,1000,brute force;number theory;sortings,title
+problemset/sortings/lalalandandappletrees/Solution.java,558A,Lala Land and Apple Trees,1100,brute force;implementation;sortings,title
+problemset/sortings/newbusroute/Solution.java,792A,New Bus Route,1100,implementation;sortings,title
+problemset/sortings/nexttest/Solution.java,27A,Next Test,1200,implementation;sortings,title
+problemset/sortings/orderbook/Solution.java,1028D,Order book,2100,combinatorics;data structures;greedy,ambiguous
+problemset/sortings/pointsontheline/Solution.java,940A,Points on the line,1200,brute force;greedy;sortings,title
+problemset/sortings/ranklist/Solution.java,166A,Rank List,1100,binary search;implementation;sortings,title
+problemset/sortings/sockets/Solution.java,732E,Sockets,2100,greedy;sortings,ambiguous
+problemset/sortings/sortthearray/Solution.java,451B,Sort the Array,1300,implementation;sortings,title
+problemset/sortings/technogoblet/Solution.java,,,,,unmatched
+problemset/sortings/towers/Solution.java,1637F,Towers,2500,constructive algorithms;dfs and similar;dp;greedy;trees,ambiguous

@@ -1,0 +1,425 @@
+### u-dfsvisit
+--java
+void dfs(int v) {
+    seen[v] = true;
+    for (int w : adj.get(v)) if (!seen[w]) dfs(w);
+}
+--py
+def dfs(v):
+    seen[v] = True
+    for w in adj[v]:
+        if not seen[w]: dfs(w)
+--cpp
+void dfs(int v) {
+    seen[v] = true;
+    for (int w : adj[v]) if (!seen[w]) dfs(w);
+}
+### u-bfsloop
+--java
+Arrays.fill(dist, -1); dist[s] = 0;
+Deque<Integer> q = new ArrayDeque<>(); q.add(s);
+while (!q.isEmpty()) {
+    int v = q.poll();
+    for (int w : adj.get(v)) if (dist[w] < 0) { dist[w] = dist[v] + 1; q.add(w); }
+}
+--py
+dist = [-1] * n; dist[s] = 0
+q = deque([s])
+while q:
+    v = q.popleft()
+    for w in adj[v]:
+        if dist[w] < 0: dist[w] = dist[v] + 1; q.append(w)
+--cpp
+vector<int> dist(n, -1); dist[s] = 0;
+queue<int> q; q.push(s);
+while (!q.empty()) {
+    int v = q.front(); q.pop();
+    for (int w : adj[v]) if (dist[w] < 0) { dist[w] = dist[v] + 1; q.push(w); }
+}
+### u-iterdfs
+--java
+Deque<Integer> st = new ArrayDeque<>(); st.push(s);
+while (!st.isEmpty()) {
+    int v = st.pop();
+    if (seen[v]) continue;
+    seen[v] = true;
+    for (int w : adj.get(v)) if (!seen[w]) st.push(w);
+}
+--py
+st = [s]
+while st:
+    v = st.pop()
+    if seen[v]: continue
+    seen[v] = True
+    for w in adj[v]:
+        if not seen[w]: st.append(w)
+--cpp
+vector<int> st = {s};
+while (!st.empty()) {
+    int v = st.back(); st.pop_back();
+    if (seen[v]) continue;
+    seen[v] = true;
+    for (int w : adj[v]) if (!seen[w]) st.push_back(w);
+}
+### u-parentpath
+--java
+List<Integer> path = new ArrayList<>();
+for (int v = t; v != -1; v = parent[v]) path.add(v);
+Collections.reverse(path);
+--py
+path = []
+v = t
+while v != -1:
+    path.append(v); v = parent[v]
+path.reverse()
+--cpp
+vector<int> path;
+for (int v = t; v != -1; v = parent[v]) path.push_back(v);
+reverse(path.begin(), path.end());
+### u-relax
+--java
+if (dist[u] + w < dist[v]) { dist[v] = dist[u] + w; parent[v] = u; }
+--py
+if dist[u] + w < dist[v]:
+    dist[v] = dist[u] + w; parent[v] = u
+--cpp
+if (dist[u] + w < dist[v]) { dist[v] = dist[u] + w; parent[v] = u; }
+### u-pq
+--java
+PriorityQueue<long[]> pq = new PriorityQueue<>((a, b) -> Long.compare(a[0], b[0]));
+pq.add(new long[]{0, src});
+long[] top = pq.poll();
+--py
+import heapq
+pq = [(0, src)]
+d, v = heapq.heappop(pq)
+--cpp
+priority_queue<pair<long long, int>, vector<pair<long long, int>>, greater<>> pq;
+pq.push({0, src});
+auto [d, v] = pq.top(); pq.pop();
+### u-dsuunion
+--java
+void union(int a, int b) {
+    a = find(a); b = find(b);
+    if (a == b) return;
+    if (sz[a] < sz[b]) { int t = a; a = b; b = t; }
+    p[b] = a; sz[a] += sz[b];
+}
+--py
+def union(a, b):
+    a, b = find(a), find(b)
+    if a == b: return
+    if sz[a] < sz[b]: a, b = b, a
+    p[b] = a; sz[a] += sz[b]
+--cpp
+void unite(int a, int b) {
+    a = find(a); b = find(b);
+    if (a == b) return;
+    if (sz[a] < sz[b]) swap(a, b);
+    p[b] = a; sz[a] += sz[b];
+}
+### u-binlift
+--java
+// up[k][v] = the 2^k-th ancestor of v
+for (int k = 1; k < LOG; k++)
+    for (int v = 0; v < n; v++) up[k][v] = up[k - 1][up[k - 1][v]];
+--py
+for k in range(1, LOG):
+    for v in range(n):
+        up[k][v] = up[k - 1][up[k - 1][v]]
+--cpp
+for (int k = 1; k < LOG; k++)
+    for (int v = 0; v < n; v++) up[k][v] = up[k - 1][up[k - 1][v]];
+### u-lcaq
+--java
+int lca(int u, int v) {
+    if (depth[u] < depth[v]) { int t = u; u = v; v = t; }
+    for (int k = LOG - 1; k >= 0; k--) if (depth[u] - (1 << k) >= depth[v]) u = up[k][u];
+    if (u == v) return u;
+    for (int k = LOG - 1; k >= 0; k--) if (up[k][u] != up[k][v]) { u = up[k][u]; v = up[k][v]; }
+    return up[0][u];
+}
+--py
+def lca(u, v):
+    if depth[u] < depth[v]: u, v = v, u
+    for k in range(LOG - 1, -1, -1):
+        if depth[u] - (1 << k) >= depth[v]: u = up[k][u]
+    if u == v: return u
+    for k in range(LOG - 1, -1, -1):
+        if up[k][u] != up[k][v]: u, v = up[k][u], up[k][v]
+    return up[0][u]
+--cpp
+int lca(int u, int v) {
+    if (depth[u] < depth[v]) swap(u, v);
+    for (int k = LOG - 1; k >= 0; k--) if (depth[u] - (1 << k) >= depth[v]) u = up[k][u];
+    if (u == v) return u;
+    for (int k = LOG - 1; k >= 0; k--) if (up[k][u] != up[k][v]) { u = up[k][u]; v = up[k][v]; }
+    return up[0][u];
+}
+### u-entry
+--java
+void dfs(int v, int p) {
+    tin[v] = timer++;
+    for (int w : adj.get(v)) if (w != p) dfs(w, v);
+    tout[v] = timer++;
+}
+// u is inside v's subtree: tin[v] <= tin[u] && tout[u] <= tout[v]
+--py
+def dfs(v, p):
+    global timer
+    tin[v] = timer; timer += 1
+    for w in adj[v]:
+        if w != p: dfs(w, v)
+    tout[v] = timer; timer += 1
+--cpp
+void dfs(int v, int p) {
+    tin[v] = timer++;
+    for (int w : adj[v]) if (w != p) dfs(w, v);
+    tout[v] = timer++;
+}
+### u-toposort
+--java
+int[] indeg = new int[n];
+for (int v = 0; v < n; v++) for (int w : adj.get(v)) indeg[w]++;
+Deque<Integer> q = new ArrayDeque<>();
+for (int v = 0; v < n; v++) if (indeg[v] == 0) q.add(v);
+while (!q.isEmpty()) {
+    int v = q.poll(); order.add(v);
+    for (int w : adj.get(v)) if (--indeg[w] == 0) q.add(w);
+}
+// order.size() < n means there is a cycle
+--py
+indeg = [0] * n
+for v in range(n):
+    for w in adj[v]: indeg[w] += 1
+q = deque(v for v in range(n) if indeg[v] == 0)
+order = []
+while q:
+    v = q.popleft(); order.append(v)
+    for w in adj[v]:
+        indeg[w] -= 1
+        if indeg[w] == 0: q.append(w)
+--cpp
+vector<int> indeg(n), order;
+for (int v = 0; v < n; v++) for (int w : adj[v]) indeg[w]++;
+queue<int> q;
+for (int v = 0; v < n; v++) if (!indeg[v]) q.push(v);
+while (!q.empty()) {
+    int v = q.front(); q.pop(); order.push_back(v);
+    for (int w : adj[v]) if (--indeg[w] == 0) q.push(w);
+}
+### u-edgesort
+--java
+Arrays.sort(edges, (a, b) -> Integer.compare(a[2], b[2]));   // {u, v, w}
+--py
+edges.sort(key=lambda e: e[2])
+--cpp
+sort(edges.begin(), edges.end(), [](auto &a, auto &b) { return a[2] < b[2]; });
+### u-table
+--java
+long[] dp = new long[n + 1];
+Arrays.fill(dp, INF);
+dp[0] = 0;
+--py
+dp = [INF] * (n + 1)
+dp[0] = 0
+--cpp
+vector<long long> dp(n + 1, INF);
+dp[0] = 0;
+### u-maxupd
+--java
+dp[i] = Math.max(dp[i], cand);   // chmax
+dp[i] = Math.min(dp[i], cand);   // chmin
+--py
+dp[i] = max(dp[i], cand)   # chmax
+dp[i] = min(dp[i], cand)   # chmin
+--cpp
+dp[i] = max(dp[i], cand);   // chmax
+dp[i] = min(dp[i], cand);   // chmin
+### u-rolling
+--java
+long[] prev = new long[m + 1], cur = new long[m + 1];
+// ... fill cur from prev ...
+long[] t = prev; prev = cur; cur = t;
+--py
+prev = [0] * (m + 1)
+# ... build cur from prev ...
+prev = cur
+--cpp
+vector<long long> prev(m + 1), cur(m + 1);
+// ... fill cur from prev ...
+swap(prev, cur);
+### u-recon
+--java
+// store how you got each state, then walk back from the end
+int[] from = new int[n + 1];
+List<Integer> steps = new ArrayList<>();
+for (int s = n; s != 0; s = from[s]) steps.add(s);
+--py
+steps = []
+s = n
+while s != 0:
+    steps.append(s); s = frm[s]
+--cpp
+vector<int> steps;
+for (int s = n; s != 0; s = from[s]) steps.push_back(s);
+### u-maskiter
+--java
+for (int mask = 0; mask < (1 << n); mask++) {
+    if ((mask >> i & 1) == 1) { /* item i is in the subset */ }
+}
+--py
+for mask in range(1 << n):
+    if mask >> i & 1:
+        pass  # item i is in the subset
+--cpp
+for (int mask = 0; mask < (1 << n); mask++) {
+    if (mask >> i & 1) { /* item i is in the subset */ }
+}
+### u-submask
+--java
+for (int sub = mask; sub > 0; sub = (sub - 1) & mask) {
+    // sub is a non-empty subset of mask
+}
+--py
+sub = mask
+while sub > 0:
+    # sub is a non-empty subset of mask
+    sub = (sub - 1) & mask
+--cpp
+for (int sub = mask; sub > 0; sub = (sub - 1) & mask) {
+    // sub is a non-empty subset of mask
+}
+### u-count26
+--java
+int[] cnt = new int[26];
+for (char ch : s.toCharArray()) cnt[ch - 'a']++;
+--py
+cnt = [0] * 26
+for ch in s: cnt[ord(ch) - 97] += 1
+--cpp
+int cnt[26] = {};
+for (char ch : s) cnt[ch - 'a']++;
+### u-prefixfn
+--java
+int[] pi = new int[n];
+for (int i = 1; i < n; i++) {
+    int k = pi[i - 1];
+    while (k > 0 && s.charAt(i) != s.charAt(k)) k = pi[k - 1];
+    if (s.charAt(i) == s.charAt(k)) k++;
+    pi[i] = k;
+}
+--py
+pi = [0] * n
+for i in range(1, n):
+    k = pi[i - 1]
+    while k and s[i] != s[k]: k = pi[k - 1]
+    if s[i] == s[k]: k += 1
+    pi[i] = k
+--cpp
+vector<int> pi(n);
+for (int i = 1; i < n; i++) {
+    int k = pi[i - 1];
+    while (k && s[i] != s[k]) k = pi[k - 1];
+    if (s[i] == s[k]) k++;
+    pi[i] = k;
+}
+### u-zfn
+--java
+int[] z = new int[n];
+for (int i = 1, l = 0, r = 0; i < n; i++) {
+    if (i < r) z[i] = Math.min(r - i, z[i - l]);
+    while (i + z[i] < n && s.charAt(z[i]) == s.charAt(i + z[i])) z[i]++;
+    if (i + z[i] > r) { l = i; r = i + z[i]; }
+}
+--py
+z = [0] * n; l = r = 0
+for i in range(1, n):
+    if i < r: z[i] = min(r - i, z[i - l])
+    while i + z[i] < n and s[z[i]] == s[i + z[i]]: z[i] += 1
+    if i + z[i] > r: l, r = i, i + z[i]
+--cpp
+vector<int> z(n);
+for (int i = 1, l = 0, r = 0; i < n; i++) {
+    if (i < r) z[i] = min(r - i, z[i - l]);
+    while (i + z[i] < n && s[z[i]] == s[i + z[i]]) z[i]++;
+    if (i + z[i] > r) { l = i; r = i + z[i]; }
+}
+### u-hashroll
+--java
+long[] h = new long[n + 1], pw = new long[n + 1];
+pw[0] = 1;
+for (int i = 0; i < n; i++) {
+    h[i + 1] = (h[i] * B + s.charAt(i)) % M;
+    pw[i + 1] = pw[i] * B % M;
+}
+--py
+h = [0] * (n + 1); pw = [1] * (n + 1)
+for i, ch in enumerate(s):
+    h[i + 1] = (h[i] * B + ord(ch)) % M
+    pw[i + 1] = pw[i] * B % M
+--cpp
+vector<long long> h(n + 1), pw(n + 1, 1);
+for (int i = 0; i < n; i++) {
+    h[i + 1] = (h[i] * B + s[i]) % M;
+    pw[i + 1] = pw[i] * B % M;
+}
+### u-substrhash
+--java
+long get(int l, int r) {   // hash of s[l..r)
+    return ((h[r] - h[l] * pw[r - l]) % M + M) % M;
+}
+--py
+def get(l, r):   # hash of s[l:r]
+    return (h[r] - h[l] * pw[r - l]) % M
+--cpp
+long long get(int l, int r) {   // hash of s[l..r)
+    return ((h[r] - h[l] * pw[r - l]) % M + M) % M;
+}
+### u-lcp2
+--java
+int k = 0;
+while (k < Math.min(a.length(), b.length()) && a.charAt(k) == b.charAt(k)) k++;
+--py
+k = 0
+while k < min(len(a), len(b)) and a[k] == b[k]: k += 1
+--cpp
+int k = 0;
+while (k < (int)min(a.size(), b.size()) && a[k] == b[k]) k++;
+### u-ispalin
+--java
+boolean p = new StringBuilder(s).reverse().toString().equals(s);
+--py
+p = s == s[::-1]
+--cpp
+bool p = equal(s.begin(), s.end(), s.rbegin());
+### u-trieins
+--java
+int[][] nxt = new int[MAXN][26]; boolean[] end = new boolean[MAXN]; int cnt = 1;
+void insert(String w) {
+    int v = 0;
+    for (char ch : w.toCharArray()) {
+        if (nxt[v][ch - 'a'] == 0) nxt[v][ch - 'a'] = cnt++;
+        v = nxt[v][ch - 'a'];
+    }
+    end[v] = true;
+}
+--py
+trie = [{}]; end = [False]
+def insert(w):
+    v = 0
+    for ch in w:
+        if ch not in trie[v]:
+            trie.append({}); end.append(False); trie[v][ch] = len(trie) - 1
+        v = trie[v][ch]
+    end[v] = True
+--cpp
+int nxt[MAXN][26], cnt = 1; bool end_[MAXN];
+void insert(const string &w) {
+    int v = 0;
+    for (char ch : w) {
+        if (!nxt[v][ch - 'a']) nxt[v][ch - 'a'] = cnt++;
+        v = nxt[v][ch - 'a'];
+    }
+    end_[v] = true;
+}

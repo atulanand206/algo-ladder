@@ -1,0 +1,292 @@
+### u-orientf
+--java
+long o = cross(bx - ax, by - ay, cx - ax, cy - ay);   // >0 left turn, <0 right, 0 straight
+--py
+o = (bx - ax) * (cy - ay) - (by - ay) * (cx - ax)   # >0 left turn, <0 right, 0 straight
+--cpp
+long long o = (bx - ax) * (cy - ay) - (by - ay) * (cx - ax);   // >0 left, <0 right, 0 straight
+### u-segon
+--java
+boolean on = cross(bx - ax, by - ay, px - ax, py - ay) == 0
+    && Math.min(ax, bx) <= px && px <= Math.max(ax, bx)
+    && Math.min(ay, by) <= py && py <= Math.max(ay, by);
+--py
+on = ((bx - ax) * (py - ay) - (by - ay) * (px - ax) == 0
+      and min(ax, bx) <= px <= max(ax, bx) and min(ay, by) <= py <= max(ay, by))
+--cpp
+bool on = (bx - ax) * (py - ay) - (by - ay) * (px - ax) == 0
+    && min(ax, bx) <= px && px <= max(ax, bx) && min(ay, by) <= py && py <= max(ay, by);
+### u-sortang
+--java
+pts.sort((a, b) -> Double.compare(Math.atan2(a[1] - cy, a[0] - cx), Math.atan2(b[1] - cy, b[0] - cx)));
+--py
+pts.sort(key=lambda p: math.atan2(p[1] - cy, p[0] - cx))
+--cpp
+sort(pts.begin(), pts.end(), [&](auto &a, auto &b) {
+    return atan2(a.y - cy, a.x - cx) < atan2(b.y - cy, b.x - cx);
+});
+### u-polyarea2
+--java
+long s = 0;
+for (int i = 0; i < n; i++) {
+    int j = (i + 1) % n;
+    s += (long) x[i] * y[j] - (long) x[j] * y[i];
+}
+// area = |s| / 2
+--py
+s = sum(x[i] * y[(i + 1) % n] - x[(i + 1) % n] * y[i] for i in range(n))
+# area = abs(s) / 2
+--cpp
+long long s = 0;
+for (int i = 0; i < n; i++) {
+    int j = (i + 1) % n;
+    s += 1LL * x[i] * y[j] - 1LL * x[j] * y[i];
+}
+### u-segbuild
+--java
+int[] t = new int[2 * n];                // leaves live at n..2n-1
+for (int i = 0; i < n; i++) t[n + i] = a[i];
+for (int i = n - 1; i > 0; i--) t[i] = t[2 * i] + t[2 * i + 1];
+--py
+t = [0] * n + a[:]
+for i in range(n - 1, 0, -1): t[i] = t[2 * i] + t[2 * i + 1]
+--cpp
+vector<int> t(2 * n);
+for (int i = 0; i < n; i++) t[n + i] = a[i];
+for (int i = n - 1; i > 0; i--) t[i] = t[2 * i] + t[2 * i + 1];
+### u-segq
+--java
+int query(int l, int r) {   // sum of [l, r)
+    int s = 0;
+    for (l += n, r += n; l < r; l >>= 1, r >>= 1) {
+        if ((l & 1) == 1) s += t[l++];
+        if ((r & 1) == 1) s += t[--r];
+    }
+    return s;
+}
+--py
+def query(l, r):   # sum of [l, r)
+    s = 0; l += n; r += n
+    while l < r:
+        if l & 1: s += t[l]; l += 1
+        if r & 1: r -= 1; s += t[r]
+        l >>= 1; r >>= 1
+    return s
+--cpp
+int query(int l, int r) {   // sum of [l, r)
+    int s = 0;
+    for (l += n, r += n; l < r; l >>= 1, r >>= 1) {
+        if (l & 1) s += t[l++];
+        if (r & 1) s += t[--r];
+    }
+    return s;
+}
+### u-segupd
+--java
+void update(int i, int v) {
+    for (t[i += n] = v; i > 1; i >>= 1) t[i >> 1] = t[i] + t[i ^ 1];
+}
+--py
+def update(i, v):
+    i += n; t[i] = v
+    while i > 1:
+        t[i >> 1] = t[i] + t[i ^ 1]; i >>= 1
+--cpp
+void update(int i, int v) {
+    for (t[i += n] = v; i > 1; i >>= 1) t[i >> 1] = t[i] + t[i ^ 1];
+}
+### u-bitadd
+--java
+void add(int i, long v) { for (i++; i <= n; i += i & -i) bit[i] += v; }
+--py
+def add(i, v):
+    i += 1
+    while i <= n: bit[i] += v; i += i & -i
+--cpp
+void add(int i, long long v) { for (i++; i <= n; i += i & -i) bit[i] += v; }
+### u-bitsum
+--java
+long sum(int i) {   // sum of a[0..i]
+    long s = 0;
+    for (i++; i > 0; i -= i & -i) s += bit[i];
+    return s;
+}
+--py
+def total(i):   # sum of a[0..i]
+    s = 0; i += 1
+    while i > 0: s += bit[i]; i -= i & -i
+    return s
+--cpp
+long long sum(int i) {   // sum of a[0..i]
+    long long s = 0;
+    for (i++; i > 0; i -= i & -i) s += bit[i];
+    return s;
+}
+### u-hpush
+--java
+h[size++] = x;
+up(size - 1);
+--py
+heapq.heappush(h, x)
+--cpp
+h.push_back(x);
+up(h.size() - 1);
+### u-hpop
+--java
+int top = h[0];
+h[0] = h[--size];
+down(0, size);
+--py
+top = heapq.heappop(h)
+--cpp
+int top = h[0];
+h[0] = h.back(); h.pop_back();
+down(0, h.size());
+### u-listrev
+--java
+ListNode prev = null;
+while (head != null) { ListNode nx = head.next; head.next = prev; prev = head; head = nx; }
+return prev;
+--py
+prev = None
+while head:
+    head.next, prev, head = prev, head, head.next
+return prev
+--cpp
+ListNode *prev = nullptr;
+while (head) { ListNode *nx = head->next; head->next = prev; prev = head; head = nx; }
+return prev;
+### u-listmerge
+--java
+ListNode dummy = new ListNode(0), t = dummy;
+while (a != null && b != null) {
+    if (a.val <= b.val) { t.next = a; a = a.next; } else { t.next = b; b = b.next; }
+    t = t.next;
+}
+t.next = a != null ? a : b;
+return dummy.next;
+--py
+dummy = t = ListNode(0)
+while a and b:
+    if a.val <= b.val: t.next, a = a, a.next
+    else: t.next, b = b, b.next
+    t = t.next
+t.next = a or b
+return dummy.next
+--cpp
+ListNode dummy(0), *t = &dummy;
+while (a && b) {
+    if (a->val <= b->val) { t->next = a; a = a->next; } else { t->next = b; b = b->next; }
+    t = t->next;
+}
+t->next = a ? a : b;
+return dummy.next;
+### u-treeins
+--java
+Node insert(Node v, int x) {
+    if (v == null) return new Node(x);
+    if (x < v.key) v.left = insert(v.left, x);
+    else if (x > v.key) v.right = insert(v.right, x);
+    return v;
+}
+--py
+def insert(v, x):
+    if v is None: return Node(x)
+    if x < v.key: v.left = insert(v.left, x)
+    elif x > v.key: v.right = insert(v.right, x)
+    return v
+--cpp
+Node *insert(Node *v, int x) {
+    if (!v) return new Node(x);
+    if (x < v->key) v->left = insert(v->left, x);
+    else if (x > v->key) v->right = insert(v->right, x);
+    return v;
+}
+### u-treeh
+--java
+int height(Node v) { return v == null ? 0 : 1 + Math.max(height(v.left), height(v.right)); }
+--py
+def height(v): return 0 if v is None else 1 + max(height(v.left), height(v.right))
+--cpp
+int height(Node *v) { return !v ? 0 : 1 + max(height(v->left), height(v->right)); }
+### u-inorder
+--java
+void inorder(Node v) {
+    if (v == null) return;
+    inorder(v.left); visit(v); inorder(v.right);
+}
+--py
+def inorder(v):
+    if v is None: return
+    inorder(v.left); visit(v); inorder(v.right)
+--cpp
+void inorder(Node *v) {
+    if (!v) return;
+    inorder(v->left); visit(v); inorder(v->right);
+}
+### u-lru
+--java
+// LinkedHashMap in access order: get() moves the key to the back
+Map<Integer, Integer> m = new LinkedHashMap<>(16, 0.75f, true);
+--py
+from collections import OrderedDict
+m = OrderedDict()
+m.move_to_end(key)   # mark as just used
+--cpp
+list<int> order; unordered_map<int, list<int>::iterator> pos;
+order.erase(pos[key]); order.push_front(key); pos[key] = order.begin();
+### u-windowmv
+--java
+cnt[a[r]]++;                       // add the new item
+if (cnt[a[r]] == 1) distinct++;
+while (distinct > k) { if (--cnt[a[l]] == 0) distinct--; l++; }   // drop old items
+--py
+cnt[a[r]] += 1
+if cnt[a[r]] == 1: distinct += 1
+while distinct > k:
+    cnt[a[l]] -= 1
+    if cnt[a[l]] == 0: distinct -= 1
+    l += 1
+--cpp
+if (++cnt[a[r]] == 1) distinct++;
+while (distinct > k) { if (--cnt[a[l]] == 0) distinct--; l++; }
+### u-diffadd
+--java
+d[l] += v;
+d[r + 1] -= v;   // later: running sum of d gives the array
+--py
+d[l] += v
+d[r + 1] -= v   # later: running sum of d gives the array
+--cpp
+d[l] += v;
+d[r + 1] -= v;   // later: running sum of d gives the array
+### u-pfx2d
+--java
+for (int i = 1; i <= R; i++) for (int j = 1; j <= C; j++)
+    p[i][j] = a[i - 1][j - 1] + p[i - 1][j] + p[i][j - 1] - p[i - 1][j - 1];
+--py
+for i in range(1, R + 1):
+    for j in range(1, C + 1):
+        p[i][j] = a[i - 1][j - 1] + p[i - 1][j] + p[i][j - 1] - p[i - 1][j - 1]
+--cpp
+for (int i = 1; i <= R; i++) for (int j = 1; j <= C; j++)
+    p[i][j] = a[i - 1][j - 1] + p[i - 1][j] + p[i][j - 1] - p[i - 1][j - 1];
+### u-compressv
+--java
+int[] s = Arrays.stream(a).distinct().sorted().toArray();
+for (int i = 0; i < n; i++) a[i] = Arrays.binarySearch(s, a[i]);
+--py
+s = sorted(set(a))
+rank = {v: i for i, v in enumerate(s)}
+a = [rank[v] for v in a]
+--cpp
+vector<int> s(a); sort(s.begin(), s.end()); s.erase(unique(s.begin(), s.end()), s.end());
+for (int &x : a) x = lower_bound(s.begin(), s.end(), x) - s.begin();
+### u-shuffle
+--java
+Random rnd = new Random();
+for (int i = n - 1; i > 0; i--) { int j = rnd.nextInt(i + 1); int t = a[i]; a[i] = a[j]; a[j] = t; }
+--py
+random.shuffle(a)
+--cpp
+for (int i = n - 1; i > 0; i--) swap(a[i], a[rng() % (i + 1)]);

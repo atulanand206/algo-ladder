@@ -1,0 +1,398 @@
+array|Arrays and strings|0|ds|u-fill,u-out,u-in|Items in a row, reached by position.
+matrix|Matrices and 2D arrays|0|ds|array,u-idx|A grid of items indexed by row and column.
+hash|Hash tables and counting|0|ds|array,u-freq|Look things up and count them in constant time.
+hset|Sets|0|ds|hash|Remember which values you have seen.
+stack|Stacks|0|ds|array|Last in, first out.
+queue|Queues|0|ds|array|First in, first out.
+deque|Deques|0|ds|queue|Add or remove at both ends.
+linked|Linked lists|0|ds||Items chained together by pointers.
+dll|Doubly linked lists|0|ds|linked|Links go both ways, so removal is quick.
+circbuf|Circular buffers|0|ds|queue|A fixed-size queue that wraps around.
+bitset|Bitsets|1|ds|bits|Pack many yes or no flags into machine words.
+heap|Heaps and priority queues|1|ds|array,u-sift|Always hands you the smallest or largest item fast.
+tree|Binary trees|1|ds|linked|Items with parents and children.
+bst|Binary search trees|1|ds|tree|Trees ordered so a search halves the work.
+trie|Tries|1|ds|tree|A tree of letters for words that share starts.
+dsu|Union-find|1|ds|array,u-find|Track which items belong to the same group.
+mono|Monotonic stack and queue|1|ds|stack,queue|Keep a stack in order to find the next greater item.
+tmap|Ordered sets and maps|1|ds|bst|Sets and maps that keep keys sorted.
+multiset|Multisets|1|ds|tmap|A sorted set that allows repeats.
+lru|LRU cache|1|ds|hash,dll|Evict the item used longest ago.
+topk|Top-k with a heap|1|ds|heap|Keep only the k best items seen so far.
+medstream|Running median|1|ds|heap|Two heaps that track the middle of a stream.
+fenwick|Fenwick tree|2|ds|prefix|Prefix sums you can also update, in log steps.
+fenwick2d|2D Fenwick tree|2|ds|fenwick,matrix|Fenwick tree over a grid.
+sparse|Sparse table|2|ds|prefix|Answer range minimum in constant time after preparing.
+segment|Segment tree|2|ds|prefix,binary-search|Answer and update any range in log steps.
+wdsu|Weighted union-find|2|ds|dsu|Union-find that also tracks distances between items.
+avl|AVL trees|2|ds|bst|Search trees that rebalance by rotations.
+rbt|Red-black trees|2|ds|bst|Search trees balanced by colouring nodes.
+btree|B-trees|2|ds|bst|Wide balanced trees used by databases.
+skiplist|Skip lists|2|ds|linked|Linked lists with express lanes.
+itree|Interval trees|2|ds|bst|Find all ranges that overlap a point.
+mergetree|Merge sort tree|2|ds|segment,merge-sort|A segment tree storing sorted lists.
+ostat|Order statistic tree|2|ds|bst|Find the k-th smallest in a changing set.
+sqrt|Sqrt decomposition|2|ds|array|Split data into blocks of about root n.
+bloom|Bloom filters|2|ds|hash|Say "maybe seen" or "definitely not" in tiny space.
+cms|Count-min sketch|2|ds|hash|Estimate counts of a huge stream in small memory.
+lazy|Lazy propagation|3|ds|segment|Delay range updates until someone asks.
+treap|Treaps|3|ds|bst,heap|A balanced search tree built from random priorities.
+splay|Splay trees|3|ds|bst|Search trees that move used items to the top.
+persist|Persistent segment tree|3|ds|segment|Keep every past version of a structure.
+dynseg|Dynamic segment tree|3|ds|segment|A segment tree that creates nodes only when needed.
+beats|Segment tree beats|3|ds|lazy|Range updates like min-assign with amortized proofs.
+linkcut|Link-cut tree|3|ds|splay|Cut and join trees while answering path queries.
+lichao|Li Chao tree|3|ds|segment|Keep the best line at each point.
+wavelet|Wavelet tree|3|ds|segment|Answer k-th smallest in a range.
+kdtree|k-d tree|3|ds|bst|Split space to find nearby points.
+rope|Rope|3|ds|treap|Edit very long sequences by splitting and joining.
+veb|Van Emde Boas tree|3|ds|trie|Predecessor queries in log log n.
+hll|HyperLogLog|3|ds|bloom|Estimate how many distinct items a stream has.
+dsurb|Rollback union-find|3|ds|dsu|Union-find that can undo its last merges.
+dsparse|Disjoint sparse table|3|ds|sparse|Range queries for any associative operation.
+sorting|Sorting|0|sort|array,bigo,u-part,u-merge,u-sortidx|Put items in order so everything else gets easier.
+bubble|Bubble sort|0|sort|array,u-swap|Swap neighbours until nothing is out of order.
+selection|Selection sort|0|sort|array,u-swap|Repeatedly pick the smallest of what is left.
+insertion|Insertion sort|0|sort|array,u-swap|Grow a sorted prefix one item at a time.
+stable|Stable sorting and comparators|0|sort|sorting,u-cmp|Sort by your own rule without breaking ties.
+merge-sort|Merge sort|1|sort|divide,u-merge|Sort halves, then merge them.
+quick-sort|Quicksort|1|sort|divide,u-part|Split around a pivot, then sort both sides.
+heap-sort|Heapsort|1|sort|heap|Sort by repeatedly pulling the largest from a heap.
+counting-sort|Counting sort|1|sort|array,u-freq|Sort small integers by counting them.
+radix-sort|Radix sort|1|sort|counting-sort|Sort numbers digit by digit.
+bucket-sort|Bucket sort|1|sort|counting-sort|Scatter into buckets, sort each, join.
+shell|Shell sort|1|sort|insertion|Insertion sort with big gaps first.
+quickselect|Quickselect|1|sort|quick-sort|Find the k-th smallest without a full sort.
+inversions|Counting inversions|1|sort|merge-sort|Count out-of-order pairs while merging.
+cycle-sort|Cycle sort|1|sort|selection|Sort with the fewest writes.
+tim|Timsort|2|sort|merge-sort,insertion|Merge sort that exploits runs already in order.
+intro|Introsort|2|sort|quick-sort,heap-sort|Quicksort that falls back to heapsort.
+extsort|External merge sort|2|sort|merge-sort|Sort data too big for memory.
+sortnet|Sorting networks|3|sort|merge-sort|Sort with a fixed pattern of compare-swaps.
+bitonic|Bitonic sort|3|sort|sortnet|A sorting network that parallelises well.
+linear-search|Linear search|0|sort|array|Check every item in turn.
+binary-search|Binary search|0|sort|sorting,u-lower,u-upper,u-first|Halve the search space every step.
+ternary|Ternary search|1|sort|binary-search|Find the peak of a single-humped function.
+expo-search|Exponential search|1|sort|binary-search|Grow a range until it brackets the target.
+interp|Interpolation search|1|sort|binary-search|Guess the position from the value.
+jump|Jump search|1|sort|linear-search|Skip ahead in blocks, then scan.
+bs-answer|Binary search on the answer|1|sort|binary-search,u-ceildiv|Binary search the answer instead of an index.
+bs-real|Binary search on real numbers|1|sort|bs-answer|Search a decimal answer with a fixed number of rounds.
+bs-matrix|Search in a sorted matrix|1|sort|binary-search,matrix|Use the order of rows and columns to discard cells.
+fibsearch|Fibonacci search|2|sort|binary-search|Split by Fibonacci numbers instead of halves.
+bs-greedy|Binary search with greedy check|2|sort|bs-answer,greedy|Binary search a value, check it with one greedy pass.
+parallelbs|Parallel binary search|3|sort|bs-answer,dsu|Binary search many queries at once.
+fraccasc|Fractional cascading|3|sort|binary-search|Search many sorted lists with one lookup.
+bigo|Big-O and cost|0|tech||How the work grows as the input grows.
+amortized|Amortized analysis|1|tech|bigo|Cheap steps pay for the occasional costly one.
+recursion|Recursion|0|tech|u-swap|Solve a problem by solving smaller copies of it.
+backtrack|Backtracking|1|tech|recursion|Try a choice, recurse, undo it.
+subsets|Subsets and permutations|1|tech|backtrack|Generate every combination or ordering.
+nqueens|N-Queens and constraint search|2|tech|backtrack|Place pieces while cutting off dead ends early.
+dlx|Dancing links|3|tech|backtrack,dll|Exact cover with fast undo.
+brute|Brute force and pruning|0|tech|recursion|Try everything, skip what cannot work.
+prefix|Prefix sums|0|tech|array,u-prefix,u-rangesum|Precompute running totals for fast range sums.
+diffarr|Difference arrays|0|tech|prefix|Apply many range additions in one pass.
+prefix2d|2D prefix sums|1|tech|prefix,matrix|Sum any rectangle from four lookups.
+twop|Two pointers|0|tech|array,u-swap|Two markers walking along an array together.
+window|Sliding window|1|tech|twop,hash|A moving range that keeps a running answer.
+windeque|Sliding window maximum|1|tech|window,deque|Track the window's best with a deque.
+fastslow|Fast and slow pointers|1|tech|linked,twop|Find cycles and middles by moving at two speeds.
+greedy|Greedy|1|tech|sorting,u-minmax|Take the best local choice and never look back.
+exchange|Exchange arguments|2|tech|greedy|Prove a greedy choice by swapping two neighbours.
+intervals|Interval scheduling|1|tech|greedy,sorting|Pick the most non-overlapping ranges.
+huffman|Huffman coding|2|tech|greedy,heap|Build the shortest prefix code from frequencies.
+fracknap|Fractional knapsack|1|tech|greedy|Take items by value per weight.
+divide|Divide and conquer|1|tech|recursion|Split, solve each half, then combine.
+bits|Bit manipulation|1|tech|u-bit,u-popcount|Treat numbers as rows of on and off switches.
+bittricks|Bit tricks|1|tech|bits|Short expressions that do a lot with bits.
+subsetenum|Enumerating subsets|1|tech|bits|Walk every subset of a set with a mask.
+gray|Gray code|1|tech|bits|Order numbers so neighbours differ by one bit.
+xortricks|XOR tricks|1|tech|bits|Cancel pairs and flip values with XOR.
+meet|Meet in the middle|3|tech|bits,sorting|Solve two halves separately, then join them.
+coord|Coordinate compression|1|tech|sorting,binary-search|Replace huge values by their rank.
+sweep|Sweep line|2|tech|sorting,heap|Process events in order along one axis.
+offline|Offline queries|2|tech|sorting,fenwick|Reorder queries so answering gets easier.
+mo|Mo's algorithm|3|tech|sorting,sqrt|Order range queries to move the window less.
+moupd|Mo's with updates|3|tech|mo|Mo's algorithm that also handles changes.
+motree|Mo's on trees|3|tech|mo,euler|Mo's algorithm over tree paths.
+cdq|CDQ divide and conquer|3|tech|divide,fenwick|Solve queries by splitting time in halves.
+smalllarge|Small to large merging|3|tech|hset|Always merge the smaller set into the bigger.
+random|Randomization|1|tech|bigo|Use chance to dodge bad inputs.
+simulate|Simulation|0|tech|array|Do exactly what the statement says, step by step.
+constructive|Constructive thinking|1|tech||Build an example that satisfies the rules.
+invariants|Invariants and monovariants|2|tech|constructive|Find what a move never changes.
+pigeonhole|Pigeonhole principle|1|tech||If items outnumber boxes, two share a box.
+pararg|Parity arguments|1|tech|parity|Use odd and even to rule things out.
+sqrtheur|Sqrt heuristics|3|tech|sqrt|Treat big and small cases differently.
+localsearch|Local search|3|tech|random|Improve an answer by small changes.
+approx|Approximation algorithms|3|tech|greedy|A provably close answer when exact is too slow.
+online|Online algorithms|3|tech|greedy|Decide now, without seeing the future.
+graph-rep|Graph representation|0|graph|array,u-adj,u-edge|Store a network of nodes as lists or a matrix.
+adjmat|Adjacency matrix|0|graph|matrix|A table saying which nodes are joined.
+bfs|BFS|0|graph|graph-rep,queue,u-nbr|Visit nodes by distance, nearest first.
+dfs|DFS|0|graph|graph-rep,recursion|Go as deep as possible, then back up.
+gridbfs|Grid traversal|0|graph|bfs,matrix|Walk a map one cell at a time.
+floodfill|Flood fill|0|graph|dfs,matrix|Spread through connected cells.
+components|Connected components|0|graph|dfs|Split a graph into groups that reach each other.
+treetrav|Tree traversals|1|graph|tree,recursion|Visit a tree in pre, in, or post order.
+cycleund|Cycle detection, undirected|1|graph|dfs|Spot a loop in an undirected graph.
+cycledir|Cycle detection, directed|1|graph|dfs|Spot a loop in a directed graph.
+bipartite|Bipartite check|1|graph|bfs|Two-colour a graph or prove it cannot be.
+topo|Topological sort|1|graph|dfs,queue|Order tasks so each comes after what it needs.
+kahn|Kahn's algorithm|1|graph|topo|Topological order by removing nodes with no inputs.
+msbfs|Multi-source BFS|1|graph|bfs|Start the search from many nodes at once.
+sp01|0-1 BFS|1|graph|bfs,deque|Shortest paths when every step costs 0 or 1.
+treediam|Tree diameter|1|graph|dfs|The longest path in a tree.
+dijkstra|Dijkstra|2|graph|bfs,heap|Shortest paths with positive costs, using a heap.
+bellman|Bellman-Ford|2|graph|dijkstra|Shortest paths that allow negative costs.
+spfa|SPFA|2|graph|bellman|Bellman-Ford with a queue of changed nodes.
+negcycle|Negative cycle detection|2|graph|bellman|Find a loop that keeps lowering the cost.
+floyd|Floyd-Warshall|2|graph|graph-rep|Shortest paths between every pair, with three loops.
+astar|A* search|2|graph|dijkstra|Shortest path guided by a guess of the remaining cost.
+bibfs|Bidirectional search|2|graph|bfs|Search from both ends and meet in the middle.
+mst|Minimum spanning tree|2|graph|dsu,greedy|Connect everything with the least total cost.
+prim|Prim's algorithm|2|graph|heap,mst|Grow a spanning tree one cheapest edge at a time.
+euler|Euler tour|2|graph|dfs,fenwick|Flatten a tree into an array of visit times.
+treecenter|Tree center|2|graph|treediam|The middle of a tree's longest path.
+lca|LCA and binary lifting|2|graph|tree,bs-answer|Find the closest shared ancestor in a tree.
+kthanc|k-th ancestor|2|graph|lca|Jump up a tree by powers of two.
+lcaeuler|LCA with Euler tour|2|graph|euler,sparse|Reduce LCA to a range minimum query.
+treematch|Tree matching and vertex cover|2|graph|treedp|Pick edges or nodes on a tree with DP.
+scc|Strongly connected components|2|graph|dfs|Groups of nodes that can all reach each other.
+kosaraju|Kosaraju's algorithm|2|graph|scc|Find SCCs with two DFS passes.
+condense|Condensation DAG|2|graph|scc|Shrink each SCC to one node.
+eulerpath|Euler paths and circuits|2|graph|dfs|Walk every edge exactly once.
+hierholzer|Hierholzer's algorithm|2|graph|eulerpath|Build an Euler circuit by splicing loops.
+hamilton|Hamiltonian paths|2|graph|bitmask|Visit every node exactly once.
+funcgraph|Functional graphs|2|graph|dfs|Every node points to exactly one other.
+graphcolor|Graph coloring|2|graph|bipartite|Colour nodes so neighbours differ.
+flow|Max flow|2|graph|bfs|How much can pass through a network.
+mincut|Min cut|2|graph|flow|The cheapest edges whose removal separates two nodes.
+matching|Bipartite matching|2|graph|bipartite,dfs|Pair items so each is used once.
+stablematch|Stable matching|2|graph|array|Pairs nobody wants to break up.
+johnson|Johnson's algorithm|3|graph|dijkstra,bellman|All-pairs shortest paths on sparse graphs.
+kthpath|k shortest paths|3|graph|dijkstra|Find the second, third, and later best routes.
+boruvka|Boruvka's algorithm|3|graph|dsu|Spanning tree by merging cheapest edges in rounds.
+mst2|Second-best spanning tree|3|graph|mst,lca|The best tree that is not the best tree.
+lcatarjan|Offline LCA (Tarjan)|3|graph|dsu,dfs|Answer many LCA queries with union-find.
+hld|Heavy-light decomposition|3|graph|lca,segment|Cut a tree into chains so path queries become ranges.
+centroid|Centroid decomposition|3|graph|lca|Break a tree around its middle, again and again.
+vtree|Virtual tree|3|graph|lca|A small tree on just the nodes you care about.
+treeiso|Tree isomorphism|3|graph|tree,hashing|Tell whether two trees are the same shape.
+tarjan|Tarjan's SCC|3|graph|scc|Find SCCs with a single DFS.
+bridges|Bridges and cut points|3|graph|dfs|Edges or nodes whose removal splits the graph.
+bcc|Biconnected components|3|graph|bridges|Parts that stay connected after any one removal.
+twosat|2-SAT|3|graph|scc|Satisfy pairs of yes or no conditions.
+dinic|Dinic's algorithm|3|graph|flow|Max flow in layers.
+pushrelabel|Push-relabel|3|graph|flow|Max flow by pushing excess locally.
+mcmf|Min-cost max-flow|3|graph|flow,bellman|Send the most flow at the least cost.
+lowerflow|Flow with lower bounds|3|graph|flow|Edges that must carry at least some flow.
+hopcroft|Hopcroft-Karp|3|graph|matching|Fast bipartite matching.
+hungarian|Hungarian algorithm|3|graph|matching|Cheapest one-to-one assignment.
+blossom|General matching (blossom)|3|graph|matching|Matching in graphs with odd cycles.
+dominator|Dominator tree|3|graph|dfs|Which nodes every path must pass through.
+dynconn|Offline dynamic connectivity|3|graph|dsurb,segment|Connectivity while edges come and go.
+arbor|Minimum arborescence|3|graph|mst|A spanning tree for directed graphs.
+gomory|Gomory-Hu tree|3|graph|mincut|All pairwise min cuts in one tree.
+clique|Cliques and independent sets|3|graph|backtrack|Largest fully connected or fully unconnected group.
+planar|Planarity and duality|3|graph|graph-rep|Graphs drawn without crossings.
+memo|Memoization|0|dp|recursion|Remember answers you already computed.
+dp1|1D DP|1|dp|memo,prefix|An answer built from the answers just before it.
+coin|Coin change, fewest coins|1|dp|dp1|Smallest number of coins for a total.
+coinways|Coin change, count ways|1|dp|coin|How many ways to make a total.
+houserob|House robber style DP|1|dp|dp1|Best total when you cannot take neighbours.
+dp2|Grid and 2D DP|1|dp|dp1,matrix,u-nbr|Answers kept in a table over two choices.
+minpath|Minimum path sum|1|dp|dp2|Cheapest route across a grid.
+lcs|Two-sequence DP|1|dp|dp2|Compare two sequences with a table.
+editdist|Edit distance|1|dp|lcs|Fewest edits to turn one string into another.
+lps|Longest palindromic subsequence|1|dp|lcs|Longest palindrome hidden inside a string.
+palindp|Palindromic substrings|1|dp|dp2|Mark which ranges read the same both ways.
+knapsack|Knapsack|1|dp|dp1|Choose items under a limit to get the most value.
+unbounded|Unbounded knapsack|1|dp|knapsack|Items you may take any number of times.
+subsetsum|Subset sum|1|dp|knapsack|Can some items add up to a target.
+partition|Partition problems|1|dp|subsetsum|Split items into balanced groups.
+statem|State machine DP|1|dp|dp1|DP with a few modes like holding or not.
+stock|Stock trading DP|1|dp|statem|Best profit with buy and sell rules.
+dppref|DP with prefix sums|1|dp|dp1,prefix|Speed up transitions that sum a range.
+countpaths|Counting paths|1|dp|dp2|Count ways to reach each cell.
+dpstrings|DP on strings|1|dp|lcs|Tables over prefixes of strings.
+lis|Longest increasing subsequence|2|dp|dp1,binary-search|The longest run that keeps going up, in order.
+lisfast|LIS in n log n|2|dp|lis|LIS using binary search on tails.
+boundedk|Bounded knapsack|2|dp|knapsack|Items with a limited count.
+knapbitset|Knapsack with bitsets|2|dp|knapsack,bitset|Use bit shifts to test sums fast.
+multiknap|Multi-dimensional knapsack|2|dp|knapsack|Several limits at once.
+interval|Interval DP|2|dp|dp2|Answers for ranges, built from smaller ranges.
+matrixchain|Matrix chain multiplication|2|dp|interval|Best order to multiply matrices.
+burst|Burst balloons style|2|dp|interval|Choose the last item in a range.
+bitmask|Bitmask DP|2|dp|bits,dp1|A set of items stored as the bits of one number.
+tspdp|Traveling salesman DP|2|dp|bitmask|Shortest tour over subsets.
+assigndp|Assignment DP|2|dp|bitmask|Match items to slots with masks.
+treedp|Tree DP|2|dp|dfs,dp1|A node's answer from its children's answers.
+dagdp|DP on DAGs|2|dp|topo,dp1|Compute in topological order.
+longestdag|Longest path in a DAG|2|dp|dagdp|Longest chain through ordered tasks.
+probdp|Probability DP|2|dp|dp1,prob|Track the chance of each state.
+expdp|Expected value DP|2|dp|probdp|Track the average outcome of each state.
+gamedp|Game DP|2|dp|dp1|Mark states as winning or losing.
+mqdp|Monotonic queue DP|2|dp|dp1,windeque|Speed up window-based transitions.
+wildcard|Wildcard and regex matching|2|dp|lcs|Match patterns with * and ?.
+distinctsub|Distinct subsequences|2|dp|lcs|Count ways one string hides in another.
+digit|Digit DP|3|dp|dp1|Count numbers by building them digit by digit.
+reroot|Rerooting|3|dp|treedp|Move a tree's root and update answers cheaply.
+dpopt|DP optimizations|3|dp|dp2,divide|Speed up DP when the best choice moves predictably.
+dcopt|Divide and conquer optimization|3|dp|dpopt|Use monotone best choices to split the work.
+knuth|Knuth optimization|3|dp|dpopt|Faster interval DP when choices are monotone.
+cht|Convex hull trick|3|dp|dp1,hull|Best line at each point speeds up DP.
+aliens|Aliens trick|3|dp|dpopt,binary-search|Add a penalty per piece and binary search it.
+matdp|Matrix exponentiation DP|3|dp|dp1,matexp|Jump far ahead in a linear DP.
+incldp|Inclusion-exclusion DP|3|dp|dp1,inclexcl|Count by adding and subtracting overlaps.
+sos|SOS DP|3|dp|bitmask|Sum over all subsets of every mask.
+profile|Broken profile DP|3|dp|bitmask|Tile a grid one cell at a time.
+dpperm|DP on permutations|3|dp|bitmask|Build orderings by subsets.
+optbst|Optimal binary search tree|3|dp|interval|Arrange keys to minimise search cost.
+submask|Submask enumeration DP|3|dp|bitmask|Iterate submasks of every mask in 3 to the n.
+parity|Parity and modulo|0|math|u-mod,u-abs|Odd or even, and remainders.
+modular|Modular arithmetic|0|math|parity|Add, subtract, and multiply under a modulus.
+gcd|GCD and LCM|0|math|u-gcd,u-lcm|Shared divisors, and what stays the same under subtraction.
+divisibility|Divisibility rules|0|math|parity|Tell if one number divides another.
+primality|Primality testing|0|math|u-isprime|Check whether a number is prime.
+bases|Number bases|0|math|u-digits|Write numbers in base 2, 8, 16 and more.
+digtricks|Digit tricks|0|math|u-digsum|Use digit sums and patterns.
+extgcd|Extended Euclid|1|math|gcd|Find x and y with ax + by = gcd.
+sieve|Primes and sieve|1|math|primality|Find all primes up to n at once.
+linsieve|Linear sieve|1|math|sieve|A sieve that touches each number once.
+factor|Prime factorization|1|math|primality|Break a number into primes.
+spf|Smallest prime factor|1|math|sieve|Factor many numbers fast.
+divisors|Counting divisors|1|math|factor|Count and sum all divisors.
+phi|Euler's totient|1|math|factor|Count numbers coprime to n.
+modpow|Fast power, mod inverse|1|math|u-powmod,u-mulmod|Powers and divisions when numbers are huge.
+modinv|Modular inverse|1|math|modpow,extgcd|Divide under a modulus.
+fermat|Fermat and Euler theorems|1|math|modpow|Powers wrap around under a prime modulus.
+ncr|Binomial coefficients|1|math|dp1|Ways to choose k from n.
+stars|Stars and bars|1|math|ncr|Count ways to split into groups.
+prob|Probability basics|1|math|ncr|Chances of events.
+bayes|Conditional probability|1|math|prob|Update a chance when you learn something.
+kthperm|k-th permutation|1|math|ncr,recursion|Jump straight to the k-th ordering.
+nextperm|Next permutation|1|math|array|Step to the next ordering.
+bigint|Big integer arithmetic|1|math|array|Numbers too large for one machine word.
+segsieve|Segmented sieve|2|math|sieve|Sieve a window of a huge range.
+mobius|Möbius function|2|math|phi|Invert sums over divisors.
+wilson|Wilson's theorem|2|math|fermat|A primality fact about factorials.
+crt|Chinese remainder theorem|2|math|extgcd|Combine remainders under coprime moduli.
+lincong|Linear congruences|2|math|extgcd|Solve ax = b under a modulus.
+millerrabin|Miller-Rabin|2|math|modpow|A fast probabilistic primality test.
+lucas|Lucas theorem|2|math|comb|Binomials under a small prime modulus.
+comb|Combinatorics mod p|2|math|sieve,modinv|Count arrangements and choices under a modulus.
+factmod|Factorials mod p|2|math|modinv|Precompute factorials and their inverses.
+catalan|Catalan numbers|2|math|ncr|Count balanced brackets and similar shapes.
+stirling|Stirling numbers|2|math|ncr,dp1|Count ways to split into groups.
+bell|Bell numbers|2|math|stirling|Count all set partitions.
+derange|Derangements|2|math|inclexcl|Orderings with no item in place.
+partitions|Integer partitions|2|math|dp1|Ways to write a number as a sum.
+inclexcl|Inclusion-exclusion|2|math|ncr|Count a union by adding and subtracting overlaps.
+linrec|Linear recurrences|2|math|dp1|Sequences defined by earlier terms.
+matexp|Matrix exponentiation|2|math|modpow,matrix|Jump far ahead in a linear recurrence.
+fibfast|Fast Fibonacci|2|math|matexp|The n-th Fibonacci number in log steps.
+gauss|Gaussian elimination|2|math|matrix|Solve systems of linear equations.
+karatsuba|Karatsuba multiplication|2|math|divide,bigint|Multiply big numbers faster than schoolbook.
+sqrtblocks|Harmonic blocks|2|math|divisors|Group equal values of n divided by i.
+expect|Expected value|2|math|prob|The average outcome.
+linearity|Linearity of expectation|2|math|expect|Add averages even when events depend on each other.
+game|Game theory basics|2|math|dp1|Who wins when both play perfectly.
+nim|Nim|2|math|xortricks|The classic pile game, solved by XOR.
+josephus|Josephus problem|2|math|recursion|Who is left when every k-th person leaves.
+dirichlet|Dirichlet convolution|3|math|mobius|Combine number-theoretic functions.
+bsgs|Discrete logarithm|3|math|modpow|Find x with g to the x equal to y.
+primroot|Primitive roots|3|math|phi|Generators of the multiplicative group.
+tonelli|Modular square roots|3|math|modpow|Solve x squared equals a under a prime.
+pollard|Pollard's rho|3|math|millerrabin,gcd|Factor big numbers fast.
+burnside|Burnside's lemma|3|math|inclexcl|Count shapes up to symmetry.
+polya|Polya enumeration|3|math|burnside|Count colourings under symmetry.
+gf|Generating functions|3|math|ncr|Encode a sequence as a polynomial.
+bm|Berlekamp-Massey|3|math|linrec|Find a recurrence from its terms.
+kitamasa|Kitamasa method|3|math|linrec|The n-th term of a recurrence fast.
+gaussmod2|Gauss over GF(2)|3|math|gauss,bitset|Eliminate with XOR.
+det|Determinants|3|math|gauss|Compute a matrix's determinant.
+xorbasis|XOR basis|3|math|gauss,bits|Span of numbers under XOR.
+fwht|Walsh-Hadamard transform|3|math|bits,matrix|Fast XOR and AND convolutions.
+fft|FFT and convolution|3|math|modpow|Multiply huge polynomials fast.
+ntt|Number theoretic transform|3|math|fft|FFT without rounding errors.
+polyops|Polynomial operations|3|math|ntt|Inverse, log, exp of polynomials.
+floorsum|Floor sum|3|math|gcd|Sum of floor values in log steps.
+min25|Prime counting|3|math|sieve|Count primes up to huge n.
+randwalk|Random walks|3|math|expect|Expected steps of a wandering walker.
+markov|Markov chains|3|math|gauss,prob|States that move by chance.
+grundy|Sprague-Grundy|3|math|nim|Every impartial game is a Nim pile.
+misere|Misère games|3|math|nim|Games where the last mover loses.
+wythoff|Wythoff's game|3|math|nim|Two piles with diagonal moves.
+sternb|Stern-Brocot tree|3|math|gcd|All fractions in one tree.
+contfrac|Continued fractions|3|math|gcd|Best rational approximations.
+pell|Pell equations|3|math|contfrac|Solve x squared minus d y squared equals 1.
+geom|Points and vectors|1|geom||Coordinates, distance and direction.
+dotcross|Dot and cross product|1|geom|geom|Angle and area from two vectors.
+orient|Orientation test|1|geom|dotcross|Left turn, right turn, or straight.
+seginter|Segment intersection|1|geom|orient|Do two segments cross.
+lineinter|Line intersection|1|geom|dotcross|Where two lines meet.
+polyarea|Polygon area|1|geom|dotcross|Area from the shoelace formula.
+manhattan|Manhattan and Chebyshev distance|1|geom|geom|Distances along grid lines.
+pip|Point in polygon|2|geom|seginter|Is a point inside a shape.
+hull|Convex hull|2|geom|orient,sorting|The smallest convex shape around points.
+circle|Circle geometry|2|geom|geom|Circles, tangents and intersections.
+picks|Pick's theorem|2|geom|polyarea,gcd|Area from lattice points.
+lattice|Lattice points|2|geom|gcd|Count integer points on lines and in shapes.
+rotation|Rotations and complex numbers|2|geom|geom|Turn points around an origin.
+calipers|Rotating calipers|3|geom|hull|Sweep antipodal pairs around a hull.
+closest|Closest pair of points|3|geom|divide,sorting|Nearest two points in n log n.
+hpi|Half-plane intersection|3|geom|hull,lineinter|The region satisfying many linear limits.
+mec|Minimum enclosing circle|3|geom|circle,random|Smallest circle containing all points.
+sweepseg|Segment intersections by sweep|3|geom|sweep,seginter|Find crossings with a sweep line.
+rectunion|Area of rectangle union|3|geom|sweep,segment|Total area covered by many rectangles.
+voronoi|Voronoi diagrams|3|geom|hull|Regions closest to each point.
+delaunay|Delaunay triangulation|3|geom|voronoi|The best triangulation of a point set.
+triang|Polygon triangulation|3|geom|polyarea,hull|Cut a polygon into triangles.
+geomdual|Duality and line arrangements|3|geom|hull|Swap points and lines to simplify problems.
+strparse|Parsing and tokenizing|0|str|array|Split text into numbers and words.
+strsearch|Naive string search|0|str|array|Slide the pattern along the text.
+str-count|Counting and palindromes|0|str|hash,u-freq|Count letters and find palindromes.
+anagram|Anagrams|0|str|str-count|Same letters, different order.
+palin|Palindromes|0|str|str-count|Strings that read the same both ways.
+rle|Run-length encoding|0|str|array|Compress repeated characters.
+strcmp|Lexicographic comparison|0|str|array|Dictionary order for strings.
+hashing|String hashing|1|str|modpow|Turn a string into a number to compare fast.
+rabinkarp|Rabin-Karp|1|str|hashing|Search text with rolling hashes.
+strsort|Sorting strings|1|str|sorting|Order words by dictionary order.
+kmp|Prefix function, KMP|2|str|str-count|Reuse what already matched to search text.
+zfunc|Z-function|2|str|kmp|For each position, how much matches the start.
+border|Borders and periods|2|str|kmp|The repeating structure of a string.
+manacher|Manacher's algorithm|2|str|palin|All palindromes in linear time.
+trixor|XOR trie|2|str|trie,bits|Best XOR partner through a bit trie.
+hashbs|Common prefix by hashing|2|str|hashing,binary-search|Compare long prefixes with hash and search.
+minrot|Minimal string rotation|2|str|kmp|The smallest rotation of a string.
+dfa|Finite automata matching|2|str|kmp|Match patterns with a state machine.
+commonsub|Longest common substring|2|str|hashbs|The longest piece two strings share.
+aho|Aho-Corasick|3|str|trie,kmp|Search many words in one pass.
+suffix|Suffix array|3|str|sorting,kmp|All suffixes of a string, sorted.
+lcp|LCP array|3|str|suffix|How much neighbouring suffixes share.
+sam|Suffix automaton|3|str|trie,kmp|The smallest machine accepting all substrings.
+suftree|Suffix tree|3|str|suffix|A tree of all suffixes.
+eertree|Palindromic tree|3|str|manacher|All palindromic substrings in one tree.
+duval|Lyndon words|3|str|kmp|Split a string into its smallest pieces.
+bwt|Burrows-Wheeler transform|3|str|suffix|Rearrange text so it compresses well.
+bitap|Bitap algorithm|3|str|bits,kmp|Approximate string search with bit tricks.
+distinctsubstr|Counting distinct substrings|3|str|suffix|How many different substrings exist.
+minimax|Minimax|2|app|recursion|Pick the move that is best if the opponent plays well.
+alphabeta|Alpha-beta pruning|2|app|minimax|Skip moves that cannot change the result.
+mcts|Monte Carlo tree search|3|app|minimax,random|Play random games to judge positions.
+pagerank|PageRank|2|app|graph-rep,matrix|Rank pages by who links to them.
+kmeans|k-means clustering|2|app|array|Group points around moving centres.
+knn|k-nearest neighbours|1|app|sorting|Classify by the closest examples.
+anneal|Simulated annealing|3|app|random|Accept worse moves early to escape traps.
+genetic|Genetic algorithms|3|app|random|Evolve answers by mixing and mutating.
+lz|LZ77 compression|2|app|hashing|Replace repeats with pointers.
+consistent|Consistent hashing|2|app|hash,binary-search|Spread keys so servers can join and leave.
+reservoir|Reservoir sampling|1|app|random|Pick fairly from a stream of unknown length.
+shuffle|Fisher-Yates shuffle|1|app|random|A uniformly random ordering.
+crc|Checksums and CRC|2|app|bits|Detect corrupted data.
+gradient|Gradient descent|2|app|array|Walk downhill to a minimum.
+lfu|LFU cache|2|app|lru,heap|Evict the least frequently used item.
+ratelimit|Token bucket|1|app|queue|Limit how often something may happen.

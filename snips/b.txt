@@ -1,0 +1,418 @@
+### u-lower
+--java
+int lo = 0, hi = n;
+while (lo < hi) { int m = lo + (hi - lo) / 2; if (a[m] < x) lo = m + 1; else hi = m; }
+// lo = first index with a[lo] >= x
+--py
+from bisect import bisect_left
+i = bisect_left(a, x)
+--cpp
+int i = lower_bound(a.begin(), a.end(), x) - a.begin();
+### u-upper
+--java
+int lo = 0, hi = n;
+while (lo < hi) { int m = lo + (hi - lo) / 2; if (a[m] <= x) lo = m + 1; else hi = m; }
+// lo = first index with a[lo] > x
+--py
+from bisect import bisect_right
+i = bisect_right(a, x)
+--cpp
+int i = upper_bound(a.begin(), a.end(), x) - a.begin();
+### u-first
+--java
+while (lo < hi) {
+    int m = lo + (hi - lo) / 2;
+    if (test(m)) hi = m; else lo = m + 1;
+}
+// lo = smallest value where test is true
+--py
+while lo < hi:
+    m = (lo + hi) // 2
+    if test(m): hi = m
+    else: lo = m + 1
+--cpp
+while (lo < hi) {
+    int m = lo + (hi - lo) / 2;
+    if (test(m)) hi = m; else lo = m + 1;
+}
+### u-part
+--java
+int p = a[hi], i = lo;
+for (int j = lo; j < hi; j++) if (a[j] < p) swap(a, i++, j);
+swap(a, i, hi);   // pivot lands at i
+--py
+p, i = a[hi], lo
+for j in range(lo, hi):
+    if a[j] < p:
+        a[i], a[j] = a[j], a[i]; i += 1
+a[i], a[hi] = a[hi], a[i]
+--cpp
+int p = a[hi], i = lo;
+for (int j = lo; j < hi; j++) if (a[j] < p) swap(a[i++], a[j]);
+swap(a[i], a[hi]);
+### u-merge
+--java
+int i = 0, j = 0, k = 0;
+while (i < a.length && j < b.length) out[k++] = a[i] <= b[j] ? a[i++] : b[j++];
+while (i < a.length) out[k++] = a[i++];
+while (j < b.length) out[k++] = b[j++];
+--py
+i = j = 0; out = []
+while i < len(a) and j < len(b):
+    if a[i] <= b[j]: out.append(a[i]); i += 1
+    else: out.append(b[j]); j += 1
+out += a[i:] + b[j:]
+--cpp
+merge(a.begin(), a.end(), b.begin(), b.end(), out.begin());
+### u-sift
+--java
+void up(int i) { while (i > 0 && h[(i - 1) / 2] > h[i]) { swap(h, i, (i - 1) / 2); i = (i - 1) / 2; } }
+void down(int i, int n) {
+    for (int c; (c = 2 * i + 1) < n; i = c) {
+        if (c + 1 < n && h[c + 1] < h[c]) c++;
+        if (h[i] <= h[c]) break;
+        swap(h, i, c);
+    }
+}
+--py
+def up(h, i):
+    while i > 0 and h[(i - 1) // 2] > h[i]:
+        h[i], h[(i - 1) // 2] = h[(i - 1) // 2], h[i]; i = (i - 1) // 2
+def down(h, i, n):
+    while 2 * i + 1 < n:
+        c = 2 * i + 1
+        if c + 1 < n and h[c + 1] < h[c]: c += 1
+        if h[i] <= h[c]: break
+        h[i], h[c] = h[c], h[i]; i = c
+--cpp
+void up(int i) { while (i > 0 && h[(i - 1) / 2] > h[i]) { swap(h[i], h[(i - 1) / 2]); i = (i - 1) / 2; } }
+void down(int i, int n) {
+    for (int c; (c = 2 * i + 1) < n; i = c) {
+        if (c + 1 < n && h[c + 1] < h[c]) c++;
+        if (h[i] <= h[c]) break;
+        swap(h[i], h[c]);
+    }
+}
+### u-find
+--java
+int find(int x) { return p[x] == x ? x : (p[x] = find(p[x])); }
+--py
+def find(x):
+    while p[x] != x:
+        p[x] = p[p[x]]; x = p[x]
+    return x
+--cpp
+int find(int x) { return p[x] == x ? x : p[x] = find(p[x]); }
+### u-sortidx
+--java
+Integer[] id = new Integer[n];
+for (int i = 0; i < n; i++) id[i] = i;
+Arrays.sort(id, (x, y) -> Integer.compare(a[x], a[y]));
+--py
+id = sorted(range(n), key=lambda i: a[i])
+--cpp
+vector<int> id(n);
+iota(id.begin(), id.end(), 0);
+sort(id.begin(), id.end(), [&](int x, int y) { return a[x] < a[y]; });
+### u-adj
+--java
+List<List<Integer>> adj = new ArrayList<>();
+for (int i = 0; i < n; i++) adj.add(new ArrayList<>());
+for (int[] e : edges) { adj.get(e[0]).add(e[1]); adj.get(e[1]).add(e[0]); }
+--py
+adj = [[] for _ in range(n)]
+for u, v in edges:
+    adj[u].append(v); adj[v].append(u)
+--cpp
+vector<vector<int>> adj(n);
+for (auto [u, v] : edges) { adj[u].push_back(v); adj[v].push_back(u); }
+### u-nbr
+--java
+for (int d = 0; d < 4; d++) {
+    int nr = r + dx[d], nc = c + dy[d];
+    if (nr < 0 || nr >= R || nc < 0 || nc >= C) continue;
+    // use (nr, nc)
+}
+--py
+for dr, dc in DIRS:
+    nr, nc = r + dr, c + dc
+    if 0 <= nr < R and 0 <= nc < C:
+        pass  # use (nr, nc)
+--cpp
+for (int d = 0; d < 4; d++) {
+    int nr = r + dx[d], nc = c + dy[d];
+    if (nr < 0 || nr >= R || nc < 0 || nc >= C) continue;
+    // use (nr, nc)
+}
+### u-inf
+--java
+final int INF = 1_000_000_000;      // INF + INF still fits an int
+final long LINF = Long.MAX_VALUE / 4;
+--py
+INF = float("inf")
+--cpp
+const int INF = 1e9;
+const long long LINF = LLONG_MAX / 4;
+### u-modadd
+--java
+int add = (a + b) % M;
+int sub = ((a - b) % M + M) % M;
+--py
+add = (a + b) % M
+sub = (a - b) % M
+--cpp
+int add = (a + b) % M;
+int sub = ((a - b) % M + M) % M;
+### u-rand
+--java
+int r = lo + new Random().nextInt(hi - lo + 1);
+--py
+import random
+r = random.randint(lo, hi)
+--cpp
+mt19937 rng(chrono::steady_clock::now().time_since_epoch().count());
+int r = lo + rng() % (hi - lo + 1);
+### u-cross
+--java
+long cross(long ax, long ay, long bx, long by) { return ax * by - ay * bx; }
+--py
+def cross(ax, ay, bx, by): return ax * by - ay * bx
+--cpp
+long long cross(long long ax, long long ay, long long bx, long long by) { return ax * by - ay * bx; }
+### u-dot
+--java
+long dot(long ax, long ay, long bx, long by) { return ax * bx + ay * by; }
+--py
+def dot(ax, ay, bx, by): return ax * bx + ay * by
+--cpp
+long long dot(long long ax, long long ay, long long bx, long long by) { return ax * bx + ay * by; }
+### u-dist2
+--java
+long d2 = (long) (x1 - x2) * (x1 - x2) + (long) (y1 - y2) * (y1 - y2);
+--py
+d2 = (x1 - x2) ** 2 + (y1 - y2) ** 2
+--cpp
+long long d2 = 1LL * (x1 - x2) * (x1 - x2) + 1LL * (y1 - y2) * (y1 - y2);
+### u-charidx
+--java
+int i = ch - 'a';
+--py
+i = ord(ch) - ord("a")
+--cpp
+int i = ch - 'a';
+### u-pair
+--java
+Arrays.sort(p, (a, b) -> a[0] != b[0] ? Integer.compare(a[0], b[0]) : Integer.compare(a[1], b[1]));
+--py
+p.sort()   # tuples compare first, then second
+--cpp
+sort(p.begin(), p.end());   // pair<int,int> compares first, then second
+### u-stackop
+--java
+Deque<Integer> st = new ArrayDeque<>();
+st.push(x);          // push
+int top = st.peek(); // peek
+st.pop();            // pop
+--py
+st = []
+st.append(x)   # push
+top = st[-1]   # peek
+st.pop()       # pop
+--cpp
+stack<int> st;
+st.push(x);        // push
+int top = st.top(); // peek
+st.pop();          // pop
+### u-queueop
+--java
+Deque<Integer> q = new ArrayDeque<>();
+q.offer(x);          // enqueue
+int front = q.poll(); // dequeue
+--py
+from collections import deque
+q = deque()
+q.append(x)        # enqueue
+front = q.popleft() # dequeue
+--cpp
+queue<int> q;
+q.push(x);              // enqueue
+int front = q.front(); q.pop();   // dequeue
+### u-hget
+--java
+int v = map.getOrDefault(key, 0);
+--py
+v = d.get(key, 0)
+--cpp
+int v = m.count(key) ? m[key] : 0;
+### u-log2
+--java
+int h = 31 - Integer.numberOfLeadingZeros(x);
+--py
+h = x.bit_length() - 1
+--cpp
+int h = 31 - __builtin_clz(x);
+### u-pow2
+--java
+boolean p = x > 0 && (x & (x - 1)) == 0;
+--py
+p = x > 0 and x & (x - 1) == 0
+--cpp
+bool p = x > 0 && (x & (x - 1)) == 0;
+### u-extgcd
+--java
+// returns {g, x, y} with a*x + b*y = g
+static long[] extGcd(long a, long b) {
+    if (b == 0) return new long[]{a, 1, 0};
+    long[] r = extGcd(b, a % b);
+    return new long[]{r[0], r[2], r[1] - a / b * r[2]};
+}
+--py
+def ext_gcd(a, b):
+    if b == 0: return a, 1, 0
+    g, x, y = ext_gcd(b, a % b)
+    return g, y, x - a // b * y
+--cpp
+long long extGcd(long long a, long long b, long long &x, long long &y) {
+    if (!b) { x = 1; y = 0; return a; }
+    long long g = extGcd(b, a % b, y, x);
+    y -= a / b * x;
+    return g;
+}
+### u-modinv
+--java
+long inv = powMod(a, M - 2, M);   // M prime
+--py
+inv = pow(a, -1, M)
+--cpp
+long long inv = powMod(a, M - 2, M);   // M prime
+### u-fact
+--java
+long[] f = new long[n + 1], inv = new long[n + 1];
+f[0] = 1;
+for (int i = 1; i <= n; i++) f[i] = f[i - 1] * i % M;
+inv[n] = powMod(f[n], M - 2, M);
+for (int i = n; i > 0; i--) inv[i - 1] = inv[i] * i % M;
+--py
+f = [1] * (n + 1)
+for i in range(1, n + 1): f[i] = f[i - 1] * i % M
+inv = [1] * (n + 1)
+inv[n] = pow(f[n], M - 2, M)
+for i in range(n, 0, -1): inv[i - 1] = inv[i] * i % M
+--cpp
+vector<long long> f(n + 1, 1), inv(n + 1, 1);
+for (int i = 1; i <= n; i++) f[i] = f[i - 1] * i % M;
+inv[n] = powMod(f[n], M - 2, M);
+for (int i = n; i > 0; i--) inv[i - 1] = inv[i] * i % M;
+### u-ncr
+--java
+long ncr(int n, int k) { return k < 0 || k > n ? 0 : f[n] * inv[k] % M * inv[n - k] % M; }
+--py
+def ncr(n, k): return 0 if k < 0 or k > n else f[n] * inv[k] % M * inv[n - k] % M
+--cpp
+long long ncr(int n, int k) { return k < 0 || k > n ? 0 : f[n] * inv[k] % M * inv[n - k] % M; }
+### u-factorize
+--java
+List<Long> fs = new ArrayList<>();
+for (long d = 2; d * d <= n; d++)
+    while (n % d == 0) { fs.add(d); n /= d; }
+if (n > 1) fs.add(n);
+--py
+fs = []; d = 2
+while d * d <= n:
+    while n % d == 0: fs.append(d); n //= d
+    d += 1
+if n > 1: fs.append(n)
+--cpp
+vector<long long> fs;
+for (long long d = 2; d * d <= n; d++)
+    while (n % d == 0) { fs.push_back(d); n /= d; }
+if (n > 1) fs.push_back(n);
+### u-spf
+--java
+int[] spf = new int[N + 1];
+for (int i = 2; i <= N; i++)
+    if (spf[i] == 0) for (int j = i; j <= N; j += i) if (spf[j] == 0) spf[j] = i;
+--py
+spf = [0] * (N + 1)
+for i in range(2, N + 1):
+    if spf[i] == 0:
+        for j in range(i, N + 1, i):
+            if spf[j] == 0: spf[j] = i
+--cpp
+vector<int> spf(N + 1);
+for (int i = 2; i <= N; i++)
+    if (!spf[i]) for (int j = i; j <= N; j += i) if (!spf[j]) spf[j] = i;
+### u-phi
+--java
+long phi = n;
+for (long d = 2; d * d <= n; d++)
+    if (n % d == 0) { while (n % d == 0) n /= d; phi -= phi / d; }
+if (n > 1) phi -= phi / n;
+--py
+phi = n; d = 2
+while d * d <= n:
+    if n % d == 0:
+        while n % d == 0: n //= d
+        phi -= phi // d
+    d += 1
+if n > 1: phi -= phi // n
+--cpp
+long long phi = n;
+for (long long d = 2; d * d <= n; d++)
+    if (n % d == 0) { while (n % d == 0) n /= d; phi -= phi / d; }
+if (n > 1) phi -= phi / n;
+### u-matmul
+--java
+long[][] c = new long[n][n];
+for (int i = 0; i < n; i++) for (int k = 0; k < n; k++)
+    for (int j = 0; j < n; j++) c[i][j] = (c[i][j] + a[i][k] * b[k][j]) % M;
+--py
+c = [[sum(a[i][k] * b[k][j] for k in range(n)) % M for j in range(n)] for i in range(n)]
+--cpp
+vector<vector<long long>> c(n, vector<long long>(n));
+for (int i = 0; i < n; i++) for (int k = 0; k < n; k++)
+    for (int j = 0; j < n; j++) c[i][j] = (c[i][j] + a[i][k] * b[k][j]) % M;
+### u-matpow
+--java
+// result starts as the identity matrix
+while (e > 0) {
+    if ((e & 1) == 1) res = mul(res, base);
+    base = mul(base, base); e >>= 1;
+}
+--py
+while e:
+    if e & 1: res = mul(res, base)
+    base = mul(base, base); e >>= 1
+--cpp
+while (e) {
+    if (e & 1) res = mul(res, base);
+    base = mul(base, base); e >>= 1;
+}
+### u-bigadd
+--java
+// a, b hold digits, least significant first
+int carry = 0;
+for (int i = 0; i < Math.max(a.length, b.length) || carry > 0; i++) {
+    int s = carry + (i < a.length ? a[i] : 0) + (i < b.length ? b[i] : 0);
+    out.add(s % 10); carry = s / 10;
+}
+--py
+# Python ints are already big
+c = a + b
+--cpp
+int carry = 0;
+for (size_t i = 0; i < max(a.size(), b.size()) || carry; i++) {
+    int s = carry + (i < a.size() ? a[i] : 0) + (i < b.size() ? b[i] : 0);
+    out.push_back(s % 10); carry = s / 10;
+}
+### u-bigmul
+--java
+int[] c = new int[a.length + b.length];
+for (int i = 0; i < a.length; i++) for (int j = 0; j < b.length; j++) c[i + j] += a[i] * b[j];
+for (int i = 0; i + 1 < c.length; i++) { c[i + 1] += c[i] / 10; c[i] %= 10; }
+--py
+c = a * b   # Python ints are already big
+--cpp
+vector<int> c(a.size() + b.size());
+for (size_t i = 0; i < a.size(); i++) for (size_t j = 0; j < b.size(); j++) c[i + j] += a[i] * b[j];
+for (size_t i = 0; i + 1 < c.size(); i++) { c[i + 1] += c[i] / 10; c[i] %= 10; }

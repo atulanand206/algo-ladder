@@ -1,0 +1,277 @@
+### u-swap
+--java
+int t = a[i]; a[i] = a[j]; a[j] = t;
+--py
+a[i], a[j] = a[j], a[i]
+--cpp
+swap(a[i], a[j]);
+### u-minmax
+--java
+x = Math.max(lo, Math.min(hi, x));   // clamp
+--py
+x = max(lo, min(hi, x))   # clamp
+--cpp
+x = max(lo, min(hi, x));   // clamp
+### u-abs
+--java
+int d = Math.abs(a - b);
+int s = Integer.signum(a);   // -1, 0, 1
+--py
+d = abs(a - b)
+s = (a > 0) - (a < 0)   # -1, 0, 1
+--cpp
+int d = abs(a - b);
+int s = (a > 0) - (a < 0);   // -1, 0, 1
+### u-mod
+--java
+static int mod(int a, int m) { return ((a % m) + m) % m; }
+--py
+# Python's % is already never negative
+r = a % m
+--cpp
+int mod(int a, int m) { return ((a % m) + m) % m; }
+### u-ceildiv
+--java
+static int ceilDiv(int a, int b) { return (a + b - 1) / b; }
+--py
+def ceil_div(a, b): return -(-a // b)
+--cpp
+int ceilDiv(int a, int b) { return (a + b - 1) / b; }
+### u-mid
+--java
+int mid = lo + (hi - lo) / 2;
+--py
+mid = (lo + hi) // 2   # no overflow in Python
+--cpp
+int mid = lo + (hi - lo) / 2;
+### u-bit
+--java
+boolean on = (x >> i & 1) == 1;
+x |= 1 << i;      // set
+x &= ~(1 << i);   // clear
+--py
+on = x >> i & 1
+x |= 1 << i      # set
+x &= ~(1 << i)   # clear
+--cpp
+bool on = x >> i & 1;
+x |= 1 << i;      // set
+x &= ~(1 << i);   // clear
+### u-lowbit
+--java
+int low = x & -x;
+--py
+low = x & -x
+--cpp
+int low = x & -x;
+### u-idx
+--java
+int id = r * cols + c;
+boolean ok = r >= 0 && r < rows && c >= 0 && c < cols;
+--py
+i = r * cols + c
+ok = 0 <= r < rows and 0 <= c < cols
+--cpp
+int id = r * cols + c;
+bool ok = r >= 0 && r < rows && c >= 0 && c < cols;
+### u-dirs
+--java
+int[] dx = {1, -1, 0, 0}, dy = {0, 0, 1, -1};
+--py
+DIRS = [(1, 0), (-1, 0), (0, 1), (0, -1)]
+--cpp
+int dx[] = {1, -1, 0, 0}, dy[] = {0, 0, 1, -1};
+### u-cmp
+--java
+int c = Integer.compare(a, b);   // <0, 0, >0
+--py
+c = (a > b) - (a < b)   # -1, 0, 1
+--cpp
+int c = (a > b) - (a < b);   // -1, 0, 1
+### u-in
+--java
+BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+StringTokenizer st = new StringTokenizer(br.readLine());
+int n = Integer.parseInt(st.nextToken());
+--py
+import sys
+data = sys.stdin.read().split()
+n = int(data[0])
+--cpp
+ios::sync_with_stdio(false); cin.tie(nullptr);
+int n; cin >> n;
+### u-out
+--java
+StringBuilder sb = new StringBuilder();
+for (int x : a) sb.append(x).append(' ');
+System.out.println(sb);
+--py
+print(*a)
+--cpp
+for (int x : a) cout << x << ' ';
+cout << '\n';
+### u-fill
+--java
+Arrays.fill(a, 0);
+int[] b = a.clone();
+--py
+a = [0] * n
+b = a[:]
+--cpp
+fill(a.begin(), a.end(), 0);
+vector<int> b = a;
+### u-edge
+--java
+adj.get(u).add(v);
+adj.get(v).add(u);   // skip for directed
+--py
+adj[u].append(v)
+adj[v].append(u)   # skip for directed
+--cpp
+adj[u].push_back(v);
+adj[v].push_back(u);   // skip for directed
+### u-sqrt
+--java
+long r = (long) Math.sqrt(n);
+while (r * r > n) r--;
+while ((r + 1) * (r + 1) <= n) r++;
+--py
+from math import isqrt
+r = isqrt(n)
+--cpp
+long long r = sqrtl(n);
+while (r * r > n) r--;
+while ((r + 1) * (r + 1) <= n) r++;
+### u-digits
+--java
+List<Integer> d = new ArrayList<>();
+for (; n > 0; n /= 10) d.add(n % 10);
+--py
+d = [int(c) for c in str(n)]
+--cpp
+vector<int> d;
+for (; n > 0; n /= 10) d.push_back(n % 10);
+### u-gcd
+--java
+static int gcd(int a, int b) { return b == 0 ? a : gcd(b, a % b); }
+--py
+from math import gcd
+g = gcd(a, b)
+--cpp
+int g = __gcd(a, b);   // or std::gcd
+### u-lcm
+--java
+long l = a / gcd(a, b) * b;   // divide first, avoids overflow
+--py
+l = a // gcd(a, b) * b
+--cpp
+long long l = a / __gcd(a, b) * b;
+### u-powmod
+--java
+static long powMod(long b, long e, long m) {
+    long r = 1; b %= m;
+    for (; e > 0; e >>= 1, b = b * b % m)
+        if ((e & 1) == 1) r = r * b % m;
+    return r;
+}
+--py
+r = pow(b, e, m)
+--cpp
+long long powMod(long long b, long long e, long long m) {
+    long long r = 1; b %= m;
+    for (; e > 0; e >>= 1, b = b * b % m)
+        if (e & 1) r = r * b % m;
+    return r;
+}
+### u-mulmod
+--java
+// safe while m < 2^31 (the product fits in a long)
+long r = (a % m) * (b % m) % m;
+--py
+r = a * b % m
+--cpp
+long long r = (__int128)a * b % m;
+### u-isprime
+--java
+static boolean isPrime(int n) {
+    if (n < 2) return false;
+    for (int d = 2; (long) d * d <= n; d++)
+        if (n % d == 0) return false;
+    return true;
+}
+--py
+def is_prime(n):
+    if n < 2: return False
+    d = 2
+    while d * d <= n:
+        if n % d == 0: return False
+        d += 1
+    return True
+--cpp
+bool isPrime(int n) {
+    if (n < 2) return false;
+    for (long long d = 2; d * d <= n; d++)
+        if (n % d == 0) return false;
+    return true;
+}
+### u-digsum
+--java
+int s = 0;
+for (; n > 0; n /= 10) s += n % 10;
+--py
+s = sum(map(int, str(n)))
+--cpp
+int s = 0;
+for (; n > 0; n /= 10) s += n % 10;
+### u-popcount
+--java
+int c = Integer.bitCount(x);
+--py
+c = x.bit_count()   # or bin(x).count("1")
+--cpp
+int c = __builtin_popcount(x);
+### u-reverse
+--java
+for (; i < j; i++, j--) { int t = a[i]; a[i] = a[j]; a[j] = t; }
+--py
+a[i:j + 1] = a[i:j + 1][::-1]
+--cpp
+reverse(a.begin() + i, a.begin() + j + 1);
+### u-rotate
+--java
+// rotate right by k: reverse all, then each part
+k %= n;
+reverse(a, 0, n - 1); reverse(a, 0, k - 1); reverse(a, k, n - 1);
+--py
+k %= n
+a[:] = a[-k:] + a[:-k]
+--cpp
+k %= n;
+rotate(a.begin(), a.end() - k, a.end());
+### u-prefix
+--java
+long[] p = new long[n + 1];
+for (int i = 0; i < n; i++) p[i + 1] = p[i] + a[i];
+--py
+p = [0]
+for x in a: p.append(p[-1] + x)
+--cpp
+vector<long long> p(n + 1);
+for (int i = 0; i < n; i++) p[i + 1] = p[i] + a[i];
+### u-rangesum
+--java
+long s = p[r + 1] - p[l];   // sum of a[l..r]
+--py
+s = p[r + 1] - p[l]   # sum of a[l..r]
+--cpp
+long long s = p[r + 1] - p[l];   // sum of a[l..r]
+### u-freq
+--java
+Map<Integer, Integer> f = new HashMap<>();
+for (int x : a) f.merge(x, 1, Integer::sum);
+--py
+from collections import Counter
+f = Counter(a)
+--cpp
+map<int, int> f;
+for (int x : a) f[x]++;
