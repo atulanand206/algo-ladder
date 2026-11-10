@@ -107,7 +107,8 @@ h2 .note{font:400 12px var(--mono);margin-left:8px;text-transform:none;letter-sp
 .prow{display:flex;gap:6px;align-items:stretch;margin-top:6px}.prow .pcb{margin-top:0;flex:1;min-width:0}.plink{flex:none;display:flex;align-items:center;padding:0 10px;border:1px solid var(--line);border-radius:7px;background:var(--surface);color:var(--accent);font-size:12.5px;text-decoration:none;white-space:nowrap}.plink:hover{border-color:var(--accent)}
 .pcb{display:flex;gap:8px;align-items:center;width:100%;text-align:left;background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:6px 8px;margin-top:6px}.pcb.on{border-color:var(--accent)}.pn2{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ck2{color:var(--ok);font:12px var(--mono)}
 .pdet{border:1px solid var(--line);border-top:0;border-radius:0 0 7px 7px;padding:8px 10px;margin-bottom:6px;background:var(--surface)}
-.gmain{flex:1;display:flex;min-height:0}.pgrip{flex:none;width:7px;margin:0 -3px 0 -4px;cursor:col-resize;position:relative;z-index:2;touch-action:none}.pgrip::after{content:'';position:absolute;left:3px;top:0;bottom:0;width:1px;background:var(--line)}.pgrip:hover::after,.pgrip.drag::after,.pgrip:focus-visible::after{background:var(--accent);width:3px;left:2px}
+.gmain{flex:1;display:flex;min-height:0}.gmain{position:relative}.mini{position:absolute;left:12px;bottom:12px;width:230px;background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:0 6px 24px rgba(0,0,0,.28);padding:6px;z-index:3;touch-action:none}.mini svg{display:block;width:100%;cursor:crosshair}.mini .mv{fill:var(--accent);fill-opacity:.16;stroke:var(--accent);stroke-width:1.5;vector-effect:non-scaling-stroke}.mini .mn{opacity:.55}.mini .mk{opacity:1}.mini .ms{stroke:var(--ink);stroke-width:2;vector-effect:non-scaling-stroke}.mini .mh{fill:var(--mute);font:600 9px var(--mono);letter-spacing:.06em;text-transform:uppercase}#zm[aria-pressed=true]{border-color:var(--accent);background:var(--accent-bg)}
+.pgrip{flex:none;width:7px;margin:0 -3px 0 -4px;cursor:col-resize;position:relative;z-index:2;touch-action:none}.pgrip::after{content:'';position:absolute;left:3px;top:0;bottom:0;width:1px;background:var(--line)}.pgrip:hover::after,.pgrip.drag::after,.pgrip:focus-visible::after{background:var(--accent);width:3px;left:2px}
 .pop{width:var(--popw,370px);flex:none;overflow:auto;padding:14px max(16px,env(safe-area-inset-right,0px)) 14px 16px;background:var(--surface);border-left:1px solid var(--line)}
 @media (max-width:640px){.pgrip,#pw{display:none!important}.gmain{position:relative}.pop{display:none;position:absolute;left:0;right:0;bottom:0;width:auto;max-height:55%;border-left:0;border-top:1px solid var(--line);border-radius:12px 12px 0 0}.pop.open{display:block}}
 .jcs{display:flex;gap:5px;flex-wrap:wrap}.jc{border:1px solid var(--nf);background:var(--nb);color:var(--nf);border-radius:6px;padding:2px 8px;font-size:12px}
@@ -189,10 +190,11 @@ function mountGraph(){
  const isCodeN=n=>n.cat==='prim'||n.cat==='util';
  const isCode=id=>by[id].cat==='prim'||by[id].cat==='util';
  const viewOf=id=>by[id].cat==='prim'||by[id].cat==='util'?'code':by[id].cat;
- $('app').innerHTML=`<div class="gs" id="gs"><div class="gbar"><button class="btn" data-road="1">&larr; Roadmap</button><b style="font-size:15px">Atlas</b><span class="gchips" id="gchips">${VIEWS.map(v=>tab(v,v[0]==='code'?'util':v[0]==='order'?'prim':v[0])).join('')}<span class="note" style="align-self:center;margin:0 2px 0 6px">By level</span>${LEVELS.map(v=>tab(v,'prim')).join('')}</span><input type="text" id="gq" placeholder="Search (press /)" aria-label="Search topics" style="max-width:180px"><button class="btn" id="gall">Show all links</button><span class="gz"><button class="btn" id="zi" aria-label="Zoom in">+</button><button class="btn" id="zo" aria-label="Zoom out">&minus;</button><button class="btn" id="zf">Fit</button></span></div><div class="gmain"><div id="ord" class="ord" hidden></div><svg id="gsv"></svg><div class="pgrip" id="pgrip" role="separator" aria-orientation="vertical" aria-label="Resize sidebar" tabindex="0"></div><aside class="pop" id="pop" aria-live="polite"></aside></div></div>`;
+ $('app').innerHTML=`<div class="gs" id="gs"><div class="gbar"><button class="btn" data-road="1">&larr; Roadmap</button><b style="font-size:15px">Atlas</b><span class="gchips" id="gchips">${VIEWS.map(v=>tab(v,v[0]==='code'?'util':v[0]==='order'?'prim':v[0])).join('')}<span class="note" style="align-self:center;margin:0 2px 0 6px">By level</span>${LEVELS.map(v=>tab(v,'prim')).join('')}</span><input type="text" id="gq" placeholder="Search (press /)" aria-label="Search topics" style="max-width:180px"><button class="btn" id="gall">Show all links</button><span class="gz"><button class="btn" id="zi" aria-label="Zoom in">+</button><button class="btn" id="zo" aria-label="Zoom out">&minus;</button><button class="btn" id="zf">Fit</button><button class="btn" id="zm" aria-pressed="false" title="Show a small map of the whole canvas">Map</button></span></div><div class="gmain"><div id="ord" class="ord" hidden></div><svg id="gsv"></svg><div class="mini" id="mini" hidden><svg id="msv" aria-label="Map of the whole canvas. Click or drag to move."></svg></div><div class="pgrip" id="pgrip" role="separator" aria-orientation="vertical" aria-label="Resize sidebar" tabindex="0"></div><aside class="pop" id="pop" aria-live="polite"></aside></div></div>`;
  const svg=$('gsv'),pop=$('pop');let vp,N={},E=[],LY=null;
  const size=()=>({w:svg.clientWidth||innerWidth-380,h:svg.clientHeight||innerHeight-120});
- const apply=()=>vp.setAttribute('transform',`translate(${GS.x} ${GS.y}) scale(${GS.k})`);
+ let updMini=()=>{};
+ const apply=()=>{vp.setAttribute('transform',`translate(${GS.x} ${GS.y}) scale(${GS.k})`);updMini()};
  const fit=full=>{const s=size(),fk=Math.min(s.w/LY.W,s.h/LY.H,1.15),k=full?fk:Math.max(fk,.85);GS.k=k;GS.x=LY.W*k<=s.w?(s.w-LY.W*k)/2:12;GS.y=full&&LY.H*k<=s.h?Math.max(8,(s.h-LY.H*k)/2):10;apply()};
  const rel=()=>{if(!GS.sel)return null;const s=new Set([GS.sel]);if(GS.mode!=='next')walk(GS.sel,pm,s);if(GS.mode!=='pre')walk(GS.sel,nxt,s);return s};
  const style=()=>{const r=rel(),q=GS.q?GS.q.trim().toLowerCase():'';let first=null;
@@ -211,13 +213,13 @@ function mountGraph(){
    h+=`<div class="or ${kn?'done':''} ${x.id===nowId?'now':''} ${x.id===GS.sel?'sel':''}" data-ord="${x.id}" tabindex="0"><span class="on">${x.n}</span><span class="ot"><b>${esc(n.label)}</b> <span class="chip" style="background:var(--${n.cat}-bg);color:var(--${n.cat}-fg)">${code?(n.cat==='prim'?'primitive':'utility'):esc(D.cats[n.cat])}</span>${code?'':` <span class="chip">${TNAME[n.col]}</span>`}${need.length?`<span class="note"> needs ${need.slice(0,4).map(p=>esc(by[p].label)).join(', ')}${need.length>4?' +'+(need.length-4):''}</span>`:'<span class="note"> no prerequisites</span>'}</span><button class="ob ${kn?'on':''}" data-ordk="${x.id}" aria-label="Mark built">${kn?'Built':'Mark'}</button></div>`});
   ordEl.innerHTML=h;ordEl.scrollTop=y};
  ordEl.addEventListener('click',e=>{const k=e.target.closest('[data-ordk]');if(k){toggle('t_'+k.dataset.ordk);return}const r=e.target.closest('[data-ord]');if(r)select(r.dataset.ord,false)});
- const build=()=>{if(GS.view==='order'){svg.setAttribute('hidden','');ordEl.hidden=false;N={};E=[];renderOrder();style();return}svg.removeAttribute('hidden');ordEl.hidden=true;svg.innerHTML='';vp=gEl('g',{},svg);N={};E=[];LY=layoutView(GS.view);const bandG=gEl('g',{},vp),edG=gEl('g',{class:'ed'},vp),ndG=gEl('g',{},vp);
+ const build=()=>{if(GS.view==='order'){svg.setAttribute('hidden','');ordEl.hidden=false;N={};E=[];renderOrder();style();drawMini();return}svg.removeAttribute('hidden');ordEl.hidden=true;svg.innerHTML='';vp=gEl('g',{},svg);N={};E=[];LY=layoutView(GS.view);const bandG=gEl('g',{},vp),edG=gEl('g',{class:'ed'},vp),ndG=gEl('g',{},vp);
   LY.heads.forEach(h=>{gEl('text',{x:h.x,y:(h.y||0)+24,class:'bh'},bandG).textContent=h.t;gEl('text',{x:h.x,y:(h.y||0)+42,class:'bs'},bandG).textContent=h.s});
   LY.labels.forEach(l=>{const t=gEl('text',{x:PAD,y:l.y+22,class:'ln',style:`--nf:var(--${l.cat}-fg)`},bandG);String(l.text).split(' ').forEach((w,i)=>{gEl('tspan',{x:PAD,dy:i?15:0},t).textContent=w})});
   Object.keys(LY.pos).forEach(id=>{const n=by[id],p=LY.pos[id],g=gEl('g',{class:'sn',transform:`translate(${p.x} ${p.y})`,style:`--nb:var(--${n.cat}-bg);--nf:var(--${n.cat}-fg)`},ndG);gEl('rect',{width:NW,height:NH,rx:7},g);gEl('text',{x:-8,y:22,class:'bd'},g);
    const c=CNT[id];const t=gEl('text',{x:12,y:22},g);t.textContent=n.label;const room=NW-12-(c?34:12);if(t.getComputedTextLength()>room){let q=n.label;while(q.length>3&&t.getComputedTextLength()>room){q=q.slice(0,-1);t.textContent=q.trimEnd()+'…'}}if(c)gEl('text',{x:NW-10,y:22,class:'cn'},g).textContent=c;g.dataset.id=id;N[id]=g});
   if(!LY.noEdges)Object.keys(LY.pos).forEach(b=>pm[b].forEach(a=>{if(!LY.pos[a])return;const A=LY.pos[a],B=LY.pos[b],x1=A.x+NW,y1=A.y+NH/2,x2=B.x,y2=B.y+NH/2,dx=Math.max(40,Math.abs(x2-x1)/2);E.push({a,b,el:gEl('path',{d:`M${x1} ${y1}C${x1+dx} ${y1} ${x2-dx} ${y2} ${x2} ${y2}`,'vector-effect':'non-scaling-stroke'},edG)})}));
-  style();fit()};
+  style();fit(true);drawMini()};
  let anim=0;const tween=(x,y,k)=>{cancelAnimationFrame(anim);const x0=GS.x,y0=GS.y,k0=GS.k,t0=performance.now();const f=t=>{const u=Math.min(1,(t-t0)/260),e=1-Math.pow(1-u,3);GS.x=x0+(x-x0)*e;GS.y=y0+(y-y0)*e;GS.k=k0+(k-k0)*e;apply();if(u<1)anim=requestAnimationFrame(f)};anim=requestAnimationFrame(f)};
  const zoomAt=(px,py,f)=>{const k2=Math.max(.25,Math.min(3,GS.k*f)),r=k2/GS.k;GS.x=px-(px-GS.x)*r;GS.y=py-(py-GS.y)*r;GS.k=k2;apply()};
  const center=id=>{const p=LY.pos[id];if(!p)return;const s=size(),k=Math.max(GS.k,.9);tween(s.w/2-(p.x+NW/2)*k,s.h/2-(p.y+NH/2)*k,k)};
@@ -252,8 +254,22 @@ const PWK='algo-ladder-popw';
  const refresh=()=>{style();if(GS.view==='order')renderOrder();const y=pop.scrollTop;if(GS.sel&&!GS.hov)openPop(GS.sel);else if(!GS.sel&&!GS.hov)empty();pop.scrollTop=y;document.querySelectorAll('[data-demo]').forEach(i=>demoRun(i.dataset.demo))};
  const nav=d=>{if(!GS.sel||GS.view==='order')return;const id=GS.sel;let t=null;if(d==='left')t=pm[id].find(p=>!isCode(p))||pm[id][0];else if(d==='right')t=(nxt[id]||[]).find(p=>!isCode(p))||(nxt[id]||[])[0];else{const p=LY.pos[id];if(!p)return;const sib=Object.keys(LY.pos).filter(k=>LY.pos[k].x===p.x).sort((a,b)=>LY.pos[a].y-LY.pos[b].y),i=sib.indexOf(id);t=sib[i+(d==='down'?1:-1)]}if(t)select(t,true)};
  const setView=v=>{GS.view=v;GS.sel=null;GS.pcard=null;empty();build()};
- const select=(id,c)=>{if(GS.view==='order'){GS.sel=id;GS.pcard=null;openPop(id);renderOrder();return}const v=viewOf(id);if(!LY.pos[id]){GS.view=v;GS.sel=id;GS.pcard=null;build();openPop(id);center(id);return}GS.sel=id;GS.pcard=null;style();openPop(id);if(c)center(id)};
+ const select=(id,c)=>{setTimeout(drawMini,0);if(GS.view==='order'){GS.sel=id;GS.pcard=null;openPop(id);renderOrder();return}const v=viewOf(id);if(!LY.pos[id]){GS.view=v;GS.sel=id;GS.pcard=null;build();openPop(id);center(id);return}GS.sel=id;GS.pcard=null;style();openPop(id);if(c)center(id)};
  const clear=()=>{GS.sel=null;GS.pcard=null;empty();style()};
+const MK='algo-ladder-map';let miniOn=false;try{miniOn=localStorage.getItem(MK)==='1'}catch(e){}
+ const msv=$('msv'),mini=$('mini');let mS=1;
+ function drawMini(){const showBtn=GS.view!=='order';$('zm').hidden=!showBtn;mini.hidden=!(miniOn&&showBtn&&LY);$('zm').setAttribute('aria-pressed',miniOn);if(mini.hidden)return;
+  const MW=214,sc=MW/LY.W,MH=Math.max(60,Math.min(170,LY.H*sc));mS=Math.min(MW/LY.W,MH/LY.H);msv.setAttribute('viewBox',`0 0 ${LY.W*mS} ${LY.H*mS}`);msv.style.height=(LY.H*mS)+'px';msv.innerHTML='';
+  const g=gEl('g',{transform:`scale(${mS})`},msv);
+  LY.heads.forEach(h=>{if(h.y!=null||true)gEl('text',{x:h.x,y:(h.y||0)+30,class:'mh',style:`font-size:${Math.max(9,9/mS*.55)}px`},g).textContent=h.t.length>16?h.t.slice(0,15)+'…':h.t});
+  Object.keys(LY.pos).forEach(id=>{const p=LY.pos[id],n=by[id];gEl('rect',{x:p.x,y:p.y,width:NW,height:NH,rx:6,fill:`var(--${n.cat}-fg)`,class:known(id)?'mk':'mn'},g)});
+  if(GS.sel&&LY.pos[GS.sel]){const p=LY.pos[GS.sel];gEl('rect',{x:p.x-6,y:p.y-6,width:NW+12,height:NH+12,rx:10,fill:'none',class:'ms'},g)}
+  gEl('rect',{id:'mvr',class:'mv'},g);updMini()}
+ updMini=()=>{const r=document.getElementById('mvr');if(!r||!LY)return;const s=size();r.setAttribute('x',-GS.x/GS.k);r.setAttribute('y',-GS.y/GS.k);r.setAttribute('width',s.w/GS.k);r.setAttribute('height',s.h/GS.k)};
+ {let on=false;const go=e=>{const b=msv.getBoundingClientRect(),lx=(e.clientX-b.left)/b.width*LY.W,ly=(e.clientY-b.top)/b.height*LY.H,s=size();GS.x=s.w/2-lx*GS.k;GS.y=s.h/2-ly*GS.k;apply()};
+  msv.addEventListener('pointerdown',e=>{on=true;msv.setPointerCapture(e.pointerId);go(e);e.preventDefault()});
+  msv.addEventListener('pointermove',e=>{if(on)go(e)});msv.addEventListener('pointerup',()=>{on=false});msv.addEventListener('pointercancel',()=>{on=false})}
+ $('zm').onclick=()=>{miniOn=!miniOn;try{localStorage.setItem(MK,miniOn?'1':'0')}catch(e){}drawMini()};
  window._gs={refresh,select,clear,fit:()=>fit(true),nav:d=>nav(d),zoom:f=>{const s=size();zoomAt(s.w/2,s.h/2,f)},pop,by};
  const ptrs=new Map();let drag=null,pinch=null;
  svg.addEventListener('pointerdown',e=>{ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});cancelAnimationFrame(anim);if(ptrs.size===1)drag={sx:e.clientX,sy:e.clientY,x0:GS.x,y0:GS.y,mv:0,t:e.target};else if(ptrs.size===2){const [a,b]=[...ptrs.values()];pinch={d:Math.hypot(a.x-b.x,a.y-b.y),k:GS.k,cx:(a.x+b.x)/2,cy:(a.y+b.y)/2,x:GS.x,y:GS.y};drag=null}});
@@ -265,13 +281,13 @@ const PWK='algo-ladder-popw';
  svg.addEventListener('pointerup',up);svg.addEventListener('pointercancel',up);
  svg.addEventListener('pointerleave',()=>{if(GS.hov){GS.hov=null;style();if(GS.sel)openPop(GS.sel);else empty()}});
  svg.addEventListener('wheel',e=>{e.preventDefault();const r=svg.getBoundingClientRect();zoomAt(e.clientX-r.left,e.clientY-r.top,Math.exp(-e.deltaY*.0015))},{passive:false});
- svg.addEventListener('dblclick',e=>{if(!e.target.closest('.sn'))fit()});
+ svg.addEventListener('dblclick',e=>{if(!e.target.closest('.sn'))fit(true)});
  pop.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.id==='px'){clear();return}if(b.id==='pw'){setPopW(popWide()?370:Math.min(760,Math.round(innerWidth*.6)));openPop(GS.sel);return}if(b.dataset.known){toggle('t_'+b.dataset.known);return}if(b.dataset.lang){GS.lang=b.dataset.lang;openPop(GS.sel);return}if(b.dataset.prob){GS.pcard=GS.pcard===b.dataset.prob?null:b.dataset.prob;openPop(GS.sel);document.querySelectorAll('[data-demo]').forEach(i=>demoRun(i.dataset.demo));return}if(b.dataset.jump){select(b.dataset.jump,true);return}if(b.dataset.mode){GS.mode=b.dataset.mode;style();openPop(GS.sel)}});
  $('gchips').addEventListener('click',e=>{const b=e.target.closest('.gc');if(b)setView(b.dataset.view)});
  const ga=$('gall');ga.onclick=()=>{GS.all=!GS.all;ga.textContent=GS.all?'Hide links':'Show all links';style()};
  $('zi').onclick=()=>_gs.zoom(1.3);$('zo').onclick=()=>_gs.zoom(1/1.3);$('zf').onclick=()=>fit(true);
  const q=$('gq');q.addEventListener('input',()=>{GS.q=q.value;style()});q.addEventListener('keydown',e=>{if(e.key==='Enter'){GS.q=q.value;const f=style();if(f)select(f,true);else{const m=G.find(n=>n.label.toLowerCase().includes(q.value.trim().toLowerCase()));if(m)select(m.id,true)}}});
- window.addEventListener('resize',()=>{if(S.view==='graph'&&LY)fit()});
+ window.addEventListener('resize',()=>{if(S.view==='graph'&&LY){fit(true);drawMini()}});
  build();empty();if(GS.sel)openPop(GS.sel);
 }
 document.addEventListener('keydown',e=>{if(S.view!=='graph'||!window._gs)return;const inp=e.target&&e.target.tagName==='INPUT';
