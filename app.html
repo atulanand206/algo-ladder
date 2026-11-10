@@ -83,7 +83,7 @@ input[type=text]{font:13px var(--mono);background:var(--bg);color:var(--ink);bor
 .gz{display:flex;gap:4px;margin-left:auto}
 #gsv{flex:1;min-width:0;min-height:0;display:block;cursor:grab;touch-action:none;user-select:none}#gsv.pan{cursor:grabbing}
 .lane{fill:var(--nb);opacity:.38}.ln{font:500 11px var(--mono);fill:var(--nf);text-transform:uppercase;letter-spacing:.05em}
-.bh{font:500 13px var(--mono);fill:var(--ink);text-transform:uppercase;letter-spacing:.06em}.bs{font:12px var(--mono);fill:var(--mute)}
+.bh,.bs{transition:opacity .15s}.hdim{opacity:.16}.bh{font:500 13px var(--mono);fill:var(--ink);text-transform:uppercase;letter-spacing:.06em}.bs{font:12px var(--mono);fill:var(--mute)}
 .sn{cursor:pointer}.sn rect{fill:var(--nb);stroke:var(--nf);stroke-width:1}.sn text{fill:var(--nf);font:13px var(--sans);pointer-events:none}
 .ord{flex:1;min-width:0;overflow:auto;padding:16px max(16px,3vw) 40px}.ord .oh{margin-bottom:6px}.ph{margin:22px 0 6px;font:500 12px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--mute);position:sticky;top:0;background:var(--bg);padding:6px 0;z-index:2}.ph span{opacity:.7;margin-left:8px}
 .or{display:flex;gap:12px;align-items:center;padding:7px 8px;border-top:1px solid var(--line);cursor:pointer}.or:hover{background:var(--surface)}.or.sel{background:var(--accent-bg)}.or.now{box-shadow:inset 3px 0 0 var(--accent)}.or.done .ot b{color:var(--mute);text-decoration:line-through}.or .on{font:12px var(--mono);color:var(--mute);min-width:34px;text-align:right}.or .ot{flex:1;min-width:0;line-height:1.7}.ob{border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:2px 10px;font-size:12px}.ob.on{background:var(--ok-bg);border-color:var(--ok);color:var(--ok)}
@@ -167,7 +167,7 @@ function layoutView(view,sub){
   let y0=0;best.bands.forEach(bd=>{let cx=0;const rows=Math.max(...bd.map(b=>b.rows));bd.forEach(b=>{put(b,cx,y0);cx+=b.subs});y0+=HEAD+rows*RP+GAP});
   return{pos,heads,labels,W:best.m.W,H:y0,noEdges:!!noEdges}};
  const areaBlocks=(filter,MAXR,title)=>cats.filter(c=>c!=='prim'&&c!=='util').map(c=>({c,arr:G.filter(n=>n.cat===c&&filter(n))})).concat(title?[{c:'util',arr:G.filter(n=>(n.cat==='prim'||n.cat==='util')),code:true}]:[]).filter(b=>b.arr.length).map(b=>({...b,subs:Math.ceil(b.arr.length/MAXR),rows:Math.min(MAXR,b.arr.length)}));
- const putArea=MAXR=>(b,cx,y0)=>{b.arr.forEach((n,i)=>{const sc=Math.floor(i/MAXR),r=i%MAXR;pos[n.id]={x:PAD+(cx+sc)*CP,y:y0+HEAD+r*RP}});heads.push({x:PAD+cx*CP,y:y0,t:b.code?'Code pieces':b.title||D.cats[b.c],s:b.arr.length+' topics'})};
+ const putArea=MAXR=>(b,cx,y0)=>{b.arr.forEach((n,i)=>{const sc=Math.floor(i/MAXR),r=i%MAXR;pos[n.id]={x:PAD+(cx+sc)*CP,y:y0+HEAD+r*RP}});heads.push({x:PAD+cx*CP,y:y0,t:b.code?'Code pieces':b.title||D.cats[b.c],s:b.arr.length+' topics',ids:b.arr.map(n=>n.id)})};
  if(!sub&&view==='all'){const MAXR=12;return pack(areaBlocks(()=>true,MAXR,true),putArea(MAXR),true)}
  if(!sub&&view[0]==='L'){const t=+view[1]+2,MAXR=8;if(t===6)return pack(SYSLV.map(([nm,ids])=>({c:'sys',title:nm,arr:ids.map(i=>by[i]),subs:Math.ceil(ids.length/MAXR),rows:Math.min(MAXR,ids.length)})),putArea(MAXR),true);return pack(areaBlocks(n=>n.col===t,MAXR,false),putArea(MAXR),true)}
  const pick=sub?G.filter(n=>sub.has(n.id)):view==='code'?G.filter(n=>n.cat==='prim'||n.cat==='util'):G.filter(n=>n.cat===view);
@@ -179,7 +179,7 @@ function layoutView(view,sub){
   const items=arr.map((n,i)=>{const sc=Math.floor(i/MAXR),r=i%MAXR;rowOf[n.id]=r;return{n,sc,r}});
   const lo=Math.min(...arr.map(n=>n.col)),hi=Math.max(...arr.map(n=>n.col));
   groups.push({subs:Math.ceil(arr.length/MAXR),rows:Math.min(MAXR,arr.length),items,t:view==='code'&&k===1?'Primitives':'Step '+(ki+1),s:lo===hi?TNAME[lo]:TNAME[lo]+' to '+TNAME[hi]})});
- return pack(groups,(g,cx,y0)=>{g.items.forEach(it=>{pos[it.n.id]={x:PAD+(cx+it.sc)*CP,y:y0+HEAD+it.r*RP}});heads.push({x:PAD+cx*CP,y:y0,t:g.t,s:g.s})},false)}
+ return pack(groups,(g,cx,y0)=>{g.items.forEach(it=>{pos[it.n.id]={x:PAD+(cx+it.sc)*CP,y:y0+HEAD+it.r*RP}});heads.push({x:PAD+cx*CP,y:y0,t:g.t,s:g.s,ids:g.items.map(it=>it.n.id)})},false)}
 function mountGraph(){
  document.body.style.overflow='hidden';
  const G=D.graph,{by,pm,nxt,walk}=graphIndex();
@@ -206,9 +206,11 @@ function mountGraph(){
  const apply=()=>{vp.setAttribute('transform',`translate(${GS.x} ${GS.y}) scale(${GS.k})`);updMini()};
  const fit=full=>{const s=size(),fk=Math.min(s.w/LY.W,s.h/LY.H,1.15),k=full?fk:Math.max(fk,.85);GS.k=k;GS.x=LY.W*k<=s.w?(s.w-LY.W*k)/2:12;GS.y=full&&LY.H*k<=s.h?Math.max(8,(s.h-LY.H*k)/2):10;apply()};
  const rel=()=>{if(!GS.sel)return null;const s=new Set([GS.sel]);if(GS.mode!=='next')walk(GS.sel,pm,s);if(GS.mode!=='pre')walk(GS.sel,nxt,s);return s};
+ let HD=[];
  const style=()=>{const r=rel(),q=GS.q?GS.q.trim().toLowerCase():'';let first=null;
   Object.keys(N).forEach(id=>{const n=by[id],e=N[id],hit=q&&(n.label.toLowerCase().includes(q)||n.d.toLowerCase().includes(q));if(hit&&!first)first=id;
    e.classList.toggle('dim',!!r&&!r.has(id));e.classList.toggle('gone',!!GS.focus&&!!r&&!r.has(id));e.classList.toggle('known',known(id));e.classList.toggle('ready',GS.next&&ready(id));e.classList.toggle('sel',id===GS.sel);e.classList.toggle('hit',!!hit);e.classList.toggle('fade',!!q&&!hit)});
+  HD.forEach(h=>{const hit=h.ids.some(id=>(!r||r.has(id))&&(!q||(by[id].label.toLowerCase().includes(q)||by[id].d.toLowerCase().includes(q))));h.els.forEach(e=>e.classList.toggle('hdim',!hit&&(!!r||!!q)))});
   E.forEach(e=>{const on=!!r&&r.has(e.a)&&r.has(e.b),hv=GS.hov&&(e.a===GS.hov||e.b===GS.hov);e.el.setAttribute('class',on?'on':GS.focus&&r?'gone':hv?'hv':GS.all&&!r?'faint':'')});const zs=$('zs');if(zs){zs.disabled=!GS.sel||GS.view==='order';zs.setAttribute('aria-pressed',!!(GS.focus&&GS.sel))}
   const order={};if(GS.sel&&GS.mode!=='next'){const A=new Set([GS.sel]);walk(GS.sel,pm,A);[...A].sort((a,b)=>dep(a)-dep(b)||by[a].col-by[b].col||by[a].label.localeCompare(by[b].label)).forEach((id,i)=>order[id]=i+1)}
   Object.keys(N).forEach(id=>{N[id].querySelector('.bd').textContent=order[id]||''});
@@ -223,7 +225,7 @@ function mountGraph(){
   ordEl.innerHTML=h;ordEl.scrollTop=y};
  ordEl.addEventListener('click',e=>{const k=e.target.closest('[data-ordk]');if(k){toggle('t_'+k.dataset.ordk);return}const r=e.target.closest('[data-ord]');if(r)select(r.dataset.ord,false)});
  const build=()=>{if(GS.view==='order'){GS.focus=false;svg.setAttribute('hidden','');ordEl.hidden=false;N={};E=[];renderOrder();style();drawMini();saveView();return}svg.removeAttribute('hidden');ordEl.hidden=true;svg.innerHTML='';vp=gEl('g',{},svg);N={};E=[];const fr=GS.focus&&GS.sel?rel():null;LY=fr?layoutView(GS.view,fr):layoutView(GS.view);const bandG=gEl('g',{},vp),edG=gEl('g',{class:'ed'},vp),ndG=gEl('g',{},vp);
-  LY.heads.forEach(h=>{gEl('text',{x:h.x,y:(h.y||0)+24,class:'bh'},bandG).textContent=h.t;gEl('text',{x:h.x,y:(h.y||0)+42,class:'bs'},bandG).textContent=h.s});
+  HD=[];LY.heads.forEach(h=>{const a=gEl('text',{x:h.x,y:(h.y||0)+24,class:'bh'},bandG),b=gEl('text',{x:h.x,y:(h.y||0)+42,class:'bs'},bandG);a.textContent=h.t;b.textContent=h.s;HD.push({els:[a,b],ids:h.ids||[]})});
   LY.labels.forEach(l=>{const t=gEl('text',{x:PAD,y:l.y+22,class:'ln',style:`--nf:var(--${l.cat}-fg)`},bandG);String(l.text).split(' ').forEach((w,i)=>{gEl('tspan',{x:PAD,dy:i?15:0},t).textContent=w})});
   Object.keys(LY.pos).forEach(id=>{const n=by[id],p=LY.pos[id],g=gEl('g',{class:'sn',transform:`translate(${p.x} ${p.y})`,style:`--nb:var(--${n.cat}-bg);--nf:var(--${n.cat}-fg)`},ndG);gEl('rect',{width:NW,height:NH,rx:7},g);gEl('text',{x:-8,y:22,class:'bd'},g);
    const c=CNT[id];const t=gEl('text',{x:12,y:22},g);t.textContent=n.label;const room=NW-12-(c?34:12);if(t.getComputedTextLength()>room){let q=n.label;while(q.length>3&&t.getComputedTextLength()>room){q=q.slice(0,-1);t.textContent=q.trimEnd()+'…'}}if(c)gEl('text',{x:NW-10,y:22,class:'cn'},g).textContent=c;g.dataset.id=id;N[id]=g});
