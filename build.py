@@ -109,6 +109,16 @@ LES=parse_lessons()
 os.makedirs("dist/data/lessons",exist_ok=True)
 for k,v in LES.items(): open(f"dist/data/lessons/{k}.json","w").write(json.dumps(dict(id=k,**v),ensure_ascii=False,separators=(",",":")))
 put("lessons-index",sorted(LES))
+# Small search index for "find the technique": the signal line, first idea sentence and cost per lesson
+def _first(t,pre=""):
+    for l in t.split("\n"):
+        l=l.strip()
+        if l.startswith("- "):return l[2:]
+    return t.strip().split("\n")[0] if t.strip() else ""
+put("signals",{k:[_first(v.get("think","")) [:260],(v.get("idea","").split("\n")[0])[:200]] for k,v in LES.items()})
+import shutil
+if os.path.isdir(os.path.join(here,"static")):
+    for _f in os.listdir(os.path.join(here,"static")):shutil.copy(os.path.join(here,"static",_f),"dist/"+_f)
 open("dist/index.html","w").write(open("app.html").read())
 from collections import Counter
 from collections import Counter as C2

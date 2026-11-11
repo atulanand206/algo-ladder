@@ -1,7 +1,10 @@
 # Algo Ladder
 
-A free, graphical map of every major algorithm and data structure, with the real-world systems built on them.
-Learn in order: 59 small levels, each with a few topics, short code pieces in Java, Python and C++, and practice problems.
+**Every algorithm, built from the one below.**
+
+A free, graphical map of 459 algorithms, data structures and the real-world systems built on them. Every lesson is made from small code pieces in Java, Python and C++, on a map you can walk, with verified practice problems from Codeforces, CSES and AtCoder. 59 small levels, a "find the technique" search for when you are stuck on a problem, and progress that you can move between devices with a short code.
+
+Spot a mistake or want a problem added? [Open an issue](https://github.com/atulanand206/algo-ladder/issues/new).
 
 ## How it is built
 
