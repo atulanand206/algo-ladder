@@ -1,0 +1,209 @@
+topic,plat,pid,name,rating,note
+graph-rep,cses,1666,Building Roads,,Components forces you to build adjacency lists from edge input before any search.
+graph-rep,cses,1674,Subordinates,,A rooted tree stored as parent pointers must be turned into child lists to count subtree sizes.
+graph-rep,cf,580C,Kefa and Park,1500,"Tree given as edges, so you store adjacency and walk it while tracking a running count."
+graph-rep,atcoder,abc070_d,D - Transit Tree Path,,"Weighted tree stored as adjacency lists, queried by distances from one root."
+adjmat,cses,1723,Graph Paths I,,Counting walks of a fixed length is matrix power over the adjacency matrix.
+adjmat,atcoder,arc083_b,D - Restoring Road Network,,The input itself is a distance matrix you must validate and shrink to its minimal graph.
+adjmat,cf,1204C,"Anna, Svyatoslav and Maps",1700,Small dense graph kept as a matrix so all-pairs distances are available for the path.
+adjmat,cses,1724,Graph Paths II,,Shortest walk of exactly k edges is a min-plus matrix power over the adjacency matrix.
+bfs,cses,1667,Message Route,,"Fewest edges from node 1 to node n, printing the route, is the plain BFS exercise."
+bfs,cf,520B,Two Buttons,1400,The state graph of doubling and subtracting is searched breadth first for fewest steps.
+bfs,cf,1037D,Valid BFS?,1700,You must reason about which orders a BFS can legally produce from a tree.
+bfs,cses,1194,Monsters,,"Two BFS waves race each other, so you compare arrival times per cell."
+dfs,cf,115A,Party,900,Depth of a forest by walking from each root downward.
+dfs,cf,982C,Cut 'em all!,1500,One DFS computing subtree sizes tells which edges split the tree evenly.
+dfs,cses,1674,Subordinates,,Subtree counting is a single post-order DFS.
+dfs,cf,1092F,Tree with Maximum Cost,1900,"A first DFS gathers subtree sums, then a second pass reroots to every node."
+gridbfs,cses,1193,Labyrinth,,Shortest path on a maze grid with the route printed back from parents.
+gridbfs,atcoder,abc088_d,D - Grid Repainting,,Fewest steps through a grid tells how many open cells can be painted black.
+gridbfs,cses,3217,Knight Moves Grid,,BFS over chessboard squares with knight moves instead of four directions.
+gridbfs,cf,1365D,Solve The Maze,1700,Grid reachability from the exit decides whether blocking cells keeps good people safe.
+floodfill,cses,1192,Counting Rooms,,Count rooms by flooding each unvisited floor cell once.
+floodfill,cf,598D,Igor In the Museum,1700,Flood each room and share its wall count with every cell in it.
+floodfill,cf,377A,Maze,1600,Flood the open region and remove the last k cells visited to stay connected.
+floodfill,cf,1365D,Solve The Maze,1700,Flood from the exit to check that every good person can reach it and no bad one can.
+components,cses,1666,Building Roads,,Count components and join them with the fewest new roads.
+components,cf,977E,Cyclic Components,1500,Each component must be checked to be a simple cycle by its degrees.
+components,cses,1676,Road Construction,,"Components merge over time, which is tracked with sizes as edges arrive."
+components,cf,920E,Connected Components?,2100,Components of the complement graph need a smart traversal that removes visited nodes.
+treetrav,cses,1702,Tree Traversals,,Rebuild a tree from its preorder and inorder lists and print the postorder.
+treetrav,cf,1671E,Preorder,2100,Preorder strings of subtrees decide when two children can be swapped to make equal strings.
+cycleund,cses,1669,Round Trip,,Find and print any cycle in an undirected graph.
+cycleund,cf,977E,Cyclic Components,1500,Components that are exactly one cycle are spotted by degree and cycle checks.
+cycleund,cf,1364D,Ehab's Last Corollary,2100,"Either find a short cycle or build an independent set, so you must find a cycle in a DFS tree."
+cycleund,cf,1391E,Pairs of Pairs,2600,Either a long path or a pairing is built from a DFS tree and its back edges.
+cycledir,cses,1678,Round Trip II,,Find a directed cycle and print it using DFS colors.
+cycledir,cf,1385E,Directing Edges,2000,A directed cycle in the mixed graph proves the orientation is impossible.
+cycledir,cf,915D,Almost Acyclic Graph,2200,Decide if deleting one edge makes the directed graph acyclic by cycle detection.
+bipartite,cses,1668,Building Teams,,"Split pupils into two teams, which is a two-colouring."
+bipartite,cf,687A,NP-Hard Problem,1500,"Split the graph into two disjoint vertex covers, which are the two colour classes."
+bipartite,cf,862B,Mahmoud and Ehab and the bipartiteness,1300,Bipartite colouring of a tree gives the count of edges you can still add.
+bipartite,cf,1144F,Graph Without Long Directed Paths,1700,"Orient edges so no path has length two, which needs a bipartition."
+topo,cses,1679,Course Schedule,,Order courses by prerequisites or report a cycle.
+topo,cf,510C,Fox And Names,1600,Letter order constraints from sorted names form a graph that you must topologically sort.
+topo,cses,1680,Longest Flight Route,,Longest path in a DAG is DP along a topological order.
+topo,cses,1757,Course Schedule II,,Lexicographically smallest topological order needs the order machinery plus a heap.
+kahn,cses,1679,Course Schedule,,Kahn's queue gives the order and detects a cycle when nodes remain.
+kahn,cses,1757,Course Schedule II,,Kahn's algorithm with a min heap in place of a plain queue.
+kahn,cf,1385E,Directing Edges,2000,Process nodes by indegree to give each undirected edge a direction consistent with an order.
+kahn,atcoder,abc139_e,E - League,,"Matches unlock in dependency order, and the answer is the number of layers of removal."
+msbfs,cf,35C,Fire Again,1500,"Several fires spread at once, so you start BFS from all of them together."
+msbfs,cf,986A,Fair,1600,"Each good type has many sources, so BFS starts from all towns producing it."
+msbfs,cses,1194,Monsters,,Start from all monsters in one BFS to get their arrival times.
+sp01,atcoder,abc176_d,D - Wizard in Maze,,"Ordinary moves cost 0 and teleports cost 1, so the grid needs 0-1 BFS."
+sp01,cf,1063B,Labyrinth,1800,Left and right moves are the costly ones while up and down are free.
+sp01,cf,173B,Chamber of Secrets,1800,Moving between rows and columns of switches has two kinds of edges with different costs.
+sp01,atcoder,arc084_b,D - Small Multiple,,"Multiplying by 10 costs 0 and adding 1 costs 1, the classic 0-1 BFS on remainders."
+treediam,cses,1131,Tree Diameter,,Compute the tree diameter with two searches.
+treediam,cf,734E,Anton and Tree,2100,Compress colours then the answer is the radius from the diameter.
+treediam,cf,1294F,Three Paths on a Tree,2000,Three nodes with the longest union of paths builds on the diameter.
+treediam,cf,804D,Expected diameter of a tree,2500,Joining two components expects a diameter that depends on each component's eccentricities.
+dijkstra,cses,1671,Shortest Routes I,,Plain shortest routes with a heap.
+dijkstra,cf,20C,Dijkstra?,1900,Shortest path with the route printed from parents.
+dijkstra,cses,1195,Flight Discount,,Run Dijkstra from both ends and test each edge as the discounted one.
+dijkstra,cf,1473E,Minimum Path,2400,Dijkstra over states that track a free edge and a doubled edge.
+bellman,atcoder,abc061_d,D - Score Attack,,Maximise score with negative-weight edges and detect a positive cycle on a route to the goal.
+bellman,cses,1673,High Score,,Longest route with a cycle check reachable from start and end.
+bellman,cses,1197,Cycle Finding,,Find and print a negative cycle.
+bellman,atcoder,abc137_e,E - Coins Respawn,,A cycle that gains money must be detected on reachable nodes only.
+spfa,cses,1673,High Score,,Negative-weight route where relaxation queues stand in for full passes.
+spfa,cses,1197,Cycle Finding,,Negative cycle detection by counting how often a node is requeued.
+spfa,atcoder,abc061_d,D - Score Attack,,Negative-weight longest path with unreachable cycles to ignore.
+spfa,atcoder,abc137_e,E - Coins Respawn,,Relax with a queue and stop when a node is relaxed n times.
+negcycle,cses,1197,Cycle Finding,,Print one negative cycle of the graph.
+negcycle,cses,1673,High Score,,The cycle only matters if it lies between the start and the end.
+negcycle,atcoder,abc061_d,D - Score Attack,,Positive-cycle detection after limiting to nodes that reach the goal.
+negcycle,atcoder,abc137_e,E - Coins Respawn,,Same idea with reachability filtering both ways.
+floyd,cses,1672,Shortest Routes II,,All-pairs shortest distances for many queries.
+floyd,cf,25C,Roads in Berland,1900,"Add an edge and update all pairs, each time in quadratic time."
+floyd,cf,295B,Greg and Graph,1700,Add vertices in reverse deletion order and run Floyd's inner loop for each.
+floyd,atcoder,abc286_e,E - Souvenir,,Small graph with all-pairs distances and a second value to maximise.
+mst,cses,1675,Road Reparation,,Cheapest set of roads to connect all cities.
+mst,cf,1245D,Shichikuji and Power Grid,1900,"Connect power stations with the cheapest wires, by adding a virtual node."
+mst,cf,160D,Edges in MST,2300,"Classify each edge as in all, some or no minimum spanning trees."
+mst,cf,891C,Envy,2300,Decide whether a set of edges can sit together in some minimum spanning tree.
+prim,cses,1675,Road Reparation,,Minimum spanning tree where a heap-based grow-from-one-node approach works.
+prim,cf,1245D,Shichikuji and Power Grid,1900,Dense implicit graph where quadratic Prim fits well.
+prim,cf,1095F,Make It Connected,1900,Connect nodes with node prices plus edges by a cheapest-edge growth.
+euler,cses,1137,Subtree Queries,,Subtree sum updates and queries become range operations on the entry order.
+euler,cses,1138,Path Queries,,Path from root queries become point updates on an entry and exit array.
+euler,cf,383C,Propagating tree,2000,Alternating sign updates by depth parity on a subtree range.
+euler,cf,620E,New Year Tree,2100,Subtree colour changes with distinct colour counts as range operations.
+treecenter,cses,1132,Tree Distances I,,Furthest distance for every node follows from diameter endpoints.
+treecenter,cf,1881F,Minimum Maximum Distance,1700,The best marked-node distance comes from the centre of the marked subtree.
+treecenter,cf,1067B,Multihedgehog,1800,A multihedgehog is recognised by finding its centre and peeling layers.
+treecenter,cf,1182D,Complete Mirror,2400,The centre of a tree decides which node can make a mirror structure.
+lca,cses,1688,Company Queries II,,Closest common boss for each pair by binary lifting.
+lca,cses,1135,Distance Queries,,Distance between nodes via depth and LCA.
+lca,cf,1304E,1-Trees and Queries,2000,Distance with one extra edge needs LCA to try both detours.
+lca,cf,832D,"Misha, Grisha and Underground",1900,The meeting point of three paths is found from pairwise LCAs.
+kthanc,cses,1687,Company Queries I,,Find the k-th boss of an employee by jumping with powers of two.
+kthanc,cses,1750,Planets Queries I,,Jump k steps in a functional graph with the same doubling table.
+kthanc,atcoder,abc167_d,D - Teleporter,,Jump k steps through teleporters using doubling or cycle detection.
+lcaeuler,cses,1688,Company Queries II,,Answer LCA queries as range minimum over depths in the Euler tour.
+lcaeuler,cses,1135,Distance Queries,,Distance queries from Euler tour with sparse table LCA.
+lcaeuler,cses,1136,Counting Paths,,Counting paths through each node needs LCA for each path.
+lcaeuler,cf,1304E,1-Trees and Queries,2000,Many LCA queries with O(1) answers keep each query cheap.
+treematch,cses,1130,Tree Matching,,Maximum matching in a tree by greedy or DP.
+treematch,atcoder,dp_p,P - Independent Set,,Counting independent set colourings on a tree by DP.
+treematch,cf,1332F,Independent Set,2500,Counting edge subsets by independent-set DP on a tree.
+scc,cses,1682,Flight Routes Check,,Check strong connectivity or report a non-reachable pair.
+scc,cses,1683,Planets and Kingdoms,,Label each node with its strongly connected group.
+scc,cf,427C,Checkposts,1700,"Per component, cheapest checkpost and count of ways to pick it."
+scc,cses,1686,Coin Collector,,Collect coins over a component graph after finding SCCs.
+kosaraju,cses,1683,Planets and Kingdoms,,Two DFS passes give the components in order.
+kosaraju,cses,1682,Flight Routes Check,,Strong connectivity check with forward and reverse reachability.
+kosaraju,cf,427C,Checkposts,1700,Component minimum and ways to count come from component labels.
+kosaraju,cses,1686,Coin Collector,,Component weights then DP along the condensed graph.
+condense,cses,1686,Coin Collector,,DP over the DAG of components for the best collected coins.
+condense,cses,1685,New Flight Routes,,The number of new roads is based on sources and sinks of the condensation.
+condense,cf,1239D,Catowice City,2400,Pick components with no incoming edges as the set of residents.
+condense,cf,427C,Checkposts,1700,Per-component minimum values after contraction.
+eulerpath,cses,1691,Mail Delivery,,Walk every road exactly once in an undirected graph.
+eulerpath,cses,1693,Teleporters Path,,Use every teleporter once in a directed graph.
+eulerpath,cf,508D,Tanya and Password,2500,Password as an Euler path through pairs of letters.
+eulerpath,cf,1361C,Johnny and Megan's Necklace,2500,Pearl necklace needs an Euler circuit over colour-class nodes.
+hierholzer,cses,1693,Teleporters Path,,Construct the directed Euler path itself.
+hierholzer,cses,1691,Mail Delivery,,Construct the undirected Euler circuit itself.
+hierholzer,cses,1692,De Bruijn Sequence,,De Bruijn sequence is an Euler circuit over n-1 bit strings.
+hierholzer,cf,508D,Tanya and Password,2500,Splice loops to rebuild the password as a walk.
+hamilton,cses,1690,Hamiltonian Flights,,Count Hamiltonian routes by bitmask DP.
+hamilton,atcoder,abc180_e,E - Traveling Salesman among Aerial Cities,,Shortest visiting tour is bitmask DP over subsets.
+hamilton,cf,11D,A Simple Task,2200,Count simple cycles by bitmask DP over subsets and start nodes.
+hamilton,cf,8C,Looking for Order,2000,Pick items in groups by DP over subsets like a visiting order.
+funcgraph,atcoder,abc167_d,D - Teleporter,,Teleporter jumps use cycle position in a functional graph.
+funcgraph,cses,1750,Planets Queries I,,Each planet teleports to one target and you jump k steps.
+funcgraph,cses,1751,Planets Cycles,,Steps before repeating needs tail and cycle length per node.
+funcgraph,cses,1160,Planets Queries II,,Reachability between planets uses the tree-plus-cycle structure.
+graphcolor,cses,1668,Building Teams,,"Two-colour the graph, the smallest case of colouring."
+graphcolor,cf,687A,NP-Hard Problem,1500,Colour classes of a bipartite graph form the answer.
+graphcolor,cses,3308,Graph Coloring,,Minimum number of colours for up to 16 nodes by subset DP.
+flow,cses,1694,Download Speed,,Max flow in a pipe network.
+flow,cses,1696,School Dance,,Matching as unit-capacity max flow.
+flow,cf,546E,Soldier and Traveling,2100,"Soldiers move between cities with capacities, so check a feasible flow."
+flow,cses,1711,Distinct Routes,,Edge-disjoint paths are found by unit-capacity flow.
+mincut,cses,1695,Police Chase,,Fewest roads to block between two cities equals max flow.
+mincut,cf,311E,Biologist,2300,Choose to include nodes to maximise profit with min cut closure.
+mincut,cf,1082G,Petya and Graph,2400,"Pick edges whose endpoints must also be chosen, a max-weight closure by min cut."
+mincut,atcoder,practice2_d,D - Maxflow,,"Max flow on a grid, where the min cut structure decides assignments."
+matching,cses,1696,School Dance,,"Pair boys and girls maximally, printing the pairs."
+matching,cf,1139E,Maximize Mex,2400,Mex over time uses matching between values and clubs processed offline.
+matching,cf,1423B,Valuable Paper,1900,Binary search on a cost and check for a perfect matching.
+matching,cf,1009G,Allowed Letters,2400,Letter allowance sets need Hall-style matching of positions to letters.
+kthpath,cses,1196,Flight Routes,,Find the k shortest routes from node 1 to node n.
+boruvka,cf,888G,Xor-MST,2300,Xor MST: merge components by cheapest cross edges using a trie.
+mst2,cses,3407,MST Edge Check,,Check if an edge belongs to some MST.
+mst2,cf,609E,Minimum spanning tree for each edge,2100,Min spanning tree containing each edge needs the heaviest edge on the tree path.
+mst2,cses,3409,MST Edge Cost,,"Cheapest tree including a chosen edge, by replacing the heaviest path edge."
+mst2,cses,3408,MST Edge Set Check,,Check whether a set of edges can belong to some MST.
+lcatarjan,cses,1688,Company Queries II,,Offline LCA queries with a union-find walk.
+lcatarjan,cses,1135,Distance Queries,,Queries known in advance fit Tarjan's offline scheme.
+lcatarjan,cses,1136,Counting Paths,,Each path endpoint pair needs an LCA to difference the counts.
+hld,cses,1138,Path Queries,,Path sum queries with updates are chain range queries.
+hld,cses,2134,Path Queries II,,Path maximum queries with point updates need chain decomposition.
+hld,cf,343D,Water Tree,2100,Fill a subtree and empty a path to the root with chains and ranges.
+hld,cf,1017G,The Tree,3200,Path painting with queries on a tree is split into chain segments.
+centroid,cf,321C,Ciel the Commander,2100,Assign ranks by recursive centroids so same-rank nodes are separated.
+centroid,cses,2080,Fixed-Length Paths I,,Count paths of an exact length by combining pieces around the centroid.
+centroid,cses,2081,Fixed-Length Paths II,,Count paths with length in a range through each centroid.
+centroid,cf,342E,Xenia and Tree,2400,Nearest red node queries use centroid ancestors.
+vtree,cf,613D,Kingdom and its Cities,2800,Each query picks a set of important cities so you build a tiny tree on them.
+vtree,cf,1111E,Tree,2500,Queries on subsets of nodes become dynamic programming on a virtual tree.
+treeiso,cses,1700,Tree Isomorphism I,,Decide if two rooted trees match by canonical hashes.
+treeiso,cses,1701,Tree Isomorphism II,,Unrooted tree isomorphism through centre and hashing.
+treeiso,cf,763D,Timofey and a flat tree,2900,"Count distinct shapes when rerooting, needing hashes of rooted subtrees."
+tarjan,atcoder,practice2_g,G - SCC,,"SCC output in topological order, with a library-style solver."
+tarjan,cses,1683,Planets and Kingdoms,,Group nodes by single-pass DFS low links.
+tarjan,cses,1686,Coin Collector,,Single-DFS components feed DP on the condensation.
+tarjan,cf,427C,Checkposts,1700,Per-component data from a single-pass SCC search.
+bridges,cses,2076,Necessary Roads,,Find the roads whose removal disconnects the graph.
+bridges,cses,2077,Necessary Cities,,Find the cities whose removal disconnects the graph.
+bridges,cf,118E,Bertown roads,2000,"Orient each edge so the graph stays strongly connected, or report a bridge."
+bridges,cf,51F,Caterpillar,2800,Bridge components compress into a tree whose leaves and diameter decide the answer.
+bcc,cses,2077,Necessary Cities,,Cut vertices come from biconnected component structure.
+bcc,cf,962F,Simple Cycles Edges,2400,"Find edges that lie in exactly one simple cycle, via blocks."
+bcc,cf,231E,Cactus,2100,Cactus paths are counted using the block structure.
+bcc,cf,487E,Tourists,3200,The block-cut tree makes node minimum queries over paths.
+twosat,cses,1684,Giant Pizza,,"Pick toppings under pairwise conditions, the standard 2-SAT."
+twosat,cf,776D,The Door Problem,2000,"Each door depends on two switches, which is a 2-SAT."
+twosat,atcoder,practice2_h,H - Two SAT,,Choose coordinates for flags under pair conflicts with a library 2-SAT.
+twosat,cf,1215F,Radio Stations,2700,Radio stations with range conflicts become clauses.
+dinic,cses,1694,Download Speed,,Larger networks need a faster max flow than simple augmenting paths.
+dinic,cses,1696,School Dance,,Unit network where layered blocking flows are fast.
+dinic,atcoder,practice2_d,D - Maxflow,,Library-style flow on a grid.
+dinic,cses,1711,Distinct Routes,,Edge-disjoint routes from layered flow.
+mcmf,cses,2129,Task Assignment,,Cheapest assignment of tasks to people as min-cost flow.
+mcmf,cses,2121,Parcel Delivery,,"Send parcels at the lowest total price, with capacities."
+mcmf,atcoder,practice2_e,E - MinCostFlow,,Min-cost flow library problem on a grid.
+mcmf,cf,277E,Binary Tree on Plane,2400,Build a binary tree on points with minimum total edge length by min-cost flow.
+hopcroft,cses,1696,School Dance,,Large bipartite matching where the fast method is needed.
+hopcroft,cf,1423B,Valuable Paper,1900,Many matching checks over a binary search call for a fast matcher.
+hopcroft,cf,1139E,Maximize Mex,2400,Repeated matching on a large bipartite graph.
+hungarian,cses,2129,Task Assignment,,Minimum cost perfect assignment of a square cost table.
+hungarian,cf,1437C,Chef Monocarp,1800,Assign orders to time slots at minimum cost.
+dominator,cf,757F,Team Rocket Rises Again,2800,Dominator tree on the shortest path DAG tells which node blocks the most others.
+dynconn,cses,2133,Dynamic Connectivity,,"Answer connectivity as roads appear and vanish, offline."
+dynconn,cf,813F,Bipartite Checking,2500,Check bipartiteness while edges are added and removed over time.
+dynconn,cf,938G,Shortest Path Queries,2900,Offline edge lifetimes with xor basis queries over a segment tree on time.
+arbor,cf,240E,Road Repairs,2800,Road repairs on a directed graph is a minimum arborescence with printed edges.

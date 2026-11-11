@@ -1,0 +1,178 @@
+topic,plat,pid,name,rating,note
+parity,cf,4A,Watermelon,800,Only the parity of the weight decides whether it can be split into two even parts.
+parity,cses,1754,Coin Piles,,Both piles shrink by 3 per move so a parity and divisibility check decides the answer.
+parity,cf,1272E,Nearest Opposite Parity,1900,"Edges join equal values but the target is the opposite parity, which lets one BFS from all sources answer every vertex."
+parity,cf,1070L,Odd Federalization,2600,Deciding whether a degree can be made even by merging needs a parity argument on each component.
+modular,cses,1662,Subarray Divisibility,,Equal prefix sums modulo n mark every subarray divisible by n.
+modular,cf,1374D,Zero Remainder Array,1400,Each element needs a residue shift and repeated residues force extra waiting steps counted per class.
+modular,cf,1207F,Remainder Problem,2100,"Small moduli are kept in a table and large ones scanned, a standard modular bucket trick."
+modular,cf,1553F,Pairwise Modulo,2300,"Sum of a mod b over all earlier values splits into a minus b times floor(a/b), handled with a Fenwick tree."
+gcd,atcoder,abc118_c,C - Monsters Battle Royale,,The smallest reachable monster health is the gcd of all values.
+gcd,cf,1458A,Row GCD,1600,Gcd of a plus b_j equals gcd of a_1 plus b_j and the gcd of the differences.
+gcd,cf,1349A,Orac and LCM,1600,"Gcd of all pairwise lcms is found from prime exponents, using the gcd of suffix values."
+gcd,cf,1493D,GCD of an Array,2100,Updates multiply elements and the gcd is maintained through per-prime exponent multisets.
+divisibility,cf,1744D,Divisibility by 2^n,1200,"Only the count of factors of two matters, so greedily pick indices with most twos."
+divisibility,cf,1931D,Divisible Pairs,1300,Pairs are counted by matching remainders mod x and mod y with a hash map.
+divisibility,cf,1753B,Factorial Divisibility,1600,Carry the factorial divisibility chain upward to check whether n! divides the sum.
+divisibility,cf,1029D,Concatenated Multiples,1900,Divisibility of a concatenation by k reduces to remainders for each possible digit length.
+primality,atcoder,abc149_c,C - Next Prime,,Test numbers by trial division to find the next prime.
+primality,cf,230B,T-primes,1300,A number has exactly three divisors only if it is the square of a prime.
+primality,cf,1178D,Prime Graph,1500,Building a prime-degree graph needs a next prime test on the edge count.
+primality,cf,568A,Primes or Palindromes?,1600,Prime counts and palindrome counts must be compared along a sieved range.
+bases,atcoder,abc105_c,C - Base -2 Number,,Write a number in base negative two with a repeated divmod.
+bases,cf,1977B,Binary Colouring,1100,Binary representation is turned into a no-adjacent-nonzero signed form.
+bases,cf,1225C,p-binary,1600,Test whether n minus p times k has a popcount compatible with k summands of powers of two.
+bases,cf,1066E,Binary Numbers AND Sum,1700,Binary strings with huge lengths require reasoning on bit positions instead of big integers.
+digtricks,cf,1107B,Digital root,1000,Digital root of a number depends only on its value mod 9.
+digtricks,cf,1409D,Decrease the Sum of Digits,1500,Greedy rounding to a multiple of ten reduces the digit sum quickly.
+digtricks,cf,1759F,All Possible Digits,1800,Digit by digit reasoning about when the last digit wraps and which digits can still appear.
+digtricks,cf,1510D,Digits,2100,Final digit of a product is tracked mod 10 while selecting numbers.
+extgcd,cf,633A,Ebony and Ivory,1100,A solution to ax plus by equals c is found by Bezout and a bounded search or extgcd.
+extgcd,cf,7C,Line,1800,Line integer point is exactly a linear Diophantine equation solved with extended gcd.
+extgcd,atcoder,abc186_e,E - Throne,,Linear congruence for the number of steps needs extended gcd on the reduced modulus.
+extgcd,cf,919E,Congruence Equation,2100,Solve a congruence over a prime and combine exponent cycles with CRT style reasoning.
+sieve,cf,26A,Almost Prime,900,Count numbers with exactly two distinct prime divisors using a sieve that records prime factor counts.
+sieve,atcoder,abc084_d,D - 2017-like Number,,Precompute primes up to 100000 and prefix count the numbers where both n and (n+1)/2 are prime.
+sieve,cf,385C,Bear and Prime Numbers,1700,Sieve the primes then count how many divisible numbers per prime and prefix sum for range queries.
+sieve,cf,665D,Simple Subset,1800,Choosing the subset needs a prime table up to the largest possible sum.
+linsieve,cf,1512G,Short Task,1700,Sum of divisors for all values up to 10 million needs a linear sieve that builds multiplicative functions.
+linsieve,cf,546D,Soldier and Number Game,1700,Number of prime factors with multiplicity for every value up to 5 million comes from the linear sieve smallest prime.
+linsieve,cf,1034A,Enlarge GCD,1800,A sieve to 15 million is needed to count how many array values each prime divides.
+factor,cf,1114C,Trailing Loves (or L'oeufs?),1700,Factor the base into primes then compare with Legendre counts of n factorial.
+factor,cf,1228C,Primes and Multiplication,1700,"Factor x then sum the exponent of each prime in the product f(x,i) with Legendre style counting."
+factor,cses,2182,Divisor Analysis,,Divisor analysis needs the factorisation to produce count and sum and product of divisors.
+factor,cf,359C,Prime Number,1900,Gcd of the sum and denominators requires prime factorisation and exponent minimum.
+spf,atcoder,abc177_e,E - Coprime,,Factor every value with the smallest prime factor table to test pairwise and setwise coprimality.
+spf,cf,1225D,Power Products,1800,Reduce each number to its exponents mod k using fast factorisation by smallest prime factor.
+spf,cf,1366D,Two Divisors,2000,Splitting a number into two parts with coprime sum uses its smallest prime factor.
+spf,cf,1470B,Strange Definition,1900,Square free reduction of each element requires factorising up to a million values quickly.
+divisors,cf,762A,k-th divisor,1400,Enumerate the divisors of n in sqrt time and pick the k-th one.
+divisors,cses,1713,Counting Divisors,,Count divisors of many numbers using precomputation or factorisation.
+divisors,cses,1082,Sum of Divisors,,Sum of divisors of all numbers up to n uses grouping of equal quotients.
+divisors,cf,1744E2,Divisible Numbers (hard version),1900,Search a pair of divisors of a and b by enumerating divisors of a times b.
+phi,cf,1295D,Same GCDs,1800,Count x with equal gcd uses the totient of m divided by gcd.
+phi,cf,1750D,Count GCD,1800,Counting valid arrays needs the number of values coprime to a reduced modulus via the totient.
+phi,cf,776E,The Holmes Children,2100,Iterating phi on a number reduces it to 1 in about log steps.
+phi,cf,915G,Coprime Arrays,2300,Count arrays with gcd one by summing totient style Mobius counts.
+modpow,cses,1095,Exponentiation,,Plain fast exponentiation modulo ten to the nine plus seven.
+modpow,atcoder,abc156_d,D - Bouquet,,Count subsets with n choose k terms needs fast power for a few binomials.
+modpow,cses,1712,Exponentiation II,,Exponent is reduced modulo p minus one before fast power.
+modpow,cf,906D,Power Tower,2700,Power tower evaluated mod m by repeatedly taking phi and fast power.
+modinv,cses,1079,Binomial Coefficients,,Binomial coefficients modulo a prime need inverse factorials.
+modinv,atcoder,abc145_d,D - Knight,,Count paths using nCr modulo a prime with a modular inverse.
+modinv,cf,1999F,Expected Median,1500,Sum of binomials over valid ones uses inverse factorials.
+modinv,cf,1418E,Expected Damage,2400,Expected values with division by counts need modular inverses of group sizes.
+fermat,atcoder,abc034_c,C - 経路,,Number of lattice paths is a binomial taken modulo a prime using the Fermat inverse.
+fermat,cses,1715,Creating Strings II,,Multinomial coefficient of letters needs factorial inverses by Fermat's little theorem.
+fermat,cf,1359E,Modular Stability,2000,Counting stable sets sums binomials and needs inverse factorials modulo a prime.
+ncr,cses,1079,Binomial Coefficients,,Many queries of n choose k modulo a prime from precomputed factorial tables.
+ncr,cf,1696E,Placing Jinas,2000,Sum of binomials along a column collapses by the hockey stick identity.
+ncr,cf,559C,Gerald and Giant Chess,2200,Paths between blocked cells are counted with binomials and subtracted with inclusion by order.
+ncr,cf,1342E,Placing Rooks,2300,Counting rook placements combines binomials with inclusion exclusion.
+stars,cses,1716,Distributing Apples,,Distributing identical apples among children is exactly stars and bars.
+stars,atcoder,abc021_d,D - 多重ループ,,Non decreasing sequences of length k correspond to stars and bars selections.
+stars,cf,451E,Devu and Flowers,2300,Choosing flowers from limited types combines stars and bars with inclusion exclusion.
+prob,cses,1725,Dice Probability,,Probability that the dice sum falls in a range is computed by a dp over distributions.
+prob,cses,1727,Candy Lottery,,Expected maximum of lottery draws uses the probability of the maximum being at most k.
+prob,cf,453A,Little Pony and Expected Maximum,1600,Expected maximum of dice rolls is a sum over the distribution function.
+prob,cf,1461C,Random Events,1500,Combine independent events by multiplying the probability that none of them fire.
+kthperm,cf,1328B,K-th Beautiful String,1300,Find the k-th lexicographic string by counting completions to skip whole blocks.
+kthperm,atcoder,abc150_c,C - Count Order,,Compute the rank of a permutation to compare two permutations by index.
+nextperm,cses,1622,Creating Strings,,Generate all distinct permutations of a string in order with the next permutation step.
+nextperm,atcoder,abc150_c,C - Count Order,,Step through permutations in lexicographic order to find the index of two given ones.
+mobius,cses,2417,Counting Coprime Pairs,,Count coprime pairs by summing Mobius over divisors of each value.
+mobius,atcoder,abc162_e,E - Sum of gcd of Tuples (Hard),,Sum of gcd over all tuples uses Mobius inversion or counting gcd exactly.
+mobius,cf,803F,Coprime Subsequences,2000,Count subsequences with gcd one by Mobius sum over powers of two.
+mobius,cf,1139D,Steps to One,2300,Expected steps until gcd becomes one needs Mobius summation over divisors.
+crt,cf,687B,Remainders Game,1800,Whether all residues mod k are determined reduces to whether lcm of the c values is divisible by k.
+crt,atcoder,abc193_e,E - Oversleeping,,Combine two congruence systems and take the minimum over pairs.
+crt,cf,338D,GCD Table,2900,Align a row with consecutive gcds by solving a system of congruences with CRT.
+crt,cf,1770C,Koxia and Number Theory,1700,Existence of consecutive shifts reduces to checking congruences mod primes.
+lincong,cf,1055C,Lucky Days,1900,Whether two periodic schedules overlap needs a linear congruence modulo the gcd.
+lincong,cf,1244C,The Football Season,2000,Solve ax plus by equals w with positive integers from a linear congruence.
+lincong,cf,603B,Moodular Arithmetic,1800,Count functions satisfying a modular relation depends on the multiplicative order cycles from congruences.
+lincong,atcoder,abc186_e,E - Throne,,Number of steps to reach the target position is a linear congruence in the step count.
+comb,atcoder,abc156_e,E - Roaming,,Counting room configurations uses binomial identities with a bounded number of empty rooms.
+comb,cf,1329B,Dreamoon Likes Sequences,1700,Count sequences with strictly increasing prefix xor by multiplying choices per highest bit.
+comb,cf,1838E,Count Supersequences,2500,Count supersequences by a closed form of binomials over inserted positions.
+comb,cf,1957E,Carousel of Combinations,2400,Sums of binomials over many divisor shaped terms are rearranged into prefix sums.
+catalan,cses,2064,Bracket Sequences I,,Balanced bracket sequences of a given length are counted by a Catalan number.
+catalan,cses,2187,Bracket Sequences II,,A fixed prefix is handled with a ballot style reflection count of Catalan type.
+catalan,cf,1264D1,Beautiful Bracket Sequence (easy version),2600,Counting valid bracket completions uses ballot counts of Catalan type for each split position.
+stirling,cf,961G,Partitions,2700,Sum over partitions of weights needs Stirling numbers of the second kind.
+stirling,atcoder,abc217_g,G - Groups,,Counting the ways to split n people into k non empty groups is a Stirling number of the second kind.
+derange,cses,1717,Christmas Party,,Assign gifts so nobody receives their own with the derangement recurrence.
+derange,cf,340E,Iahub and Permutations,2000,Fill the free positions with the right number of fixed point restrictions via derangement style inclusion exclusion.
+derange,cf,285E,Positions in Permutations,2600,Count permutations with exactly k good positions by inclusion exclusion over fixed points.
+inclexcl,cses,2185,Prime Multiples,,Count numbers up to n divisible by some prime by inclusion exclusion over subsets.
+inclexcl,cf,1342E,Placing Rooks,2300,Count arrangements with all columns attacked by subtracting overcounts via inclusion exclusion.
+inclexcl,cf,997C,Sky Full of Stars,2500,Count colourings with at least one monochrome line by inclusion exclusion over rows and columns.
+inclexcl,cf,285E,Positions in Permutations,2600,The exact count over fixed points is obtained from at least counts by inclusion exclusion.
+linrec,cf,450B,Jzzhu and Sequences,1300,A tiny linear recurrence of order two evaluated for a huge index.
+linrec,cf,1182E,Product Oriented Recurrence,2300,Exponents obey a linear recurrence which is evaluated with a matrix power.
+linrec,cf,222E,Decoding Genome,1900,A transition table of letters defines a linear recurrence over counts.
+matexp,cses,1723,Graph Paths I,,Count walks of exact length by raising the adjacency matrix to a power.
+matexp,cses,1724,Graph Paths II,,Shortest walk of exact length uses matrix power over the min plus semiring.
+matexp,cf,222E,Decoding Genome,1900,Count strings of fixed length under forbidden adjacent pairs with a transition matrix power.
+matexp,atcoder,abc129_f,F - Takahashi&#39;s Basics in Education and Learning,,Concatenating numbers of growing length is a linear update done with a matrix power.
+fibfast,cses,1722,Fibonacci Numbers,,Fibonacci number of a huge index by fast doubling or matrix power.
+fibfast,cf,446C,DZY Loves Fibonacci Numbers,2400,Fibonacci based range updates are reduced to geometric style closed forms with Fibonacci identities.
+gauss,cf,113D,Museum,2700,Expected number of steps in a Markov chain is a linear system solved by Gaussian elimination.
+gauss,cf,24D,Broken robot,2400,Expected moves on a strip give a tridiagonal linear system solved by elimination.
+xorbasis,cf,959F,Mahmoud and Ehab and yet another xor task,2400,Subsets with a given xor are counted using the rank of a linear basis.
+xorbasis,cf,845G,Shortest Path Problem?,2300,Possible path xor values are spanned by the xor basis of cycle values.
+xorbasis,cf,1100F,Ivan and Burgers,2500,Maximum xor on a range uses a basis kept with latest positions.
+xorbasis,atcoder,abc141_f,F - Xor Sum 3,,Maximise the xor sum of a split by building a basis over the bit masks.
+sqrtblocks,cf,13E,Holes,2700,Jump chains inside blocks are rebuilt per update which is classic sqrt decomposition.
+sqrtblocks,cf,103D,Time to Raid Cowavans,2100,Small steps use a block table and large steps are answered directly.
+sqrtblocks,cf,455D,Serega and Fun,2700,Rotate a subarray with blocks of deques and count a value per block.
+sqrtblocks,cf,86D,Powerful array,2200,Range queries on frequency squares are answered by ordering queries in blocks.
+expect,cf,839C,Journey,1500,Expected path length on a random walk down a tree is a sum of probabilities times lengths.
+expect,atcoder,abc189_f,F - Sugoroku2,,Expected number of throws on a board with traps is a dp over expectations with a linear system on the reset.
+expect,cf,1265E,Beautiful Mirrors,2100,Expected days is a dp of expectations with modular fractions.
+expect,cf,1753C,Wish I Knew How to Sort,2000,Expected swaps to sort a binary array follows from a recurrence on the number of misplaced ones.
+linearity,cf,621C,Wet Shark and Flowers,1700,Expected number of divisible pairs is a sum of independent neighbour probabilities.
+linearity,cf,280C,Game on Tree,2200,Expected steps equal the sum over vertices of one over depth by linearity.
+linearity,cses,1728,Inversion Probability,,Expected inversion count is a sum over pairs of the probability that they are inverted.
+linearity,cf,1187F,Expected Square Beauty,2500,Expected square of beauty expands into pair terms handled by linearity of expectation.
+game,cf,1472D,Even-Odd Game,1200,Both players take the best element each turn so sorting settles the whole game.
+game,cses,1729,Stick Game,,Win lose positions are filled by a dp over the number of sticks.
+game,cses,1097,Removal Game,,Two player optimal play on a line of numbers is solved by an interval dp.
+game,cf,1537D,Deleting Divisors,1700,Classify positions by parity of the exponent of two for the divisor removal game.
+nim,cses,1730,Nim Game I,,Nim with several piles is decided by the xor of the pile sizes.
+nim,cses,1098,Nim Game II,,Nim where each move removes a nonzero count is decided by xor as well.
+nim,cses,1099,Stair Game,,Stair game reduces to nim on the piles at odd steps.
+nim,cf,1498F,Christmas Game,2500,Tree game reduces to nim on piles at certain depth parities combined by xor.
+grundy,cses,2207,Grundy's Game,,Splitting a pile into two unequal piles needs Grundy numbers of the sizes.
+grundy,cf,2004E,Not a Nim Problem,2100,Grundy value of a pile uses the smallest prime factor which is computed by a sieve.
+grundy,cf,1704F,Colouring Game,2600,Colouring game values need Grundy numbers with the period of the sequence found.
+grundy,cses,2208,Another Game,,A sum of independent games is decided by the xor of the heap values.
+josephus,cses,2162,Josephus Problem I,,Simulate the elimination order for a circle of children.
+josephus,cses,2163,Josephus Problem II,,Elimination with a fixed skip needs an order statistic structure on the circle.
+josephus,cses,2164,Josephus Queries,,The k-th removed child is found with the Josephus closed form and recursion on the halving.
+burnside,cses,2209,Counting Necklaces,,Count necklaces up to rotation by averaging fixed colourings over the rotation group.
+burnside,cses,2210,Counting Grids,,Count grids up to rotation by averaging fixed colourings of the four rotations.
+polya,cses,2209,Counting Necklaces,,Cycle count of each rotation gives the Polya exponent for coloured necklaces.
+polya,cses,2210,Counting Grids,,Cycle structure of each rotation of the grid gives the Polya sum.
+gf,cf,438E,The Child and Binary Tree,3100,Binary tree counts satisfy a quadratic equation on the generating function whose square root is taken.
+gf,cf,1559E,Mocha and Stars,2200,Counting arrays with bounded sums is a product of generating functions with Mobius over gcd.
+fwht,cf,662C,Binary Table,2600,Minimise ones in a binary table by combining row masks with an xor convolution via Walsh Hadamard transform.
+fwht,cf,914G,Sum the Fibonacci,2600,Subset convolution with xor and or transforms feeds the Fibonacci weighted count.
+fft,cf,954I,Yet Another String Matching Problem,2200,String matching with wildcard classes is a convolution per character pair.
+fft,cf,528D,Fuzzy Search,2500,Fuzzy matching counts matches per alignment with one convolution per letter.
+fft,cf,632E,Thief in a Shop,2400,Which total prices are reachable is a polynomial power computed with convolutions.
+fft,cf,993E,Nikita and Order Statistics,2300,Count subarrays by number of elements below x using a convolution of prefix counts.
+ntt,atcoder,practice2_f,F - Convolution,,Plain convolution modulo 998244353 is the direct use of the number theoretic transform.
+ntt,cf,1096G,Lucky Tickets,2400,Digit sum counts of half a ticket are raised to a power with NTT.
+ntt,cf,1548C,The Three Little Pigs,2500,Counting sums of binomials over residues uses a convolution of factorial terms.
+ntt,cf,1342E,Placing Rooks,2300,Placing rooks counts binomial terms that form a convolution for each k.
+polyops,cf,438E,The Child and Binary Tree,3100,The generating function equation needs polynomial inverse and square root.
+floorsum,atcoder,practice2_c,C - Floor Sum,,The sum of floor of a i plus b over m is exactly the floor sum routine.
+floorsum,cses,1082,Sum of Divisors,,Sum of divisors up to n reduces to floor sums grouped by equal quotient.
+randwalk,cf,24D,Broken robot,2400,Expected steps of a random walk on a strip with a wall solve a tridiagonal system.
+randwalk,cses,1726,Moving Robots,,Probability distribution of a walker after k steps is propagated cell by cell.
+randwalk,cf,113D,Museum,2700,Expected visits on a random walk over rooms need a linear system on the transition matrix.
+markov,cf,113D,Museum,2700,Absorption probabilities of a Markov chain come from solving a linear system.
+markov,cses,1726,Moving Robots,,Move each robot's distribution through the transition probabilities for k steps.
+markov,atcoder,abc189_f,F - Sugoroku2,,Expected dice throws with reset squares is a Markov chain solved by moving the unknown.
+markov,cf,24D,Broken robot,2400,Chain with reflecting boundary has a banded transition system.

@@ -1,0 +1,167 @@
+topic,plat,pid,name,rating,note
+array,cses,1083,Missing Number,,Index arithmetic and a running sum over a plain array solve it in one pass.
+array,cses,1643,Maximum Subarray Sum,,One pass over the array keeping a running best prefix gives the maximum subarray sum.
+array,cf,816B,Karen and Coffee,1400,Counting recipes per temperature needs a difference array plus prefix sums over indices.
+array,cses,1644,Maximum Subarray Sum II,,Maximum subarray with a length window needs prefix sums plus a sliding structure over the array.
+matrix,cf,1422B,Nice Matrix,1300,Cells that must agree under mirroring are found by indexing the grid in symmetric groups.
+matrix,cf,641B,Little Artem and Matrix,1400,The grid has to be stored and updated as rows and columns under many operations.
+matrix,cses,1652,Forest Queries,,A 2D prefix sum table answers every rectangle sum in constant time.
+matrix,cses,2137,Corner Subgrid Count,,Counting rectangle corners over every pair of rows needs row bitmasks laid out as a matrix.
+hash,cf,1520D,Same Differences,1200,Counting pairs with equal a_i minus i needs a hash map from key to count.
+hash,cses,1640,Sum of Two Values,,A hash map from value to index finds the complement in one pass.
+hash,cses,1661,Subarray Sums II,,Prefix sums stored in a hash map count subarrays with a target sum.
+hash,cses,1662,Subarray Divisibility,,Counting equal prefix remainders in a hash map solves divisible subarrays.
+hset,cses,1621,Distinct Numbers,,A hash set counts distinct values in one pass.
+hset,cf,4C,Registration System,1300,A map from names to counts decides the reply for each registration.
+hset,cses,1141,Playlist,,A set of the current window values keeps the longest run of distinct songs.
+hset,cses,3420,Distinct Values Subarrays,,Distinct subarrays need a set that tracks the window while a pointer advances.
+stack,cf,612C,Replace To Make Regular Bracket Sequence,1400,Matching bracket types is done by pushing openers and popping on each closer.
+stack,cf,1279C,Stack of Presents,1400,Presents are taken from the top of a stack so order of removals decides the cost.
+stack,cf,5C,Longest Regular Bracket Sequence,1900,A stack of unmatched indices gives the longest valid bracket substring.
+stack,cf,223A,Bracket Sequence,1700,A stack with prefix balance finds the longest correct bracket substring and counts them.
+queue,cses,2162,Josephus Problem I,,Josephus simulation is a queue where the front moves to the back.
+queue,cses,1667,Message Route,,Shortest route in an unweighted graph is a BFS driven by a queue.
+queue,cses,1194,Monsters,,Multi source BFS over two kinds of sources keeps a queue of frontiers.
+queue,cf,1482D,Playlist,1900,Repeated deletion of neighbours is driven by a queue of candidate pairs.
+deque,cf,1179A,Valeriy and Deque,1500,Simulating the described rounds needs pops from the front and pushes on the back of a deque.
+deque,cf,1579E2,Array Optimization by Deque,1700,Each element is placed at the front or the back of a deque to build the best order.
+deque,cses,3221,Sliding Window Minimum,,Sliding window minimum needs a monotone deque with pops at both ends.
+deque,cf,1237D,Balanced Playlist,2000,A sliding window with a monotone deque of maxima and minima gives the time before stopping.
+linked,cses,2162,Josephus Problem I,,Removing every second person in a circle is natural with a circular linked list.
+linked,cf,847A,Union of Doubly Linked Lists,1500,Joining chains into one list requires following and setting next and prev pointers.
+linked,cf,899E,Segments Removal,2000,Merging adjacent equal blocks after removals needs a linked list of segments.
+dll,cf,670E,Correct Bracket Sequence Editor,1700,A cursor with delete of a bracket pair needs O(1) unlink in a doubly linked list.
+dll,cf,1482D,Playlist,1900,Deleting items and re linking neighbours needs prev and next arrays.
+dll,cf,847A,Union of Doubly Linked Lists,1500,Reconstructing a single list from doubly linked pieces tests the prev and next invariants.
+bitset,cses,3360,Corner Subgrid Check,,Checking a rectangle with four equal corners is fast with row bitsets.
+bitset,cses,2137,Corner Subgrid Count,,Counting pairs of rows with shared ones is an AND and popcount over bitsets.
+bitset,cses,2138,Reachable Nodes,,Reachability on a DAG uses bitset rows OR'd along edges.
+bitset,cses,2143,Reachability Queries,,Reachability queries use a bitset per node propagated through the graph.
+heap,cf,1353D,Constructing the Array,1600,Always splitting the longest free segment first needs a max heap keyed by length.
+heap,cf,1526C2,Potions (Hard Version),1600,Undoing the worst potion taken so far needs a min heap of chosen values.
+heap,cf,1140C,Playlist,1600,Keeping the k largest beauties while sweeping lengths needs a min heap.
+heap,cses,1164,Room Allocation,,Reusing the room that frees up first needs a priority queue of end times.
+tree,cses,1674,Subordinates,,Subtree sizes come from a rooted tree and a single DFS.
+tree,cses,1131,Tree Diameter,,The diameter of a tree comes from two farthest node searches.
+tree,cf,1593E,Gardener and Tree,1600,Peeling leaves layer by layer uses the tree's degree structure.
+tree,cses,1133,Tree Distances II,,Distances from every node need rerooting over a rooted tree.
+bst,cf,675D,Tree Construction,1800,Finding the parent of each inserted key is exactly predecessor and successor in a BST.
+bst,cses,1163,Traffic Lights,,Splitting the road at each light needs ordered predecessor and successor queries.
+bst,cses,1084,Apartments,,Matching each applicant to the nearest available size is a lower bound in an ordered set.
+trie,cf,514C,Watto and Mechanism,2000,Matching words that differ in one letter is a walk through a trie with a branch.
+trie,cf,706D,Vasiliy's Multiset,1800,Maximizing xor with a stored number is a greedy descent in a binary trie.
+trie,cses,1655,Maximum Xor Subarray,,Prefix xors inserted in a binary trie give the maximum xor subarray.
+trie,cf,282E,Sausage Maximization,2200,Splitting an array into prefix and suffix xors needs a binary trie over prefixes.
+dsu,cses,1666,Building Roads,,Counting components and joining them is the basic union and find job.
+dsu,cf,1167C,News Distribution,1400,Merging users who share a group and reading component sizes needs a DSU.
+dsu,cf,25D,Roads not only in Berland,1900,Detecting cycle edges while merging components needs a DSU.
+dsu,atcoder,practice2_a,A - Disjoint Set Union,,The ACL practice DSU task asks for union and same queries directly.
+mono,cses,1645,Nearest Smaller Values,,The nearest smaller value to the left is a monotone stack scan.
+mono,cses,1142,Advertisement,,The largest rectangle under a histogram uses a monotone stack of heights.
+mono,cf,547B,Mike and Feet,1900,Window maxima of every size come from nearest smaller neighbours via a monotone stack.
+mono,cf,817D,Imbalanced Array,1900,Sum of max minus min over all subarrays needs monotone stacks for contribution ranges.
+tmap,cses,1619,Restaurant Customers,,Sweeping arrival and leave events needs an ordered map by time.
+tmap,cses,1073,Towers,,Placing each cube on the smallest tower above it is lower bound in an ordered map of tops.
+tmap,cses,1091,Concert Tickets,,Choosing the largest ticket not above the offer is an ordered map with erase.
+multiset,cses,1091,Concert Tickets,,Each customer takes the best ticket price and then removes it from a multiset.
+multiset,cses,1632,Movie Festival II,,Assigning movies to the k members needs a multiset of finish times.
+multiset,cf,1354D,Multiset,1900,Deleting the k th smallest of a multiset needs order statistics on counts.
+multiset,cses,1076,Sliding Window Median,,The median of a sliding window needs a multiset with an iterator to the middle.
+lru,cf,1234B1,Social Network (easy version),1000,Keeping the k most recent conversations is a bounded recency list.
+lru,cf,1234B2,Social Network (hard version),1300,The hard version adds a larger input but the same bounded recency queue with a membership set.
+topk,cses,3305,K-th Highest Score,,Reporting the k th highest score needs a bounded min heap of the top k.
+topk,cf,1140C,Playlist,1600,Choosing at most k songs maximizing sum times min length keeps the top k beauties.
+medstream,cses,1076,Sliding Window Median,,A sliding median needs two balanced halves that you move elements between.
+medstream,cses,1077,Sliding Window Cost,,The cost around the median needs both halves with running sums.
+fenwick,atcoder,practice2_b,B - Fenwick Tree,,The ACL practice Fenwick task asks for point add and range sum directly.
+fenwick,cses,1648,Dynamic Range Sum Queries,,Dynamic range sums with point updates are the textbook Fenwick tree use.
+fenwick,cf,459D,Pashmak and Parmida's problem,1800,Counting pairs with left count above right count needs a Fenwick tree over compressed values.
+fenwick,cf,61E,Enemy is weak,1900,Counting decreasing triples needs a Fenwick tree to count smaller and larger on each side.
+fenwick2d,cses,1739,Forest Queries II,,Rectangle sums with point updates need a Fenwick tree over rows and columns.
+fenwick2d,cf,869E,The Untended Antiquity,2400,Toggling rectangles and comparing hashes needs a 2D Fenwick tree with range update.
+sparse,cses,1647,Static Range Minimum Queries,,Static range minimum is the direct sparse table task.
+sparse,cf,1548B,Integers Have Friends,1800,Range gcd queries over a difference array are answered with a sparse table plus two pointers.
+sparse,cf,689D,Friends and Subsequences,2100,Comparing range max against range min along two arrays needs O(1) sparse table queries.
+sparse,cses,1135,Distance Queries,,Distance queries use an Euler tour and a sparse table for LCA.
+segment,cses,1649,Dynamic Range Minimum Queries,,Point updates with range minimum are the standard segment tree job.
+segment,cses,1190,Subarray Sum Queries,,Each node stores best prefix suffix and total so merging gives the maximum subarray.
+segment,cf,380C,Sereja and Brackets,2000,Each node stores matched pairs and unmatched brackets to answer bracket queries.
+segment,atcoder,practice2_j,J - Segment Tree,,The ACL task needs point set range max and a descent for the first index that breaks a bound.
+wdsu,atcoder,arc090_b,D - People on a Line,,Consistency of distance constraints between people needs a weighted DSU.
+wdsu,cf,1044D,Deduction Queries,2400,Deduction queries over xor of ranges need a DSU that tracks xor to the root.
+ostat,cses,1749,List Removals,,Deleting the k th remaining element needs order statistics on a tree or Fenwick tree.
+ostat,cses,2163,Josephus Problem II,,Josephus with larger step needs picking the k th alive person by rank.
+ostat,cses,2169,Nested Ranges Count,,Counting ranges that contain or are contained in others needs rank queries while sweeping.
+ostat,cf,1354D,Multiset,1900,Finding and deleting the k th smallest in a dynamic multiset needs rank descent.
+sqrt,cf,220B,Little Elephant and Array,1800,Counting values equal to their frequency in ranges is solved offline with Mo order.
+sqrt,cf,86D,Powerful array,2200,Powerful array sums over ranges are maintained by moving window endpoints in Mo order.
+sqrt,cf,617E,XOR and Favorite Number,2200,Counting subarrays with a given xor in a range uses Mo with a count array.
+sqrt,cf,785E,Anton and Permutation,2200,Counting smaller elements to the left in a position range uses blocks of sorted values.
+itree,cses,3163,Range Interval Queries,,Counting intervals that fall in a given range needs an interval aware tree or sweep with a tree.
+itree,cses,2169,Nested Ranges Count,,Counting how many ranges contain or are contained in each range needs interval ordering and rank structures.
+mergetree,cf,893F,Subtree Minimum Query,2300,Min over a subtree restricted by depth is a merge sort tree style range query.
+lazy,cses,1735,Range Updates and Sums,,Range add and range assign together need lazy tags that compose.
+lazy,cses,1736,Polynomial Queries,,Adding an arithmetic progression over a range needs lazy tags with two parameters.
+lazy,cf,52C,Circular RMQ,2200,Circular range increment and range minimum is the standard lazy propagation task.
+lazy,atcoder,practice2_k,K - Range Affine Range Sum,,Range affine update with range sum needs lazy tags that compose as affine maps.
+treap,cses,2072,Cut and Paste,,Cutting a substring and pasting it at the end needs split and merge on an implicit treap.
+treap,cses,2073,Substring Reversals,,Reversing substrings needs split merge and a lazy reverse flag on an implicit treap.
+treap,cses,2074,Reversals and Sums,,Reversals with range sums need an implicit treap carrying subtree sums.
+rope,cses,2072,Cut and Paste,,Cut and paste on a very long string is the rope split and join operation.
+rope,cses,2073,Substring Reversals,,Substring reversals on a long string need a rope with lazy reverse.
+persist,cses,1737,Range Queries and Copies,,Copying arrays and updating copies needs a persistent segment tree.
+persist,cf,707D,Persistent Bookcase ,2200,Time travel over bookcase states needs persistent versions with cheap branching.
+persist,cf,484E,Sign on Fence,2500,Finding the tallest board over a width in a range needs a persistent segment tree over heights.
+dynseg,cf,915E,Physical Education Lessons,2300,Range toggles over a huge index range need nodes created only when touched.
+dynseg,cses,1144,Salary Queries,,Salary range counts with updates over a large value range fit a dynamic segment tree over values.
+beats,cf,438D,The Child and Sequence,2300,Range modulo updates need a max tracking tree that stops when the max is small.
+linkcut,cf,117E,Tree or not Tree,2900,Toggling paths in a changing forest needs link and cut with path operations.
+linkcut,cf,1172E,Nauuo and ODT,3300,Counting colored paths while edges are rearranged needs a link cut tree.
+lichao,cses,3429,Lines and Queries I,,Lines and point queries for the minimum are the direct Li Chao tree task.
+lichao,cses,3430,Lines and Queries II,,The second lines and queries task adds segments so the tree must handle ranges.
+lichao,cf,660F,Bear and Bowling 4,2500,Maximizing a prefix weighted sum needs the best line at each query point.
+lichao,cf,631E,Product Sum,2600,Product sum with a one time shift is a max over lines evaluated at points.
+dsurb,cses,2133,Dynamic Connectivity,,Offline dynamic connectivity needs a union find that can undo merges.
+dsurb,cf,813F,Bipartite Checking,2500,Edge lifetimes with bipartite checks need a rollback DSU over a time segment tree.
+dsurb,cf,1140F,Extending Set of Points,2600,Counting reachable points as edges come and go needs rollback union find.
+dsurb,cf,1386C,Joker,2800,Counting prefixes and suffixes that keep a graph bipartite or not needs undoable merges.
+sorting,cf,1353B,Two Arrays And Swaps,800,Pairing the smallest of one array with the largest of the other needs both arrays sorted.
+sorting,cses,1630,Tasks and Deadlines,,Scheduling by shortest duration first needs a sort by key.
+sorting,cses,1629,Movie Festival,,Picking the most movies needs events sorted by end time.
+sorting,cf,1000C,Covered Points Count,1700,Counting how many segments cover each point needs sorted endpoints with a sweep.
+bubble,cf,1561A,Simply Strange Sort,800,The odd even pass is simulated exactly as a bubble sort round.
+bubble,cf,920C,Swap Adjacent Elements,1400,Which adjacent swaps are allowed decides which blocks of a permutation can be sorted.
+bubble,cses,3151,Bubble Sort Rounds I,,The number of bubble sort rounds is derived from how far each element must move left.
+bubble,cses,3152,Bubble Sort Rounds II,,Counting swaps across all rounds equals the number of inversions.
+selection,cf,489A,SwapSort,1200,The swaps needed to sort follow the selection sort scheme of placing the minimum each step.
+selection,cf,432C,Prime Swaps,1800,Placing each value in turn with prime length swaps follows the selection sort loop.
+insertion,cf,246A,Buggy Sorting,900,The counterexample must break a loop that shifts elements as insertion sort does.
+insertion,cf,1420A,Cubes Sorting,900,The needed number of adjacent shifts is the inversion count that insertion sort would perform.
+merge-sort,atcoder,abc190_f,F - Shift and Inversions,,Counting inversions of every rotation starts from an inversion count done by merge sort.
+merge-sort,cf,749E,Inversions After Shuffle,2400,Expected inversions after a random subarray shuffle build on counting inversions by merging.
+inversions,cf,1420A,Cubes Sorting,900,The inversion count against the maximum possible tells whether a sort is needed at all.
+inversions,cf,911D,Inversion Counting,1800,The parity of the inversion count after a reversal needs inversions counted once.
+inversions,atcoder,abc190_f,F - Shift and Inversions,,Each rotation changes the inversion count by a simple formula after counting once.
+inversions,cf,749E,Inversions After Shuffle,2400,Expected inversions need the inversion count over subarrays and pair probabilities.
+quickselect,cses,1074,Stick Lengths,,The best common length is the median found by selecting the middle element.
+quickselect,cses,1077,Sliding Window Cost,,The cost around the median is computed from the median element of the window.
+binary-search,cf,706B,Interesting drink,1100,Counting shops with price at most x is an upper bound on the sorted price list.
+binary-search,cf,474B,Worms,1200,Finding which pile a worm lies in is a lower bound over prefix sums.
+binary-search,cf,1324D,Pair of Topics,1400,Pairs of topics are counted by binary searching the sorted differences.
+binary-search,cf,1479A,Searching Local Minimum,1700,Finding a local minimum in an interactive array halves the interval each query.
+ternary,cf,1301B,Motarack's Birthday,1500,Choosing the value that minimizes the maximum adjacent gap is a ternary search on a convex function.
+ternary,cf,939E,Maximize!,1800,The best size of the helper set is found by ternary search on a unimodal function.
+ternary,cf,1355E,Restorer Distance,2100,The cost as a function of the target height is convex and searched with ternary search.
+ternary,cf,439D,Devu and his Brother,1700,Total moves as a function of the target value is convex so ternary search finds the minimum.
+bs-answer,cf,1201C,Maximum Median,1400,Binary searching the median value and checking the operations needed solves it.
+bs-answer,cses,1620,Factory Machines,,Binary search on time checks how many products the machines make.
+bs-answer,cses,1085,Array Division,,Binary search on the largest subarray sum checks if k parts suffice.
+bs-answer,cf,372A,Counting Kangaroos is Fun,1600,Binary search on how many kangaroos get hidden and checking the pairing finds the answer.
+bs-real,cf,1730B,Meeting on the Line,1600,The smallest meeting time is a binary search over a real number with a feasibility check.
+bs-real,cf,578C,Weakness and Poorness,2000,The weakness is minimized over a real shift by binary or ternary search on x.
+bs-matrix,cf,448D,Multiplication Table,1800,The k th smallest in the multiplication table binary searches the value and counts per row.
+bs-matrix,cses,2422,Multiplication Table,,Counting entries at most x in each row of the table answers the k th smallest query.
+bs-greedy,cf,460C,Present,1700,Binary search on the minimum height with a greedy watering check solves it.
+bs-greedy,cf,670D2,Magic Powder - 2,1500,Binary search on the cookies baked with a greedy ingredient check solves it.
+bs-greedy,cses,1085,Array Division,,Binary search on the answer with a greedy partition check.
+bs-greedy,cses,1620,Factory Machines,,Binary search on time with a greedy sum over machines.

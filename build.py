@@ -1,4 +1,4 @@
-import csv,json,os,re
+import csv,glob,json,os,re
 from content import *
 import tree
 here=os.path.dirname(os.path.abspath(__file__))
@@ -38,6 +38,26 @@ for r in rows:
 for pid,e in EXPLAIN.items():
     if pid not in probs:
         probs[pid]=dict(id=pid,name=e["title"],rating=e["rating"],tags=[],c=OVERRIDE[pid],code="",t=TOPIC_OVERRIDE[pid],amb=False,src="ladder",file="")
+# Extra problems from problems/*.csv (verified by pverify.py): one row per topic, several platforms
+def _plat_url(pl,pid):
+    if pl=="cf":
+        m=re.match(r"^(\d+)([A-Z]\d?)$",pid);return f"https://codeforces.com/problemset/problem/{m.group(1)}/{m.group(2)}"
+    if pl=="cses":return f"https://cses.fi/problemset/task/{pid}"
+    return f"https://atcoder.jp/contests/{pid.split('_')[0]}/tasks/{pid}"
+_PN={"cf":"Codeforces","cses":"CSES","atcoder":"AtCoder"}
+_cf={}
+try:_cf=json.load(open(os.path.join(here,".cache","cf2.json")))
+except Exception:pass
+for _f in sorted(glob.glob(os.path.join(here,"problems","*.csv"))):
+    for r in csv.DictReader(open(_f)):
+        pl,pid,t=r["plat"].strip(),r["pid"].strip(),r["topic"].strip()
+        key=pid if pl=="cf" else pl+":"+pid
+        if key in probs and probs[key]["t"]!=t:key=key+"@"+t
+        if key in probs:
+            if r.get("note") and not probs[key].get("note"):probs[key]["note"]=r["note"]
+            continue
+        rating=int(r["rating"]) if r.get("rating") else 0
+        probs[key]=dict(id=key,pid=pid,name=r["name"],rating=rating,tags=(_cf.get(pid,{}).get("tags",[]) if pl=="cf" else []),c="",t=t,code="",amb=False,src="catalog",file="",o=sum(1 for q in probs.values() if q["t"]==t and q.get("src")=="catalog"),plat=_PN[pl],url=_plat_url(pl,pid),note=r.get("note",""))
 variants=[dict(v,topic=VARTOPIC[v['id']],alt=ALT.get(v['id'],{})) for c in CONCEPTS for v in c['variants']]
 import tree as _t
 _ids={n['id'] for n in _t.load()}
@@ -49,7 +69,12 @@ def put(k,v):open(f"dist/data/{k}.json","w").write(json.dumps(v,ensure_ascii=Fal
 put("meta",dict(showCode=PRIVATE))
 put("graph",dict(graph=_full["graph"],cats=_full["cats"]))
 put("concepts",dict(variants=_full["variants"],concepts=_full["concepts"]))
-put("problems",dict(problems=_full["problems"],unmatched=_full["unmatched"]))
+_none={}
+if os.path.exists(os.path.join(here,"problems","none.txt")):
+    for _l in open(os.path.join(here,"problems","none.txt")):
+        if _l.strip() and not _l.startswith("#"):
+            _a,_,_b=_l.strip().partition(" ");_none[_a]=_b.strip().rstrip(".")
+put("problems",dict(problems=_full["problems"],unmatched=_full["unmatched"],none=_none))
 put("explain",dict(explain=_full["explain"]))
 import glob
 def parse_snips():

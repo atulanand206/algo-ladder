@@ -1,0 +1,234 @@
+topic,plat,pid,name,rating,note
+bigo,cses,1621,Distinct Numbers,,Counting distinct values forces you to see that an O(n^2) pair scan is too slow and a sort or set is needed.
+bigo,cses,1640,Sum of Two Values,,Finding a pair with a given sum is the classic case where reading n=2e5 tells you O(n log n) is required.
+bigo,cses,1643,Maximum Subarray Sum,,Maximum subarray looks like O(n^2) at first and drops to O(n) once you reason about the cost.
+bigo,cf,1520D,Same Differences,1200,Counting pairs with a hidden equality shows how to turn an O(n^2) pair count into hashing in O(n).
+amortized,cses,1645,Nearest Smaller Values,,"The stack pops each element at most once, so the whole scan is O(n) even with an inner loop."
+amortized,cses,1141,Playlist,,"The left pointer only moves forward, so total pointer movement is amortized O(n)."
+amortized,cf,547B,Mike and Feet,1900,Stack-based nearest-smaller scans handle every window length at once in amortized linear time.
+amortized,cf,5C,Longest Regular Bracket Sequence,1900,Matching brackets with a stack and pop counts relies on each index being pushed and popped once.
+recursion,cses,2165,Tower of Hanoi,,"Tower of Hanoi is the textbook recursion: move n-1, move one, move n-1."
+recursion,cses,1622,Creating Strings,,Generating all distinct permutations of a string is a plain recursive build with a used-count.
+recursion,cf,36B,Fractal,1600,Fractal drawing is defined recursively and is solved by recursing on the pattern level by level.
+recursion,cf,1741D,Masha and a Beautiful Tree,1300,Recursing on halves of a tree and counting swaps shows how to combine sub-answers.
+backtrack,cses,1624,Chessboard and Queens,,Placing queens row by row with pruning on columns and diagonals is basic backtracking.
+backtrack,atcoder,abc054_c,C - One-stroke Path,,Counting simple paths from a start needs a visited set that you set and undo while recursing.
+backtrack,cses,1625,Grid Path Description,,Counting grid paths that match a pattern needs strong pruning to stay inside the time limit.
+backtrack,cses,1689,Knight's Tour,,A knight tour needs a search that undoes moves and is guided by a good ordering heuristic.
+subsets,cses,1623,Apple Division,,Splitting weights into two groups by trying every subset is the simplest subset enumeration.
+subsets,cf,550B,Preparing Olympiad,1400,Enumerating all subsets with a bitmask and checking sum and spread conditions.
+subsets,atcoder,abc128_c,C - Switches,,"Each switch is on or off, so enumerate all 2^N subsets and test every lamp."
+subsets,atcoder,abc119_c,C - Synthetic Kadomatsu,,Assigning each bamboo to one of three groups or none is a 4^N enumeration in disguise.
+nqueens,cses,1624,Chessboard and Queens,,"The direct N-Queens variant with blocked squares on an 8x8 board, solved by column and diagonal pruning."
+nqueens,cses,1689,Knight's Tour,,Another constraint placement search where move ordering decides whether the search finishes.
+brute,cf,1676D,X-Sum,1000,"With tiny limits, try every cell and sum its diagonals directly."
+brute,cf,1881C,Perfect Square,1200,Trying every candidate in a small grid by brute force with simple symmetry checks.
+brute,cf,550B,Preparing Olympiad,1400,"Small n means all subsets can be checked directly, no cleverness needed."
+brute,cf,1352E,Special Elements,1500,Counting special elements by checking every subarray sum is the brute-force baseline before the optimization.
+prefix,cses,1646,Static Range Sum Queries,,"Static range sums are the direct use of a prefix array: build once, answer each query in O(1)."
+prefix,cf,816B,Karen and Coffee,1400,Counting temperatures covered by enough recipes uses a difference array then prefix counts for range queries.
+prefix,cses,1661,Subarray Sums II,,Counting subarrays with a given sum needs prefix sums plus a map of earlier prefix values.
+prefix,cf,466C,Number of Ways,1700,Splitting an array into three equal-sum parts is prefix sums plus counting valid cut positions.
+diffarr,cf,295A,Greg and Array,1400,Many range-add operations applied through operation counts is the standard difference array on difference array.
+diffarr,cf,276C,Little Girl and Maximum Sum,1500,"Counting how often each position is queried with a difference array, then matching big values to hot positions."
+diffarr,atcoder,abc183_d,D - Water Heater,,"Adding a rate over a time interval is a range add, so a difference array gives the peak total."
+diffarr,cf,816B,Karen and Coffee,1400,"Each recipe adds one to a range of temperatures, which a difference array handles in O(1) per recipe."
+prefix2d,cses,1652,Forest Queries,,Counting trees in a rectangle is the textbook 2D prefix sum with inclusion-exclusion.
+prefix2d,atcoder,abc106_d,D - AtCoder Express 2,,Counting intervals inside a query range uses a 2D cumulative table over left and right ends.
+prefix2d,cf,1722E,Counting Rectangles,1600,Summing areas of items with bounded height and width is a 2D prefix over the item grid.
+twop,cses,1660,Subarray Sums I,,Subarray sum with positive values shrinks and extends a window with two pointers.
+twop,cf,279B,Books,1400,Reading the longest run of books within a time budget is the standard moving left and right pointers.
+twop,cses,1641,Sum of Three Values,,Sum of three values uses a fixed index plus a two-pointer sweep on the sorted rest.
+twop,cses,1642,Sum of Four Values,,Sum of four values extends the pattern with two fixed indices and a two-pointer pass.
+window,cses,1141,Playlist,,The longest segment with all distinct values keeps a window and a last-seen index.
+window,cses,3420,Distinct Values Subarrays,,Counting subarrays with distinct values extends the window and adds window length at each right end.
+window,cf,616D,Longest k-Good Segment,1600,Longest segment with at most k distinct values keeps counts in a sliding window.
+window,cses,2428,Distinct Values Subarrays II,,Allowing at most k distinct values in each counted subarray tests whether you can maintain a window under a limit.
+windeque,cses,3221,Sliding Window Minimum,,Sliding window minimum is exactly the monotonic deque problem.
+windeque,cses,3220,Sliding Window Sum,,Window sums warm up the fixed-size sliding window before moving to extremes with a deque.
+windeque,cf,372C,Watching Fireworks is Fun,2100,"The fireworks dp needs the best previous value inside a movement window, done with a monotonic deque."
+fastslow,atcoder,abc167_d,D - Teleporter,,Teleporting K times on a functional graph is solved by detecting the cycle and skipping whole loops.
+fastslow,cses,1751,Planets Cycles,,Cycle length and tail length for every node of a functional graph come from cycle detection.
+greedy,cses,1090,Ferris Wheel,,Pairing passengers on a two-person gondola is a sort plus a greedy two-end match.
+greedy,cses,1630,Tasks and Deadlines,,"Order tasks by duration to maximize total reward, an exchange-style greedy proof."
+greedy,cf,1009B,Minimum Ternary String,1400,Placing the zeros and ones greedily to get the smallest ternary string.
+greedy,cf,520B,Two Buttons,1400,Choosing between doubling and subtracting from the target side is a greedy reduction.
+exchange,cses,1630,Tasks and Deadlines,,Sorting tasks by duration is justified by swapping two adjacent tasks and showing the order cannot get worse.
+intervals,cses,1629,Movie Festival,,Choosing the most non-overlapping movies is the classic sort-by-end-time interval scheduling.
+intervals,cses,1632,Movie Festival II,,Two people watching movies turns the interval greedy into one with a multiset of free end times.
+intervals,cses,1164,Room Allocation,,Allocating rooms to overlapping bookings is interval partitioning by start time with a heap or sweep.
+intervals,cses,2168,Nested Ranges Check,,Checking nested ranges needs sorting by one endpoint and tracking extremes of the other.
+divide,cses,2194,Minimum Euclidean Distance,,Closest pair of points is the standard divide and conquer with a strip merge.
+divide,cf,459D,Pashmak and Parmida's problem,1800,Counting pairs over prefix and suffix counts is solved by merge-sort style divide and conquer or a Fenwick tree.
+bits,cses,1617,Bit Strings,,"Counting bit strings of length n is 2^n modulo, the entry point to thinking in bits."
+bits,cses,1146,Counting Bits,,Counting set bits over a range needs bit position patterns instead of looping each number.
+bits,cf,1513B,AND Sequences,1400,AND sequences depend on the minimum AND value and how many positions have it.
+bits,cf,1957B,A BIT of a Construction,1100,Constructing numbers with a target popcount uses the highest bits first.
+bittricks,cses,2136,Hamming Distance,,"Hamming distance of binary strings is popcount of XOR, fast with machine words."
+bittricks,cf,1913C,Game with Multiset,1300,Representing multiset elements by their powers of two uses lowbit style bit operations.
+bittricks,cf,1926D,Vlad and Division,1300,Pairing numbers whose XOR is all ones uses a bit complement trick on 31 bits.
+subsetenum,cses,1623,Apple Division,,Splitting weights in two groups by trying all 2^n subsets with bitmask.
+subsetenum,cses,1654,SOS Bit Problem,,"Per-mask sums over submasks and supermasks need SOS dp, the fast way to enumerate subsets."
+subsetenum,cf,165E,Compatible Numbers,2200,Finding a number with no shared bits uses supermask or submask dp over all masks.
+subsetenum,cf,449D,Jzzhu and Numbers,2400,Counting subsets with a given AND uses SOS dp and inclusion-exclusion over masks.
+gray,cses,2205,Gray Code,,Generating the Gray code sequence directly with i xor (i shifted right by one).
+xortricks,cses,1655,Maximum Xor Subarray,,Maximum XOR subarray uses prefix XORs and a binary trie.
+xortricks,cf,1944B,Equal XOR,1100,Equal XOR splits use the fact that XOR of equal halves cancels in pairs.
+xortricks,cf,1979B,XOR Sequences,1000,The XOR sequence difference reduces to a bit pattern of the two indices.
+xortricks,cses,3233,All Subarray Xors,,All subarray xors needs the property that xor cancellation depends on parity of counts.
+meet,cses,1628,Meet in the Middle,,The direct meet in the middle: split into two halves of 20 items and combine with sorting.
+meet,cf,888E,Maximum Subsequence,1800,Maximum subset sum modulo m splits the array in half and joins with two pointers.
+meet,atcoder,abc184_f,F - Programming Contest,,Subset sums up to a limit with N=40 is solved by enumerating each half.
+coord,atcoder,abc036_c,C - 座圧,,Replacing values by their rank is the plain coordinate compression exercise.
+coord,cses,1144,Salary Queries,,Offline salary queries compress all values so a Fenwick tree can count by rank.
+coord,cses,1741,Area of Rectangles,,Area of rectangles with big coordinates needs compressing to the set of used edges.
+sweep,cses,1619,Restaurant Customers,,Counting customers at the same time is a sweep over sorted arrival and departure events.
+sweep,cses,1741,Area of Rectangles,,Union area of rectangles with an active segment tree swept across x.
+sweep,cses,1164,Room Allocation,,Room allocation sweeps over events while tracking the number of busy rooms.
+sweep,cses,2190,Line Segment Intersection,,Detecting whether two segments intersect is a geometric sweep over endpoints.
+offline,cses,1734,Distinct Values Queries,,Distinct values in ranges is answered by sorting queries by right end and updating a Fenwick tree.
+offline,cses,1144,Salary Queries,,Salary queries are answered offline once you compress the values and process in a chosen order.
+offline,cf,220B,Little Elephant and Array,1800,Counting values equal to their frequency in a range is easier with offline processing of queries.
+mo,cses,1734,Distinct Values Queries,,Distinct values in a range is the introductory Mo's algorithm problem.
+mo,cf,220B,Little Elephant and Array,1800,Mo's algorithm with a count array answers range frequency queries.
+mo,cf,86D,Powerful array,2200,Powerful array needs a running sum that updates as the window endpoints move.
+mo,cf,617E,XOR and Favorite Number,2200,Counting pairs with a given XOR in a range maintains a count table while moving Mo's pointers.
+moupd,cf,940F,Machine Learning,2600,The standard Mo's with modifications problem: queries on frequency of frequencies with point updates.
+motree,cf,852I,Dating,2300,Dating on a tree path is solved by Mo's algorithm over the Euler tour with path toggling.
+cdq,cf,848C,Goodbye Souvenir,2600,"Souvenir deletions reduce to counting rectangle contributions, solved by offline divide and conquer or a Fenwick sweep."
+cdq,cf,459D,Pashmak and Parmida's problem,1800,Counting pairs by two ordered conditions is the cleanest warm-up for splitting and merging counts.
+smalllarge,cses,1139,Distinct Colors,,Counting distinct colours in each subtree is done by merging small child sets into the big one.
+smalllarge,cf,600E,Lomsat gelral,2300,"Lomsat gelral asks for dominant colors per subtree, the canonical small-to-large merge."
+smalllarge,cf,375D,Tree and Queries,2400,Queries on subtree counts of colors reduce to merging smaller sets into larger ones.
+random,cses,1700,Tree Isomorphism I,,Tree isomorphism is checked by randomized hashing so that unequal shapes collide with tiny probability.
+simulate,cses,1742,Robot Path,,Robot path simulation needs a faithful turn by turn model and an eye on complexity.
+simulate,cses,2162,Josephus Problem I,,The Josephus circle is simulated with a list or queue as the baseline.
+simulate,cf,1352D,"Alice, Bob and Candies",1300,"Alice and Bob take candy from two ends, simulated step by step with a running count."
+constructive,cf,1741B,Funny Permutation,800,"Funny permutation is built by hand using a pattern, no search needed."
+constructive,cf,1352B,Same Parity Summands,1200,Constructing same parity summands requires checking the cases and building the answer directly.
+constructive,cses,3419,Mex Grid Construction,,The mex grid is built from an explicit pattern of values.
+constructive,cses,2423,Filling Trominos,,Filling a grid with trominos requires finding a repeating construction for each case.
+invariants,cses,1754,Coin Piles,,"Two piles of coins can be emptied exactly when a sum is divisible by three and a bound holds, found via an invariant."
+invariants,cf,297A,Parity Game,1700,The parity of the number of ones is what the allowed operation preserves.
+invariants,cf,1851B,Parity Sort,800,"Only same parity elements can swap, so the parity pattern of the array is invariant."
+pigeonhole,cses,1662,Subarray Divisibility,,"Among prefix sums modulo n, pigeonhole guarantees a subarray divisible by n, which lets you count remainders."
+pararg,cf,297A,Parity Game,1700,Parity of the count of ones decides what can be reached.
+pararg,cf,1851B,Parity Sort,800,Parity classes decide which elements can swap and the sorting target.
+pararg,cf,1352B,Same Parity Summands,1200,Splitting a number into k parts of equal parity depends on the parity of n and k.
+pararg,cf,1110A,Parity,900,Parity of a number in base b needs only parity of the digits when b is even or odd.
+sqrtheur,cf,797E,Array Queries,2000,Array queries use dp for small k and direct simulation for large k.
+sqrtheur,cf,103D,Time to Raid Cowavans,2100,Strides split into small step precomputation and large step direct loops.
+sqrtheur,cf,13E,Holes,2700,"Holes uses blocks and jump pointers, the sqrt idea on arrays with updates."
+approx,cf,1198C,Matching vs  Independent Set,2000,Finding either a matching or a big independent set is a greedy that mimics a 2-approximation idea.
+minimax,cses,1097,Removal Game,,"Removal Game is optimal play on two ends of an array, solved by a minimax dp over intervals."
+minimax,atcoder,dp_l,L - Deque,,Deque is the standard two-player zero-sum game where each side maximizes the score difference.
+pagerank,cses,1726,Moving Robots,,"Moving Robots repeatedly applies a transition matrix to a probability distribution, the same iteration as PageRank."
+pagerank,cses,1724,Graph Paths II,,"Matrix powers of a graph adjacency matrix show how walk counts and probabilities spread, the mechanism behind PageRank."
+lz,cf,1120C,Compress String,2100,"Compress String chooses between a literal and copying an earlier substring, exactly an LZ-style dp."
+lz,cf,825F,String Compression,2400,String compression with repeated blocks has the same trade off of literals against back references.
+consistent,cses,1091,Concert Tickets,,Finding the nearest value at or below a price in a changing sorted set is the ring successor lookup of consistent hashing.
+consistent,cses,1163,Traffic Lights,,Inserting cut points into an ordered set and tracking gaps mirrors adding nodes to a hash ring.
+ratelimit,cf,523B,Mean Requests,1500,"Mean Requests keeps a running decayed count over a time window, like a rate estimate for a limiter."
+ratelimit,cf,747C,Servers,1300,Servers handling requests with busy time windows is a simulation of capacity limits over time.
+queryplan,atcoder,dp_n,N - Slimes,,Merging adjacent slimes at minimum total cost is the interval dp that a query planner uses to pick a join order over a chain.
+txn,cses,1678,Round Trip II,,"Deadlock detection finds a cycle in the wait-for graph, and conflict serializability is also a cycle test."
+txn,cses,1679,Course Schedule,,A serial order for conflict-free transactions is a topological order of the precedence graph.
+cache,cf,698C,LRU,2400,LRU is a cache with k slots and recency eviction; this asks for the probability each item is in it after many random accesses.
+loadbal,cf,747C,Servers,1300,Sending each request to the free server with the smallest id is a simulation of a load balancer under capacity.
+loadbal,cses,1620,Factory Machines,,Splitting work across machines with different speeds is proportional load balancing solved by binary search on time.
+sharding,cses,1085,Array Division,,Splitting a sorted key range into k contiguous shards to minimise the largest shard is binary search on the answer.
+merkle,cses,2420,Palindrome Queries,,"Hash of a range under updates is a segment tree of hashes, the same shape as a Merkle tree for finding differences."
+merkle,cses,1700,Tree Isomorphism I,,"Rooted trees are compared by hashing child hashes, the structure of a Merkle tree."
+dht,cses,1750,Planets Queries I,,"Chord finger tables jump 2^i hops, which is binary lifting to reach the k-th successor quickly."
+dht,cses,1687,Company Queries I,,Finding the k-th ancestor with jump pointers mirrors O(log n) routing in a Chord ring.
+dht,cses,1655,Maximum Xor Subarray,,"Kademlia routes by XOR distance, and the maximum xor query uses the same binary trie."
+routing,cses,1671,Shortest Routes I,,Single source shortest paths with Dijkstra is the link-state routing computation.
+routing,cses,1672,Shortest Routes II,,All pairs shortest paths via Floyd-Warshall is the routing table for every router at once.
+routing,cses,1202,Investigation,,Counting shortest paths and their extremes is the equal cost multipath view of routing.
+routing,cses,1196,Flight Routes,,The k best routes between two nodes are the alternative paths a router keeps.
+sched,cses,1630,Tasks and Deadlines,,"Shortest job first minimises waiting time, justified by an exchange argument on completion order."
+sched,cf,1701C,Schedule Management,1400,Assigning tasks to workers with skill constraints is binary search on the finish time.
+build,cses,1679,Course Schedule,,"A build order respects dependencies, which is topological sorting."
+build,cses,1757,Course Schedule II,,The lexicographically smallest valid build order uses Kahn's algorithm with a priority queue.
+build,cses,1680,Longest Flight Route,,The longest path through the build dag gives the critical path and the shortest parallel build time.
+pkg,cses,1679,Course Schedule,,Install order for a package and its dependencies is a topological order of the dependency graph.
+pkg,cses,1678,Round Trip II,,Circular dependencies between packages are directed cycles in the dependency graph.
+gc,cf,7B,Memory Manager,1600,"Memory Manager simulates allocate, erase and defragment on a heap, the compaction step of a collector."
+filesys,cf,20A,BerOS file system,1700,Normalising a path by collapsing repeated slashes is the first step of a file system path resolver.
+filesys,cf,66C,Petya and File System,1800,Counting folders and files in a directory tree built from full paths is a directory structure problem.
+filesys,cf,1070H,BerOS File Suggestion,1500,Suggesting a file by substring search over names mimics file lookup in an operating system.
+compiler,cf,1175B,Catch Overflow!,1600,"Catch Overflow tracks a stack of loop multipliers while running a tiny program, an interpreter in miniature."
+compiler,cf,195C,Try and Catch,1800,Try and Catch evaluates nested blocks with exception handlers like a language runtime.
+compiler,cf,612C,Replace To Make Regular Bracket Sequence,1400,Checking and repairing bracket nesting is parsing with a stack.
+compiler,cf,223A,Bracket Sequence,1700,Computing the best bracket substring needs the parser state as a stack of open tokens.
+regex,cf,1023A,Single Wildcard Pattern Matching,1200,Matching a single wildcard pattern against a string is the simplest pattern engine.
+regex,cf,1476E,Pattern Matching,2300,Many patterns with wildcards against strings is the pattern matching step of a regex style engine.
+diff,cses,3403,Longest Common Subsequence,,Longest common subsequence is the dynamic program under every text diff.
+diff,cses,1639,Edit Distance,,Edit distance counts the insertions and deletions a diff reports.
+diff,atcoder,dp_f,F - LCS,,Recovering an actual longest common subsequence is how diff chooses the unchanged lines.
+git,cses,1688,Company Queries II,,The merge base of two commits is the lowest common ancestor in the history dag.
+git,cses,1135,Distance Queries,,Counting commits between two nodes is distance in the tree via LCA.
+autocomplete,cf,53A,Autocomplete,1100,Autocomplete returns the lexicographically smallest name with a given prefix.
+autocomplete,cf,928D,Autocompletion,1900,Autocompletion counts keystrokes saved by a prefix tree of previously typed words.
+autocomplete,cf,1070H,BerOS File Suggestion,1500,Suggesting names containing a typed substring is the lookup behind search as you type.
+undo,cses,1737,Range Queries and Copies,,Persistent versions of an array are the structure behind undo and redo.
+undo,cses,2133,Dynamic Connectivity,,Offline dynamic connectivity needs rollback of union operations.
+undo,cses,2072,Cut and Paste,,A text editor cut and paste problem is a sequence edited by splitting and joining pieces.
+spreadsheet,cf,1B,Spreadsheet,1600,"Spreadsheet converts between A1 and R1C1 cell names, the addressing every spreadsheet uses."
+spreadsheet,cses,1679,Course Schedule,,Recalculating formula cells follows a topological order of cell dependencies.
+searcheng,cses,2102,Finding Patterns,,Finding which patterns occur in a text is the core lookup of a text index.
+searcheng,cses,2103,Counting Patterns,,"Counting how often each pattern occurs uses an index built over the text, as a search engine does."
+crawler,cses,1667,Message Route,,Breadth first search with a visited set is how a crawler explores pages without repeating.
+crawler,cses,1192,Counting Rooms,,Counting connected regions is the traversal a crawler uses to find clusters of linked pages.
+dedup,cses,1621,Distinct Numbers,,Counting distinct items through hashing or sorting is the heart of deduplication.
+dedup,cses,2105,Distinct Substrings,,Counting distinct substrings identifies repeated content using a suffix array.
+analytics,cses,3222,Sliding Window Distinct Values,,Distinct values in every window is the streaming count distinct that analytics dashboards need.
+analytics,cses,1734,Distinct Values Queries,,Distinct counts in arbitrary ranges are answered offline with a Fenwick tree.
+analytics,cses,3224,Sliding Window Mode,,The most frequent value in a window is a streaming heavy hitter query.
+compress,cses,1113,String Transform,,The Burrows-Wheeler transform is the reordering step inside bzip style compressors.
+compress,cf,1120C,Compress String,2100,"Choosing literals or back references minimises compressed length, the LZ77 trade off."
+genome,cses,1639,Edit Distance,,Edit distance is the global alignment score used to compare DNA sequences.
+genome,cses,3403,Longest Common Subsequence,,Longest common subsequence measures shared sequence between two genomes.
+genome,cses,1113,String Transform,,The Burrows-Wheeler transform is the base of FM index read mapping.
+genome,cses,2104,Pattern Positions,,Finding all positions of a read in a reference uses a suffix array.
+ecc,cses,2136,Hamming Distance,,Minimum Hamming distance between codewords decides how many errors a code can detect and correct.
+rsa,cses,1095,Exponentiation,,Modular exponentiation by squaring is the encryption and decryption step in RSA.
+rsa,cses,1079,Binomial Coefficients,,"Binomial coefficients modulo a prime need Fermat inverses, the same inverse RSA uses for the private key."
+rsa,cses,3396,Next Prime,,"Finding the next prime needs a primality test such as Miller-Rabin, used to generate RSA keys."
+dh,cses,1095,Exponentiation,,"Diffie-Hellman computes g^x mod p, which is fast modular exponentiation."
+dh,cses,1712,Exponentiation II,,Exponentiation with a power that is itself huge uses Fermat reduction of the exponent.
+viterbi,cses,1680,Longest Flight Route,,The best path through a layered dag with path recovery is the Viterbi dynamic program.
+viterbi,atcoder,dp_g,G - Longest Path,,Longest path in a dag is the same max-product recurrence over a lattice as Viterbi decoding.
+tokenizer,cses,1731,Word Combinations,,Splitting a string into words from a dictionary with trie dp is the segmentation step of a tokenizer.
+maps,cses,1671,Shortest Routes I,,Dijkstra on road distances is the base of a map route search.
+maps,cses,1195,Flight Discount,,Using one discounted road is a shortest path over a layered state graph as in route options.
+maps,cf,20C,Dijkstra?,1900,Dijkstra with route reconstruction prints the actual route.
+gameai,cses,1194,Monsters,,"Monsters chase the player on a grid, so it needs a multi source breadth first search like game pathfinding."
+gameai,cses,1193,Labyrinth,,Finding a route through a labyrinth with direction output is grid pathfinding for characters.
+gameai,cses,1097,Removal Game,,Removal Game is optimal play against an opponent by minimax dp.
+robotics,cses,1193,Labyrinth,,Planning a path through a grid with obstacles is the base of robot navigation.
+robotics,cses,1194,Monsters,,Avoiding moving hazards while planning requires time aware multi source search.
+graphics,cses,2192,Point in Polygon,,Point in polygon testing is used in rasterisation and hit testing.
+graphics,cses,2191,Polygon Area,,Polygon area by the shoelace formula is basic geometry for rendering.
+graphics,cses,2190,Line Segment Intersection,,Segment intersection tests are used in clipping and collision.
+graphics,cses,2195,Convex Hull,,The convex hull is used for bounding shapes and collision in graphics.
+gis,cses,2192,Point in Polygon,,Point in polygon decides which region a coordinate lies in.
+gis,cses,2191,Polygon Area,,Polygon area by the shoelace formula measures parcels and regions.
+gis,cses,2193,Polygon Lattice Points,,Counting lattice points on and inside a polygon uses Pick's theorem on map grids.
+gis,cses,2194,Minimum Euclidean Distance,,Finding the closest pair of points is nearest neighbour search on map coordinates.
+ridematch,cses,1696,School Dance,,Matching riders to drivers is maximum bipartite matching.
+ridematch,cses,2129,Task Assignment,,"Task Assignment is minimum cost bipartite matching, optimising total pickup cost."
+timetable,cses,1164,Room Allocation,,Allocating rooms to overlapping sessions is the timetable room assignment problem.
+timetable,cses,1632,Movie Festival II,,Scheduling k parallel resources over intervals extends greedy interval scheduling.
+timetable,cses,1629,Movie Festival,,Choosing the largest conflict free set of events is the single room schedule.
+calendar,cf,724A,Checking the Calendar,1000,"Checking the Calendar maps weekday and month lengths, the arithmetic of a calendar app."
+calendar,cf,678B,The Same Calendar,1600,Leap year rules decide when a year has the same calendar as another.
+calendar,cses,1619,Restaurant Customers,,Finding the busiest time among overlapping events is a calendar overlap query.
+social,cses,1676,Road Construction,,Friend groups merging over time are maintained with union find.
+social,cses,1667,Message Route,,Degrees of separation between users is shortest path in the friendship graph.
+orderbook,cf,572B,Order Book,1300,"Order Book aggregates orders by price level and prints the best levels, a literal order book."
+orderbook,cses,1091,Concert Tickets,,Matching each bid to the best available ask uses a multiset and nearest price lookup.
+filesync,cses,1753,String Matching,,"Rsync finds matching blocks with a rolling hash, the same idea as string matching by hashing."
+filesync,cses,3403,Longest Common Subsequence,,"The longest common subsequence finds what two versions of a file share, so only the rest is transferred."
+ratelimiter,cf,523B,Mean Requests,1500,"Mean Requests keeps a running count over a time window, like estimating a request rate."
+ratelimiter,cf,747C,Servers,1300,"Servers accept requests only when free for a set time, a capacity limit over time."

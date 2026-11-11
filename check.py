@@ -47,3 +47,11 @@ if nolink: print("  --uses names none of the linked pieces:",", ".join(sorted(no
 print(len(graph),"topics,",len(code),"code pieces,",len(pr),"problems")
 if errs: print("\n".join(errs));sys.exit(1)
 print("ok")
+# problem coverage: every idea topic should have at least 3 problems
+import json as _j
+_P=_j.load(open(f"{D}/problems.json"))["problems"];_cnt={}
+for _p in _P:_cnt[_p["t"]]=_cnt.get(_p["t"],0)+1
+_ex=set(l.split()[0] for l in open("problems/none.txt") if l.strip() and not l.startswith("#")) if os.path.exists("problems/none.txt") else set()
+_idea=[n["id"] for n in graph if n["col"]>=2 and n["id"] not in _ex]
+if _idea:
+    print(sum(1 for i in _idea if _cnt.get(i,0)>=3),"of",len(_idea),"topics have 3 or more problems;",sum(1 for i in _idea if not _cnt.get(i)),"have none (excused in problems/none.txt: "+str(len(_ex))+")")

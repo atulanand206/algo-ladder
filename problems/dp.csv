@@ -1,0 +1,176 @@
+topic,plat,pid,name,rating,note
+memo,cses,1633,Dice Combinations,,Top-down recursion on the remaining sum with a cache is the simplest memoization.
+memo,cf,189A,Cut Ribbon,1300,Recursive search over the remaining ribbon length repeats states until you cache them.
+memo,atcoder,dp_i,I - Coins,,Recursion over coins left with a probability per state collapses to a small memo table.
+memo,cf,148D,Bag of mice,1800,The probability recursion on the number of white and black mice left reuses a few states many times.
+dp1,atcoder,dp_a,A - Frog 1,,The classic one-dimensional recurrence where each stone depends on the previous two.
+dp1,cf,698A,Vacations,1400,Best result for day i depends only on the choice made on day i-1.
+dp1,cf,1195C,Basketball Exercise,1400,Best total ending at each column needs a one-dimensional state that remembers the last row picked.
+dp1,atcoder,dp_c,C - Vacation,,One-dimensional layers with a per-day choice that cannot repeat.
+coin,cses,1634,Minimizing Coins,,The textbook fewest-coins recurrence over every target sum.
+coin,cses,1637,Removing Digits,,Fewest steps to reach zero is the same min-over-moves recurrence with digit moves.
+coin,cf,1934B,Yet Another Coin Problem,1200,Fewest coins with a tiny fixed coin set needs a dp over small remainders.
+coinways,cses,1635,Coin Combinations I,,Counting ordered ways to reach a sum puts the sum in the outer loop.
+coinways,cses,1636,Coin Combinations II,,Counting unordered combinations needs the coins in the outer loop.
+coinways,cf,1673C,Palindrome Basis,1500,"Count the ways to write n as a sum of palindromes, which is coin counting with palindromes as coins."
+coinways,cf,283C,Coin Troubles,2100,Coin-change counting where an ordering constraint on the coin values must be encoded.
+houserob,cf,455A,Boredom,1500,"Taking a value removes its neighbours, which is the take-or-skip recurrence."
+houserob,cf,1418C,Mortal Kombat Tower,1500,Each step the best choice depends on whether the previous position was taken.
+houserob,cf,1221D,Make The Fence Great Again,1800,Three states per position record how much the previous board was raised.
+dp2,atcoder,dp_h,H - Grid 1,,The standard grid path count with obstacles.
+dp2,cses,1638,Grid Paths I,,Count grid paths modulo a prime with blocked cells.
+dp2,cf,1555C,Coin Rows,1300,Two-row grid where the best path is decided by the column where it switches rows.
+dp2,cf,1695C,Zero Path,1700,Track the min and max reachable balance in every cell of a grid.
+minpath,cf,1937B,Binary Path,1300,Lexicographically smallest path in a two-row grid is a grid dp with a frontier.
+minpath,cf,1555C,Coin Rows,1300,The best path through two rows is a min over the switching column.
+minpath,cf,1695C,Zero Path,1700,Whether a zero-sum path exists is decided by the reachable range per cell.
+lcs,atcoder,dp_f,F - LCS,,Reconstructing the longest common subsequence from the 2D table.
+lcs,cf,1446B,Catching Cheaters,1800,Maximise a score that combines a common subsequence with length penalties.
+lcs,cf,463D,Gargari and Permutations,1900,Common subsequence over several permutations needs dp on position pairs.
+lcs,cf,163A,Substring and Subsequence,1700,Count equal subsequence pairs between a substring and a subsequence with a 2D table.
+editdist,cses,1639,Edit Distance,,"Standard edit distance with insert, delete and replace."
+editdist,cf,56D,Changing a String,2100,Edit distance with reconstruction of the operations.
+lps,cf,335B,Palindrome,1900,Longest palindromic subsequence with reconstruction.
+lps,cf,1771D,Hossam and (sub-)palindromic tree,2100,Longest palindromic subsequence along tree paths is the same recurrence on pairs of nodes.
+palindp,cf,159D,Palindrome pairs,1500,Count non-overlapping palindromic substring pairs from a palindrome table.
+palindp,cf,835D,Palindromic characteristics,1900,Palindromic characteristics build on an is-palindrome table of substrings.
+palindp,cf,137D,Palindromes,1900,Minimum cuts into palindromes uses an is-palindrome table plus a one-dimensional dp.
+palindp,cf,245H,Queries for Number of Palindromes,1800,Count palindromic substrings in a range with a precomputed table.
+knapsack,atcoder,dp_d,D - Knapsack 1,,The plain zero-one knapsack with small capacity.
+knapsack,atcoder,dp_e,E - Knapsack 2,,Knapsack with huge weights flips the dp to be indexed by value.
+knapsack,cses,1158,Book Shop,,Book Shop is the textbook zero-one knapsack.
+knapsack,cf,366C,Dima and Salad,1900,Knapsack where the item cost is a difference and sums may be negative.
+unbounded,cses,1634,Minimizing Coins,,"Every coin can be reused, so the transition reads the same row."
+unbounded,cf,189A,Cut Ribbon,1300,Cutting a ribbon into pieces of three given lengths uses unlimited copies of each.
+unbounded,cf,1934B,Yet Another Coin Problem,1200,Unlimited coins of a few denominations with a minimum count target.
+subsetsum,cses,1745,Money Sums,,Which sums are reachable by a subset is the base reachability dp.
+subsetsum,cf,577B,Modulo Sum,1900,Subset sum modulo m where pigeonhole caps the size of the dp.
+subsetsum,cf,687C,The Values You Can Make,1900,Two-dimensional reachability of a subset sum and a sub-subset sum.
+subsetsum,cf,1516C,Baby Ehab Partitions Again,1700,"Decide if the array can be split into equal halves by subset sum, then repair it."
+partition,cses,1093,Two Sets II,,"Count the ways to split 1..n into two sets with equal sums, a counting subset sum."
+partition,cf,1516C,Baby Ehab Partitions Again,1700,Equal-sum partition feasibility is a subset sum to half of the total.
+statem,cf,219C,Color Stripe,1600,"Colour each stripe given the previous colour, a small state machine."
+statem,cf,1155D,Beautiful Array,1900,"Three phases (before, inside, after the multiplied segment) form a state machine."
+statem,cf,1221D,Make The Fence Great Again,1800,Each position has three states for how much the board was raised.
+stock,cf,391F1,Stock Trading,,Buying and selling with limited trades is a state machine over holding or not.
+dppref,atcoder,dp_m,M - Candies,,Candies distribution where each transition is a range sum of the previous row.
+dppref,cses,1746,Array Description,,Count arrays with neighbour differences at most one with a rolling transition.
+dppref,cf,414B,Mashmokh and ACM,1400,Counting chains of divisors uses sums over the previous layer.
+dppref,cf,1067A,Array Without Local Maximums ,1900,Array without local maxima needs prefix sums over the previous value.
+countpaths,atcoder,dp_h,H - Grid 1,,Count paths in a grid with walls modulo a prime.
+countpaths,cses,1638,Grid Paths I,,Same grid path counting at CSES scale.
+countpaths,cses,1681,Game Routes,,Count paths in a DAG using a topological order.
+countpaths,cf,559C,Gerald and Giant Chess,2200,Count lattice paths around forbidden cells by sorting the obstacles.
+dpstrings,cf,1196D2,RGB Substring (hard version),1600,Cost of matching a periodic pattern is a prefix dp over the string.
+dpstrings,cf,219C,Color Stripe,1600,Recolouring a string with no equal neighbours is a dp over the last character.
+dpstrings,cf,645E,Intellectual Inquiry,2200,Counting distinct subsequences after extending a string needs last-occurrence bookkeeping.
+dpstrings,cf,1446B,Catching Cheaters,1800,Common subsequence scoring on two strings with a 2D table.
+lis,cses,1145,Increasing Subsequence,,The base longest increasing subsequence problem.
+lis,cf,977F,Consecutive Subsequence,1700,Longest increasing run of consecutive values with a map-based dp.
+lis,cf,340D,Bubble Sort Graph,1500,The largest independent set in a bubble sort graph equals the LIS.
+lis,cf,486E,LIS of Sequence,2200,"Decide which positions lie on every, some, or no longest increasing subsequence."
+lisfast,cses,1145,Increasing Subsequence,,Needs the n log n tails array to pass n up to 200000.
+lisfast,atcoder,dp_q,Q - Flowers,,A Fenwick tree or segment tree over heights speeds up the weighted LIS.
+lisfast,cses,1748,Increasing Subsequence II,,Counting increasing subsequences needs a Fenwick tree over values.
+lisfast,cf,568E,Longest Increasing Subsequence,3000,LIS with reconstruction through unknown positions needs the n log n structure.
+boundedk,cf,106C,Buns,1700,"Each ingredient is available a limited number of times, a bounded knapsack."
+boundedk,cf,1633D,Make Them Equal,1600,Each item can be improved a bounded number of times with a total operations budget.
+knapbitset,cses,1745,Money Sums,,Reachable sums up to a large total are a bitset shift and or.
+knapbitset,cf,687C,The Values You Can Make,1900,Two layered reachability sums are a bitset knapsack.
+knapbitset,cf,1516C,Baby Ehab Partitions Again,1700,Subset sum to half the total is a bitset over the array.
+multiknap,cf,837D,Round Subset,2100,Two capacities at once (count of twos and fives) make a two-dimensional knapsack.
+multiknap,cf,1433F,Zero Remainder Sum ,2100,"State holds count chosen and remainder together, a multi-dimensional knapsack."
+interval,atcoder,dp_n,N - Slimes,,Merging adjacent slimes at minimum cost is the standard interval dp.
+interval,cf,607B,Zuma,1900,Remove palindromes from a row with minimum rounds over intervals.
+interval,cf,1132F,Clear the String,2000,Delete same-letter blocks from a string with minimum operations over intervals.
+interval,cf,149D,Coloring Brackets,1900,Colour matching brackets with interval states for the two end colours.
+matrixchain,atcoder,dp_n,N - Slimes,,Merging adjacent slimes has the same split-point recurrence as matrix chain order.
+matrixchain,cf,1178F1,Short Colorful Strip,2200,Interval splitting with a split point where the minimum colour lies.
+burst,cf,1107E,Vasya and Binary String,2400,"Remove blocks for points depends on what merges with the interval, burst-balloons style."
+burst,cf,1132F,Clear the String,2000,Choose which last block to remove inside each interval.
+burst,cf,1178F1,Short Colorful Strip,2200,Splitting by the last operation inside an interval.
+bitmask,cses,1653,Elevator Rides,,Group people into elevator rides with a mask of who has gone and best last-ride weight.
+bitmask,cf,580D,Kefa and Dishes,1800,"Choose dishes in order with pair bonuses, state is the mask of used dishes and the last dish."
+bitmask,cf,453B,Little Pony and Harmony Chest,2000,Assign pairwise coprime values with a mask of used primes.
+bitmask,cf,8C,Looking for Order,2000,Pick up objects one or two at a time with a mask of collected objects.
+tspdp,cses,1690,Hamiltonian Flights,,Count Hamiltonian paths with mask and current node.
+tspdp,atcoder,abc180_e,E - Traveling Salesman among Aerial Cities,,The classic travelling salesman minimum tour over a few cities.
+tspdp,cf,11D,A Simple Task,2200,Count simple cycles by fixing the lowest vertex and running a mask dp on paths.
+assigndp,atcoder,dp_o,O - Matching,,Match n men to n women with compatibility using a mask over the women.
+assigndp,cf,453B,Little Pony and Harmony Chest,2000,Assign each position a value from a small set subject to a mask of primes.
+treedp,cses,1674,Subordinates,,Subtree sizes are the first bottom-up tree dp.
+treedp,atcoder,dp_p,P - Independent Set,,"Colour a tree black and white with no adjacent blacks, counting colourings."
+treedp,cf,461B,Appleman and Tree,2000,Count ways to split a tree into components each holding one black vertex.
+treedp,cf,1746D,Paths on the Tree,1900,Distribute a count down a tree to maximise a score with a per-node balance rule.
+dagdp,cses,1681,Game Routes,,Count paths from the start to the end in a DAG.
+dagdp,cf,459E,Pashmak and Graph,1900,"Longest path with edge weights increasing along the path, processing edges in sorted order."
+dagdp,cf,721C,Journey,1800,Longest path within a time limit over a DAG with a state for the count of nodes.
+dagdp,cf,1679D,Toss a Coin to Your Graph...,1900,Longest path in a DAG after a binary search on the threshold.
+longestdag,atcoder,dp_g,G - Longest Path,,Plain longest path in a DAG.
+longestdag,cses,1680,Longest Flight Route,,Longest path with reconstruction from node 1 to node n.
+longestdag,cf,721C,Journey,1800,Longest path with a bounded total length needs a layered dp over the DAG.
+probdp,atcoder,dp_i,I - Coins,,Probability of more heads than tails across independent coins.
+probdp,cf,518D,Ilya and Escalator,1700,Probability over time steps and positions of people boarding an escalator.
+probdp,cf,16E,Fish,1900,"Probability that each fish survives, over masks of the remaining fish."
+probdp,cf,148D,Bag of mice,1800,Probability of winning a draw game over the white and black mice counts.
+expdp,atcoder,dp_j,J - Sushi,,"Expected number of rolls to finish the sushi, over counts of dishes with k sushi."
+expdp,cf,235B,Let's Play Osu!,2000,Expected score of a click sequence with a running expected streak.
+expdp,cf,908D,New Year and Arbitrary Arrangement,2200,"Expected final value with a stopping threshold, solved by linearity and a recurrence."
+expdp,cf,1096F,Inversion Expectation,2300,Expected number of inversions in a partially filled permutation.
+gamedp,atcoder,dp_k,K - Stones,,The first win-lose game dp over the number of stones left.
+gamedp,atcoder,dp_l,L - Deque,,Optimal play on a deque is an interval game dp.
+gamedp,cses,1097,Removal Game,,Two players pick from the ends and the dp stores the best score difference.
+gamedp,cf,859C,Pie Rules,1500,Pie rules game is solved from the end with a best-for-mover dp.
+mqdp,cf,372C,Watching Fireworks is Fun,2100,Moving between sections each time step with a sliding window max over positions.
+mqdp,cf,487B,Strip,2000,Cut a sequence into pieces with a range limit using a monotonic deque for the min and max.
+distinctsub,atcoder,abc214_f,F - Substrings,,Count distinct subsequences with the last-occurrence correction.
+distinctsub,cf,645E,Intellectual Inquiry,2200,"Maximise distinct subsequences when filling in missing letters, using last occurrence per letter."
+digit,cses,2220,Counting Numbers,,Count numbers in a range with no equal adjacent digits using tight and previous-digit state.
+digit,atcoder,dp_s,S - Digit Sum,,Count numbers up to K whose digit sum is a multiple of D.
+digit,cf,1073E,Segment Sum,2300,"Sum of numbers with at most k distinct digits, a digit dp over a digit set mask."
+digit,cf,55D,Beautiful numbers,2500,Count numbers divisible by all their nonzero digits using lcm state.
+reroot,cses,1132,Tree Distances I,,Longest distance from every node needs rerooting of the down and up values.
+reroot,cf,219D,Choosing Capital for Treeland,1700,Count edge reversals for every root by rerooting from one root.
+reroot,cf,1092F,Tree with Maximum Cost,1900,Compute a weighted sum of distances for every root by moving the root.
+reroot,cf,1187E,Tree Painting,2100,Choose the best root for a tree painting score with rerooting.
+dpopt,cses,2084,Monster Game I,,"The recurrence is a min of lines, which the convex hull trick speeds up."
+dpopt,cf,321E,Ciel and Gondolas,2600,"Partition into k groups with a cost matrix, speeded by divide and conquer optimisation."
+dpopt,cf,833B,The Bakery,2200,Segments with distinct counts use a segment tree to speed up the transition.
+dpopt,cf,1175G,Yet Another Partiton Problem,3000,Partition cost over a monotone minimum structure needs several optimisations together.
+dcopt,cf,321E,Ciel and Gondolas,2600,"Optimal split points are monotone, so divide and conquer cuts the transition cost."
+dcopt,cf,868F,Yet Another Minimization Problem,2500,"Cost of a segment is the number of equal pairs, with monotone split points."
+dcopt,cf,833B,The Bakery,2200,Number of distinct values per segment with divide and conquer over the layer.
+dcopt,cf,1527E,Partition Game,2500,Partition into k segments with a cost based on last occurrences.
+cht,cses,2084,Monster Game I,,"Minimise cost over earlier monsters, a min of lines."
+cht,atcoder,dp_z,Z - Frog 3,,Frog 3 with squared jump cost is the canonical convex hull trick.
+cht,cf,319C,Kalila and Dimna in the Logging Industry,2100,"Cut trees with cost by height and a cost-per-length, a min over lines."
+cht,cf,1083E,The Fair Nut and Rectangles,2400,Maximise union area of rectangles through a dp over lines.
+aliens,cf,1279F,New Year and Handle Change,2800,"Choose exactly k segments to cover, with a lambda penalty per segment."
+aliens,cf,739E,Gosha is hunting,3000,"Choose with two kinds of limited tools, solved with a penalty on one kind."
+aliens,cf,125E,MST Company,2400,Build an MST with exactly k edges of one colour by tuning an edge penalty.
+aliens,cf,958E2,Guard Duty (medium),2200,"Select exactly k non-adjacent pairs, solved by a lambda penalty on each pair."
+matdp,cses,1722,Fibonacci Numbers,,Compute Fibonacci numbers for huge n with matrix powering.
+matdp,cses,1723,Graph Paths I,,Count walks of a given length in a graph by powering the adjacency matrix.
+matdp,cf,691E,Xor-sequences,1900,Count sequences with a xor condition by powering a compatibility matrix.
+matdp,cf,1182E,Product Oriented Recurrence,2300,A linear recurrence on exponents is solved by matrix powering.
+incldp,cses,2417,Counting Coprime Pairs,,Count coprime pairs by inclusion-exclusion over divisors.
+incldp,cses,2185,Prime Multiples,,Count numbers divisible by any of a set of primes with inclusion-exclusion over subsets.
+incldp,cf,997C,Sky Full of Stars,2500,Count grid colourings with a row and column condition by inclusion-exclusion.
+incldp,cf,1342E,Placing Rooks,2300,"Place rooks with a given number of attacking pairs, by inclusion-exclusion over columns."
+sos,cses,1654,SOS Bit Problem,,"For every mask count submasks, supermasks and complements with SOS dp."
+sos,cf,165E,Compatible Numbers,2200,For each number find a compatible number by looking up masks of complement submasks.
+sos,cf,449D,Jzzhu and Numbers,2400,Count subsets with a given AND by SOS and inclusion-exclusion.
+sos,cf,1208F,Bits And Pieces,2600,Find indices for an OR query using SOS over masks.
+profile,cses,2181,Counting Tilings,,Count domino and tile fillings of a grid with a column profile.
+profile,cf,1391D,505,2000,Fill a grid with a small number of rows using a bitmask of the previous row.
+profile,cf,1051D,Bicolorings,1700,Count colourings with k components with a two-cell profile.
+dpperm,atcoder,dp_t,T - Permutation,,Count permutations with a given up-down pattern by the rank of the last element.
+dpperm,cf,401D,Roman and Numbers,2000,Count digit permutations divisible by m with a mask over positions chosen.
+dpperm,cf,1542E1,Abnormal Permutation Pairs (easy version),2400,Count permutation pairs by inversion count with a layered dp.
+dpperm,cf,285E,Positions in Permutations,2600,Count permutations with exactly k good positions by inclusion-exclusion over a dp.
+optbst,cf,1666J,Job Lookup,2100,"Build a tree over sorted keys minimising weighted depth, the optimal BST dp."
+submask,cf,1523D,Love-Hate,2400,Find the best common mask among a few liked options by enumerating submasks.
+submask,cf,1209E1,Rotate Columns (easy version),2000,Distribute column picks over rows with a submask dp of the used columns.
+submask,cf,1209E2,Rotate Columns (hard version),2500,"Same with larger widths, where submask enumeration is the intended cost."
+submask,cses,1653,Elevator Rides,,Group items into rides with an enumeration over subsets of the remaining items.
+knuth,atcoder,dp_n,N - Slimes,,"Merging slimes has the Knuth monotonicity property, so the interval dp drops to quadratic."

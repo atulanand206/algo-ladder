@@ -1,0 +1,157 @@
+topic,plat,pid,name,rating,note
+geom,cf,1845B,Come Together,900,Coordinates and Manhattan distance between three points decide the shortest meeting path.
+geom,cf,1030B,Vasya and Cornfield,1100,Point-in-diamond test from coordinates and inequalities.
+geom,cf,749B,Parallelogram is Back,1200,Recover a parallelogram vertex by vector addition of points.
+geom,cf,1032D,Barcelonian Distance,1900,Distance on a grid with one diagonal line needs projecting points onto a line.
+dotcross,cf,18A,Triangle,1500,Right angle detection uses dot product on shifted vertices.
+dotcross,cf,257C,View Angle,1800,"Cover all points by the smallest angle at the origin, needs angle from vectors."
+dotcross,cf,598C,Nearest vectors,2300,Sort vectors by angle exactly with cross and dot to find the smallest angle.
+dotcross,cf,552D,Vanya and Triangles,1900,Count non-degenerate triangles by testing collinearity with cross product.
+orient,cf,227A,Where do I Turn?,1300,"Decide left, right or straight with the sign of a cross product."
+orient,cses,2189,Point Location Test,,Pure orientation test on three points.
+orient,cf,659D,Bicycle Race,1500,Count turns of a polyline that go the dangerous side using orientation.
+orient,cf,1254C,Point Ordering,2300,Order points into a convex path using orientation queries only.
+seginter,cses,2190,Line Segment Intersection,,Segment intersection test with orientation and bounding boxes.
+seginter,cf,13B,Letter A,2000,Letter A needs intersections of segments plus ratio checks.
+seginter,cf,1036E,Covered Points,2400,"Count distinct lattice points covered by segments, using pairwise intersections."
+seginter,cf,598F,Cut Length,2900,Length of a polygon boundary cut by a line needs segment crossing handling.
+lineinter,cf,593B,Anton and Lines,1600,"Compare line values on a strip, equivalent to checking if two lines cross inside it."
+lineinter,cf,498A,Crazy Town,1700,"Count the lines a path crosses, using which side each point lies on."
+lineinter,cf,1163C1,Power Transmission (Easy Edition),1900,Count distinct lines and pairs that intersect among all point pairs.
+lineinter,cf,1163C2,Power Transmission (Hard Edition),1900,Same line counting at larger scale needs exact line normalisation.
+polyarea,cses,2191,Polygon Area,,Shoelace formula on a polygon.
+polyarea,cf,630P,Area of a Star,2100,Area of a star from a polygon formula.
+polyarea,cf,340B,Maximal Area Quadrilateral,2100,Max quadrilateral area by splitting into triangles of cross products.
+polyarea,cf,611G,New Year and Cake,2900,Cut a polygon into two parts with equal areas using prefix sums of cross products.
+manhattan,cf,650A,Watchmen,1400,Count pairs whose Manhattan and Euclidean distances match.
+manhattan,cses,3410,Maximum Manhattan Distances,,Max Manhattan distance by rotating coordinates to Chebyshev form.
+manhattan,cses,3411,All Manhattan Distances,,Sum of all Manhattan distances by splitting the axes and sorting.
+manhattan,cf,1044C,Optimal Polygon Perimeter,2100,Best polygon perimeter uses Manhattan structure of extreme points.
+pip,cses,2192,Point in Polygon,,Point in polygon by ray casting.
+pip,cf,166B,Polygons,2100,Check if every point of one polygon is strictly inside a convex polygon.
+pip,cf,87E,Mogohu-Rea Idol,2600,Test points against a convex polygon with tangents and angular search.
+hull,cses,2195,Convex Hull,,Build the convex hull directly.
+hull,cf,1142C,U2,2400,Parabolas through points reduce to a convex hull in a transformed plane.
+hull,cf,1017E,The Supersonic Rocket,2400,Compare two convex hulls up to rotation after building them.
+hull,cf,535E,Tavas and Pashmaks,2600,Points on the upper-right hull decide who can win.
+circle,cf,935C,Fifa and Fafa,1600,"Largest circle inside another circle avoiding a point, from circle geometry."
+circle,cf,600D,Area of Two Circles' Intersection,2000,Area of the intersection of two circles with angle formulas.
+circle,cf,1C,Ancient Berland Circus,2100,Recover the regular polygon from three points through the circumcircle.
+circle,cf,933C,A Colourful Prospect,2700,Find the circle through three points and handle circle intersection counts.
+picks,cses,2193,Polygon Lattice Points,,Count lattice points inside and on the polygon with Pick's theorem and gcd.
+lattice,cf,1248A,Integer Points,1000,"Count integer intersection points of lines through axes, a parity count."
+lattice,cses,2193,Polygon Lattice Points,,Lattice points on each edge come from gcd of the deltas.
+rotation,cf,630M,Turn,1800,"Compute the minimal turn from an angle, a rotation modulo 360."
+rotation,cf,474C,Captain Marmot,2000,Rotate points around centres to test if four moves form a square.
+rotation,cf,618E,Robot Arm,2500,Maintain a chain of rotated segments under range updates.
+calipers,cf,54E,Vacuum Сleaner,2700,Rotating the hull edge by edge finds the best antipodal point.
+closest,cses,2194,Minimum Euclidean Distance,,Closest pair of points directly.
+closest,cf,120J,Minimum Sum,1900,Closest pair of vectors under a modified distance.
+closest,cf,429D,Tricky Function,2200,Reduce a function to closest pair of points in the plane.
+mec,cf,106E,Space Rescuers,2100,"Smallest enclosing ball for points in 3D, same idea as the circle."
+mec,atcoder,abc151_f,F - Enclose All,,Smallest circle covering all given points.
+sweepseg,cses,1740,Intersection Points,,Count intersection points between horizontal and vertical segments by sweep.
+sweepseg,cses,3427,Line Segments Trace I,,Sweep the segments top to bottom while keeping them in order.
+sweepseg,cses,3428,Line Segments Trace II,,Harder version of the segment sweep with a set of active segments.
+rectunion,cf,1216C,White Sheet,1700,Area of a rectangle minus the union of two others.
+rectunion,cses,1741,Area of Rectangles,,Area of the union of many rectangles by sweep and segment tree.
+rectunion,cf,610D,Vika and Segments,2300,Total area of segments as thin rectangles needs union by sweep.
+triang,cf,437E,The Child and Polygon,2500,Count polygon triangulations with an interval DP.
+triang,cf,776F,Sherlock's bet to Moriarty,2800,Cut a polygon into triangles using diagonals and ear structure.
+triang,cf,1572E,Polygon,3000,Optimise over triangulations of a polygon with a DP on sub-polygons.
+strparse,cf,71A,Way Too Long Words,800,Read words and rewrite long ones by token length.
+strparse,cf,600A,Extract Numbers,1600,Split text into numbers and words by delimiters.
+strparse,cf,1B,Spreadsheet,1600,Parse two spreadsheet cell formats and convert between them.
+strparse,cf,747E,Comments,1700,Parse a nested comment tree from a comma separated token stream.
+strsearch,cf,412C,Pattern,1200,Slide a wildcard pattern and merge strings character by character.
+strsearch,cf,1023A,Single Wildcard Pattern Matching,1200,Match a single wildcard pattern against text by checking prefix and suffix.
+strsearch,cf,1029A,Many Equal Substrings,1300,"Overlap copies of a pattern, which needs prefix and suffix matching."
+strsearch,cf,144C,Anagram Search,1500,Slide a window and match a pattern with wildcards by letter counts.
+str-count,cses,1755,Palindrome Reorder,,Palindrome from letter counts.
+str-count,cf,1304B,Longest Palindrome,1100,Build the longest palindrome from word pairs and a centre.
+str-count,cf,1187B,Letters Shop,1300,Count letters per prefix to find the shortest prefix for a name.
+str-count,cf,1624D,Palindromes Coloring,1400,Count pairs and singles of letters to split into palindromes.
+anagram,cf,144C,Anagram Search,1500,Window letter counts decide anagram matches with wildcards.
+anagram,cf,254C,Anagram,1800,Make one string an anagram of another with minimum changes via counts.
+anagram,cf,1290B,Irreducible Anagrams,1800,Test whether a substring is irreducible using letter counts and anagram splits.
+rle,cf,1120C,Compress String,2100,Compress a string with repeated blocks by dynamic programming over runs.
+rle,cf,825F,String Compression,2400,Choose the best run-length style compression of a string.
+strcmp,cf,1616B,Mirror in the String,1100,Pick the smallest string by comparing prefixes lexicographically.
+strcmp,cf,632C,The Smallest String Concatenation,1700,Order strings for the smallest concatenation by comparing a+b with b+a.
+strcmp,cf,777D,Cloud of Hashtags,1800,Greedily trim hashtags so the list is in lexicographic order.
+strcmp,cf,1537E1,Erase and Extend (Easy Version),1600,Choose the best prefix to repeat by comparing candidate strings.
+strsort,cf,988B,Substrings Sort,1100,Sort strings by length and check substring chain.
+strsort,cf,1575A,Another Sorting Problem,1100,Sort strings with a custom alternating comparator.
+strsort,cf,632C,The Smallest String Concatenation,1700,Sort strings with a custom comparator for concatenation.
+strsort,cf,777D,Cloud of Hashtags,1800,Sort order of strings drives the greedy trimming.
+hashing,cf,4C,Registration System,1300,Store names in a hash table to count repeats.
+hashing,cf,559B,Equivalent Strings,1700,Compare recursive halves by hashing equivalence classes.
+hashing,cf,514C,Watto and Mechanism,2000,Match modified words using polynomial hashes of all one-change variants.
+hashing,cf,580E,Kefa and Watch,2500,Compare substrings under updates with hashing and a Fenwick tree.
+rabinkarp,cses,1753,String Matching,,Find all pattern occurrences with a rolling hash.
+rabinkarp,cf,471D,MUH and Cube Walls,1800,Match shifted height differences with a rolling hash or KMP.
+rabinkarp,cf,958A2,Death Stars (medium),2000,Find a 2D pattern inside a grid by rolling hash.
+trixor,cf,923C,Perfect Security,1800,Greedily choose the minimal XOR partner for each element with a bit trie.
+trixor,cses,1655,Maximum Xor Subarray,,Max subarray XOR with prefix xors in a trie.
+trixor,cf,706D,Vasiliy's Multiset,1800,Maintain a multiset and query the maximum xor with a deletable trie.
+trixor,cf,817E,Choosing The Commander,2000,Count numbers whose xor with x is below a bound using trie counts.
+hashbs,cses,2106,Repeating Substring,,Longest repeated substring by hashing and binary search on length.
+hashbs,cf,1393E1,Twilight and Ancient Scroll (easier version),2800,Compare two candidate strings by the longest common prefix using hashing.
+hashbs,cf,1913F,Palindromic Problem,2800,Compare strings after one edit with hashed common prefix and binary search.
+minrot,cf,745A,Hongcow Learns the Cyclic Shift,900,Enumerate all rotations of a word and count the distinct ones.
+minrot,cses,1110,Minimal Rotation,,Smallest rotation of a string.
+minrot,cf,235C,Cyclical Quest,2700,Count cyclic rotations of a query inside a text.
+dfa,cses,1112,Required Substring,,Count strings avoiding or containing a pattern using the KMP automaton.
+dfa,cf,86C,Genetic engineering,2500,Count strings containing all given patterns with an Aho automaton DP.
+dfa,cf,1400F,x-prime Substrings,2800,Count substrings avoiding forbidden digit sums with an automaton.
+kmp,cf,1137B,Camp Schedule,1600,Build a long string with the pattern repeated using the prefix function.
+kmp,cses,1753,String Matching,,Find all occurrences with the prefix function.
+kmp,cf,126B,Password,1700,Find a border that appears again inside the string.
+kmp,cf,1721E,Prefix Function Queries,2200,Maintain the prefix function under appending characters.
+zfunc,cses,2107,String Functions,,Compute the Z and prefix functions directly.
+zfunc,cses,1753,String Matching,,Match a pattern in the text with the Z-function on pattern + text.
+zfunc,cf,432D,Prefixes and Suffixes,2000,Count occurrences of each prefix that is also a suffix.
+zfunc,cf,535D,Tavas and Malekas,1900,Check consistency of overlapping placements with the Z-function.
+border,cses,1732,Finding Borders,,List all borders of a string.
+border,cses,1733,Finding Periods,,Periods of a string from its borders.
+border,cf,126B,Password,1700,A border that also occurs in the middle of the string.
+border,cf,526D,Om Nom and Necklace,2200,Split into repeated blocks using the border and periodicity.
+manacher,cses,1111,Longest Palindrome,,Longest palindromic substring.
+manacher,cses,3138,All Palindromes,,List the longest palindrome at every centre.
+manacher,cf,1326D2,Prefix-Suffix Palindrome (Hard version),1800,Use the longest palindromic prefix or suffix of the middle part.
+manacher,cf,1827C,Palindrome Partition,2600,Shortest even palindrome ending at each position by palindrome radii.
+minrot,cf,1654F,Minimal String Xoration,2800,Order cyclic shifts of xor-transformed strings by a smallest rotation style comparison.
+commonsub,cf,427D,Match & Catch,2200,Longest common substring that is unique in both strings.
+commonsub,cf,452E,Three strings,2400,Count common substrings across three strings.
+commonsub,cf,204E,Little Elephant and Strings,2800,Count how many strings share each substring.
+suffix,cses,2104,Pattern Positions,,Find a pattern's first occurrence with a suffix array.
+suffix,cses,2108,Substring Order I,,Find the k-th distinct substring in order using the suffix array.
+suffix,cf,123D,String,2300,Count substring occurrence squares via suffix structures.
+suffix,cf,873F,Forbidden Indices,2400,"Longest suffix-like substring avoiding forbidden endings, via suffix array."
+lcp,cses,2106,Repeating Substring,,Longest repeated substring with the LCP array.
+lcp,cses,2109,Substring Order II,,Order of substrings by rank with the LCP array.
+lcp,cf,1073G,Yet Another LCP Problem,2600,Sum of LCP over arbitrary suffix pairs using the LCP array.
+sam,cses,2110,Substring Distribution,,Count substrings by length with a suffix automaton.
+sam,cf,235C,Cyclical Quest,2700,Count rotations of queries in a text with a suffix automaton.
+sam,cf,452E,Three strings,2400,Longest common structure across three strings with a suffix automaton.
+sam,cf,616F,Expensive Strings,2700,Maximize weighted occurrences using the suffix automaton states.
+suftree,cses,2105,Distinct Substrings,,Count distinct substrings from the suffix tree.
+suftree,cses,2109,Substring Order II,,Walk the suffix tree for the ordered substrings.
+suftree,cf,1037H,Security,3200,Answer queries with a suffix automaton and persistent tree.
+suftree,cf,700E,Cool Slogans,3300,Nest slogans with the suffix tree of a string.
+eertree,cf,17E,Palisection,2900,Count intersecting palindrome pairs with palindromic counts.
+eertree,cf,1827C,Palindrome Partition,2600,Shortest palindromic suffix chain in the palindromic tree.
+eertree,cf,932G,Palindrome Partition,2900,Partition into palindromes with series links of the palindromic tree.
+eertree,cf,906E,Reverses,3300,Palindromic series dynamic programming with the tree.
+duval,cf,594E,Cutting the Line,3100,Split into Lyndon words to find the smallest reachable string.
+duval,cses,1110,Minimal Rotation,,Minimal rotation via Lyndon factorisation.
+bwt,cses,1113,String Transform,,Invert the Burrows-Wheeler transform.
+bitap,cf,914F,Substrings in a String,3000,Pattern occurrence counting with bitsets.
+distinctsubstr,cses,2105,Distinct Substrings,,Number of distinct substrings.
+distinctsubstr,cses,2108,Substring Order I,,List distinct substrings by order.
+distinctsubstr,cf,316G1,Good Substrings,1700,Count substrings with rule constraints and distinct substrings.
+distinctsubstr,cf,316G2,Good Substrings,2200,Larger version needing a suffix automaton over distinct substrings.
+palin,cf,108A,Palindromic Times,1000,Check palindromes on a time string.
+palin,cf,7D,Palindrome Degree,2200,Palindromic degree of prefixes with hashing.
+palin,cf,245H,Queries for Number of Palindromes,1800,Count palindromic substrings in ranges.
+palin,cses,1111,Longest Palindrome,,Find the longest palindromic substring.

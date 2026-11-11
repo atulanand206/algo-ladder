@@ -1,0 +1,109 @@
+dlx no contest problem asks for exact cover where a plain Dancing Links solver is needed; sudoku or polyomino tiling does not appear in the CSES, Codeforces or AtCoder pools
+# ds-sort session
+circbuf no contest problem genuinely needs a fixed size ring buffer; sliding window tasks are solved with plain arrays or deques
+avl the library ordered set covers every contest need; no problem requires a hand written AVL tree specifically
+rbt the library ordered set covers every contest need; no problem requires a hand written red black tree specifically
+btree B trees target disk blocks and no contest problem needs one specifically
+skiplist a skip list is a probabilistic ordered set and no contest problem needs it specifically
+huffman no contest problem on CSES, Codeforces or AtCoder needs the Huffman merge itself beyond a plain priority queue exercise I could verify
+fracknap no verified contest problem asks for fractional knapsack by value per weight; the closest ones are 0/1 or constructive variants
+hpi no verified Codeforces, CSES or AtCoder problem found that genuinely needs half-plane intersection
+voronoi no verified problem found that needs a Voronoi diagram
+delaunay no verified problem found that needs Delaunay triangulation
+geomdual no verified problem found that needs point-line duality
+astar no contest problem requires A*; every shortest path task is solved by BFS or Dijkstra
+bibfs no contest problem requires bidirectional search; plain BFS always fits the limits
+stablematch no verified problem on Codeforces, CSES or AtCoder needs Gale-Shapley
+johnson no verified problem needs Johnson reweighting; Floyd or per-source Dijkstra always suffices
+pushrelabel no verified problem needs push-relabel; Dinic passes everywhere
+lowerflow no verified Codeforces, CSES or AtCoder problem I could confirm needs flow with lower bounds
+blossom no verified problem I could confirm needs general graph matching
+gomory no verified problem I could confirm needs a Gomory-Hu tree
+clique no verified problem I could confirm needs maximum clique or independent set search
+planar no verified problem I could confirm needs planarity or dual graphs
+splay a splay tree is one of several balanced trees; no problem needs it over a treap or ordered set (see treap)
+wavelet no contest problem needs a wavelet tree over a persistent segment tree or merge sort tree (see persist)
+kdtree nearest point problems on these judges are solved by sweep or grid; none requires a k-d tree
+veb no contest problem needs van Emde Boas over an ordered set or bitset tree
+bloom a Bloom filter is probabilistic and its approximate answers are not accepted by judges
+cms a count min sketch gives approximate counts and judges need exact answers
+hll HyperLogLog gives approximate cardinality and judges need exact answers
+dsparse no verified contest problem needs a disjoint sparse table specifically over a sparse table or segment tree
+localsearch only real use is AtCoder heuristic contests (AHC), whose tasks are scored not solved, and no CSES or Codeforces problem needs hill climbing or annealing
+online no CSES, Codeforces or AtCoder task asks for a competitive-ratio online algorithm like ski rental or online paging; interactive tasks are a different thing
+alphabeta no contest problem on CSES, Codeforces or AtCoder needs alpha beta pruning specifically; game tasks are solved by plain dp or Sprague-Grundy
+mcts Monte Carlo tree search is for games with huge state; no judged problem of that kind in the three pools
+kmeans no verified contest problem needs k-means; clustering is not asked for in judged tasks
+knn no verified contest problem asks for k nearest neighbours in the ML sense; closest pair is a different problem
+anneal simulated annealing only shows up in AtCoder heuristic contests (AHC), which are scored not solved
+genetic genetic algorithms have no exact-judge problem in the three pools
+reservoir no verified contest problem needs reservoir sampling; judged tasks give the whole input
+shuffle no verified contest problem asks for an unbiased Fisher-Yates shuffle
+crc no verified contest problem asks for CRC or GF(2) polynomial division as such
+gradient no verified contest problem needs gradient descent; closest cases use ternary search which is a different method
+lfu no verified contest problem asks for LFU cache eviction; Codeforces 698C is a probability problem about LRU
+stable no verified contest problem hinges on sort stability over just sorting by a compound key
+quick-sort contests use library sort; no problem requires a hand written quick sort
+heap-sort contests use library sort and heaps; no problem requires heap sort itself
+counting-sort no verified problem needs counting sort specifically over a plain sort or frequency array
+radix-sort no verified problem needs radix sort specifically over a library sort
+bucket-sort no verified problem needs bucket sort specifically over a library sort
+shell no contest problem needs shell sort
+cycle-sort no contest problem needs cycle sort; swap count problems are covered under selection
+tim no contest problem needs Timsort specifically
+intro no contest problem needs introsort specifically
+extsort external sorting needs disk and judges do not test it
+sortnet no contest problem needs a sorting network
+bitonic no contest problem needs bitonic sort
+linear-search any scan solves such problems; none needs linear search as the technique
+expo-search no verified contest problem needs exponential search specifically
+interp no verified contest problem needs interpolation search
+jump no verified contest problem needs jump search
+fibsearch no verified contest problem needs Fibonacci search
+parallelbs no verified problem on these judges that I could confirm needs parallel binary search
+fraccasc no verified contest problem needs fractional cascading
+wildcard no verified contest problem asks for wildcard or regex pattern matching as a dp; closest cases are plain string dp
+# math session
+bayes no verified Codeforces, CSES or AtCoder problem found that needs Bayes' theorem itself beyond plain conditional probability dp
+bigint contest problems ask for an answer modulo a prime; none found that genuinely needs arbitrary precision arithmetic on a verified platform
+segsieve no verified problem found that needs a sieve on a segment far above 10 to the 7 from CSES, Codeforces or AtCoder
+wilson no verified problem found that needs Wilson's theorem itself
+factmod no verified problem found that needs n factorial modulo a prime for n far beyond the modulus range
+lucas no verified problem found that needs Lucas on a small prime modulus
+bell no verified problem found that needs Bell numbers specifically
+partitions no verified problem found that needs the pentagonal number partition count
+karatsuba contest problems use FFT or NTT instead; none found that needs Karatsuba itself
+millerrabin no verified problem found that needs a deterministic primality test on values near 10 to the 18
+pollard no verified problem found that needs Pollard rho factoring from the allowed platforms
+bsgs no verified problem found that needs a discrete logarithm
+primroot no verified problem found that needs a primitive root explicitly
+tonelli no verified problem found that needs a modular square root
+dirichlet no verified problem found that needs Dirichlet convolution or Dirichlet prefix sums beyond simple sieves
+bm no verified problem found that needs Berlekamp Massey on the allowed platforms
+kitamasa no verified problem found that needs Kitamasa with a large order recurrence
+gaussmod2 no verified problem found that clearly needs Gaussian elimination over GF2 beyond xor basis
+det no verified problem found that needs a determinant such as Kirchhoff matrix tree on the allowed platforms
+min25 no verified problem found that needs the Min 25 sieve
+misere no verified problem found that needs misere nim specifically
+wythoff no verified problem found that needs Wythoff's game specifically
+sternb no verified problem found that needs the Stern Brocot tree
+contfrac no verified problem found that needs continued fractions
+pell no verified problem found that needs a Pell equation
+dbindex no verified contest problem requires building a B-tree or index; ordered set queries are a different level of abstraction
+lsm no verified contest problem exercises memtable flush or compaction of sorted runs
+joins no verified contest problem asks for a hash join or sort-merge join of two tables
+colstore no verified contest problem asks for columnar encoding or scans
+gossip no verified contest problem models gossip dissemination; rumor-style problems are plain graph reachability
+tcp no verified contest problem models congestion control or retransmission
+paging no verified contest problem asks for page replacement such as Belady or clock; Codeforces 7B is a memory manager and is used under gc
+hashmapimpl no verified contest problem asks for open addressing or resizing a hash table; hashing problems use the library
+abuse no verified contest problem models abuse or spam detection
+recsys no verified contest problem asks for collaborative filtering or ranking items by user similarity
+codecs no verified contest problem asks for DCT or entropy coding
+cryptohash no verified contest problem needs a cryptographic hash such as SHA; rolling hash problems are a different thing
+blockchain no verified contest problem models proof of work or a chain of blocks
+neural no verified contest problem asks for a neural network forward or backward pass
+dtree no verified contest problem asks for building a decision tree from data
+vectorsearch no verified contest problem asks for approximate nearest neighbour search in high dimensions
+llm no verified contest problem exercises attention, beam search or a KV cache
+riskmc no verified contest problem needs Monte Carlo simulation since judged tasks require exact answers
