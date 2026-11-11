@@ -1,0 +1,2207 @@
+### geom
+--idea
+A point is a pair of numbers `(x, y)`, like a house number on a street and a floor number, and a vector is the arrow from one point to another. Almost every geometry problem becomes arithmetic on these pairs: subtract two points to get the arrow between them, add arrows to walk along them, and measure how long an arrow is.
+Picture a sheet of graph paper. The distance between two points is the diagonal of a rectangle whose sides are the difference in x and the difference in y (Pythagoras). The key habit is to compare squared distances instead of distances: `dx*dx + dy*dy` stays an exact integer, while the square root is a rounded decimal that can make two equal things look different.
+--build
+1. Store a point as two integers `x`, `y`. Store a vector the same way. The vector from `a` to `b` is `(b.x - a.x, b.y - a.y)`.
+2. Squared distance `dist2(a, b) = dx*dx + dy*dy`. To compare two distances, compare their squares.
+3. Direction of a vector: divide both parts by their greatest common divisor (`g = gcd(|dx|, |dy|)`). Two vectors point the same way along the same line exactly when their reduced forms are equal (or opposite, if the signs differ).
+4. Special case: the zero vector `(0, 0)` has no direction. Return `(0, 0)` and let the caller deal with duplicates.
+5. Overflow check: if coordinates go up to `10^9`, then `dx` is up to `2*10^9` and `dx*dx` is `4*10^18`. A sum of two such squares overflows a signed 64-bit integer (about `9.2*10^18`). Keep coordinates at most about `10^9` in absolute value (the piece takes `int` coordinates), or use `__int128` in C++.
+6. Code: `dist2` (the squared distance piece, which takes `int` coordinates) is called by `nearest` below to find the closest point to a query without a square root. `direction` uses a gcd (Java `gcd`, Python `math.gcd`, C++ `std::gcd` from `<numeric>`).
+--think
+- Signal: any statement with coordinates, grids, "nearest", "farthest", "same direction", "how many points on a line". Decide first whether the inputs are integers. If yes, stay in integers for the whole solution.
+- Compare squared distances. Never write `sqrt(a) == sqrt(b)`. Only take a square root at the very end when the answer must be printed.
+- Reduced directions are a hash key: to group points by the line through a fixed point, store `(dx/g, dy/g)`, and normalise the sign (make `dx > 0`, or `dx == 0 and dy > 0`) so opposite arrows land in the same group.
+- Neighbours: dot and cross products give angles and areas, the orientation test gives left or right turns, hashing groups lines. Learn those next.
+- Pitfalls: duplicate points give the zero vector and a gcd of 0 (division by zero), floating point `==` fails, and `int` overflows when squaring large differences.
+--cost
+Each operation is O(1) apart from the gcd, which is O(log max coordinate). Space is O(1).
+--uses
+u-dist2
+--java
+// index of the point in p closest to (qx, qy); calls the dist2 piece
+static int nearest(int[][] p, int qx, int qy) {
+    int best = 0;
+    for (int i = 1; i < p.length; i++)
+        if (dist2(p[i][0], p[i][1], qx, qy) < dist2(p[best][0], p[best][1], qx, qy)) best = i;
+    return best;
+}
+
+// direction from a to b in lowest terms; (0,0) when a == b
+static int[] direction(int[] a, int[] b) {
+    int dx = b[0] - a[0], dy = b[1] - a[1];
+    int g = gcd(Math.abs(dx), Math.abs(dy));
+    if (g == 0) return new int[]{0, 0};
+    return new int[]{dx / g, dy / g};
+}
+--py
+from math import gcd
+
+def nearest(p, qx, qy):
+    """Index of the point in p closest to (qx, qy); calls the dist2 piece."""
+    best = 0
+    for i in range(1, len(p)):
+        if dist2(p[i][0], p[i][1], qx, qy) < dist2(p[best][0], p[best][1], qx, qy):
+            best = i
+    return best
+
+def direction(a, b):
+    """Direction from a to b in lowest terms; (0, 0) when a == b."""
+    dx, dy = b[0] - a[0], b[1] - a[1]
+    g = gcd(abs(dx), abs(dy))
+    if g == 0:
+        return (0, 0)
+    return (dx // g, dy // g)
+--cpp
+// index of the point in p closest to (qx, qy); calls the dist2 piece
+int nearest(const vector<pair<int,int>>& p, int qx, int qy) {
+    int best = 0;
+    for (int i = 1; i < (int)p.size(); i++)
+        if (dist2(p[i].first, p[i].second, qx, qy) < dist2(p[best].first, p[best].second, qx, qy)) best = i;
+    return best;
+}
+
+// direction from a to b in lowest terms; (0,0) when a == b
+pair<int,int> direction(pair<int,int> a, pair<int,int> b) {
+    int dx = b.first - a.first, dy = b.second - a.second;
+    int g = gcd(abs(dx), abs(dy));   // gcd(0,0) is 0
+    if (g == 0) return {0, 0};
+    return {dx / g, dy / g};
+}
+
+### dotcross
+--idea
+The dot product and cross product are two ways to multiply a pair of arrows, and each answers a question. The dot product `a.x*b.x + a.y*b.y` tells you how much the arrows point the same way: positive when the angle between them is sharp, zero when they are perpendicular, negative when the angle is wide. The cross product `a.x*b.y - a.y*b.x` is the signed area of the parallelogram the two arrows span: positive if `b` is counter-clockwise from `a`, zero if they lie on one line, negative if clockwise.
+Picture two sticks glued at one end. The cross product is the area of the slanted box they make, with a sign for which stick is ahead when you turn anticlockwise. Together they carry everything about the angle, because `cross = |a||b| sin(angle)` and `dot = |a||b| cos(angle)`, so `atan2(cross, dot)` is the signed angle with no division and no ambiguity.
+--build
+1. Write `dot(a, b) = a.x*b.x + a.y*b.y` and `cross(a, b) = a.x*b.y - a.y*b.x` for vectors `a`, `b`.
+2. The vector from a point `o` to a point `p` is `p - o`. For three points `o, a, b` define `cross3(o, a, b) = cross(a - o, b - o)`.
+3. Twice the area of triangle `o, a, b` is `|cross3(o, a, b)|`. Keep it doubled so it stays an integer.
+4. Sign of `cross3`: positive means `o -> a -> b` turns left, negative right, zero means the three points are collinear (on one line).
+5. Right angle test: `dot(a, b) == 0`. Collinear test: `cross(a, b) == 0`.
+6. Signed angle from `a` to `b` in radians: `atan2(cross(a, b), dot(a, b))`. Use it only when you really need the angle.
+7. Code: `cross` and `dot` are the code pieces. `cross3` calls `cross`, `angle` calls both, and `isPerpendicular` calls `dot`.
+--think
+- Signal: "area of a triangle", "is this a right angle", "are three points on a line", "which side of the line is the point", "sort points by angle".
+- Decide first whether you need an exact yes or no answer (use the integer cross or dot and test against 0) or an actual angle (then `atan2`).
+- Avoid `acos(dot / (|a||b|))`: it loses precision near 0 and 180 degrees and divides by zero for a zero vector.
+- The cross product is also the building block of the orientation test, convex hull, segment intersection and polygon area. Learn it first.
+- Pitfalls: mixing up the order (`cross(a, b) = -cross(b, a)`), forgetting that area is doubled, and overflow when coordinates are near `10^9` (the products are `10^18` each, so the difference can overflow; use `__int128` or `long double` check).
+--cost
+O(1) time and space per operation.
+--uses
+u-cross
+u-dot
+--java
+// cross of (a - o) and (b - o): positive if o -> a -> b turns left
+static long cross3(long[] o, long[] a, long[] b) {
+    return cross(a[0] - o[0], a[1] - o[1], b[0] - o[0], b[1] - o[1]);
+}
+
+// twice the triangle area, always non-negative and exact
+static long area2(long[] a, long[] b, long[] c) { return Math.abs(cross3(a, b, c)); }
+
+// are the vectors a and b at a right angle
+static boolean isPerpendicular(long ax, long ay, long bx, long by) { return dot(ax, ay, bx, by) == 0; }
+
+// signed angle from vector a to vector b, in radians
+static double angle(long ax, long ay, long bx, long by) {
+    return Math.atan2(cross(ax, ay, bx, by), dot(ax, ay, bx, by));
+}
+--py
+from math import atan2
+
+def cross3(o, a, b):
+    """cross of (a - o) and (b - o): positive if o -> a -> b turns left."""
+    return cross(a[0] - o[0], a[1] - o[1], b[0] - o[0], b[1] - o[1])
+
+def area2(a, b, c):
+    """Twice the triangle area, exact."""
+    return abs(cross3(a, b, c))
+
+def is_perpendicular(ax, ay, bx, by):
+    return dot(ax, ay, bx, by) == 0
+
+def angle(ax, ay, bx, by):
+    """Signed angle from vector a to vector b, in radians."""
+    return atan2(cross(ax, ay, bx, by), dot(ax, ay, bx, by))
+--cpp
+typedef pair<long long,long long> P;
+
+// cross of (a - o) and (b - o): positive if o -> a -> b turns left
+long long cross3(P o, P a, P b) {
+    return cross(a.first - o.first, a.second - o.second, b.first - o.first, b.second - o.second);
+}
+
+// twice the triangle area, always non-negative and exact
+long long area2(P a, P b, P c) { return llabs(cross3(a, b, c)); }
+
+// are the vectors a and b at a right angle
+bool isPerpendicular(long long ax, long long ay, long long bx, long long by) { return dot(ax, ay, bx, by) == 0; }
+
+// signed angle from vector a to vector b, in radians
+double angle(long long ax, long long ay, long long bx, long long by) {
+    return atan2((double)cross(ax, ay, bx, by), (double)dot(ax, ay, bx, by));
+}
+
+### orient
+--idea
+The orientation test answers one question about three points `a, b, c`: walking from `a` to `b` and then to `c`, do you turn left, turn right, or go straight on? It is the single most reused piece of geometry code, because convex hulls, segment intersection, point in polygon and polygon winding are all just many orientation tests.
+Picture standing at `a`, facing `b`. The point `c` is either to your left, to your right, or exactly on the line you are looking along. The sign of the cross product of `b - a` and `c - a` tells you which, and because it is an integer for integer points it is exact: no decimals, no epsilon, no "almost zero".
+--build
+1. Compute `v = cross(b - a, c - a) = (b.x-a.x)*(c.y-a.y) - (b.y-a.y)*(c.x-a.x)`.
+2. Return `+1` if `v > 0` (left turn, counter-clockwise), `-1` if `v < 0` (right turn, clockwise), `0` if `v == 0` (collinear).
+3. Use only the sign. The size of `v` is twice the triangle area, which you rarely need here.
+4. For "does point `p` lie on the segment `a-b`", combine: `orient(a, b, p) == 0` and `p` is inside the bounding box of `a` and `b` (`min(a.x,b.x) <= p.x <= max(a.x,b.x)`, same for y).
+5. Check the inputs for duplicates: if `a == b` every `c` is reported collinear, which is the correct degenerate answer.
+6. Code: `orient` is the code piece and returns the raw cross value. `turn` calls it and keeps only the sign. `allCollinear` calls `turn` for every point against the first two distinct points.
+--think
+- Signal: "left or right", "clockwise", "do these points form a straight line", "is this polygon convex", "which side of the wall".
+- Decide first the orientation convention (counter-clockwise is positive when x points right and y points up) and keep it everywhere. Screens with y pointing down flip it.
+- With integers there is no epsilon: test `== 0` exactly. With doubles you must pick an epsilon relative to the scale, which is why you should convert to integers (scale decimals up) when you can.
+- Neighbours: dot product for angle between arrows, `atan2` for sorting by angle (but sorting by half-plane and cross product is exact), convex hull for the outer shape.
+- Pitfalls: overflow (the `orient` piece uses 64-bit integers, exact for coordinates up to about `10^9`; beyond that you need `__int128`), mistaking collinear for "no intersection", and assuming a collinear point lies inside the segment when it may lie beyond an end.
+--cost
+O(1) time and space.
+--uses
+u-orientf
+--java
+// +1 left turn, -1 right turn, 0 collinear
+static int turn(long[] a, long[] b, long[] c) {
+    return Long.signum(orient(a[0], a[1], b[0], b[1], c[0], c[1]));
+}
+
+// are all the points on one line (duplicates allowed)
+static boolean allCollinear(long[][] p) {
+    int j = 1;
+    while (j < p.length && Arrays.equals(p[j], p[0])) j++;      // first point different from p[0]
+    for (int i = j + 1; i < p.length; i++)
+        if (turn(p[0], p[j], p[i]) != 0) return false;
+    return true;
+}
+--py
+def turn(a, b, c):
+    """+1 left turn, -1 right turn, 0 collinear."""
+    v = orient(a[0], a[1], b[0], b[1], c[0], c[1])
+    return (v > 0) - (v < 0)
+
+def all_collinear(p):
+    """Are all the points on one line (duplicates allowed)."""
+    j = 1
+    while j < len(p) and p[j] == p[0]:
+        j += 1                                    # first point different from p[0]
+    return all(turn(p[0], p[j], p[i]) == 0 for i in range(j + 1, len(p)))
+--cpp
+typedef pair<long long,long long> P;
+
+// +1 left turn, -1 right turn, 0 collinear
+int turn(P a, P b, P c) {
+    long long v = orient(a.first, a.second, b.first, b.second, c.first, c.second);
+    return (v > 0) - (v < 0);
+}
+
+// are all the points on one line (duplicates allowed)
+bool allCollinear(const vector<P>& p) {
+    size_t j = 1;
+    while (j < p.size() && p[j] == p[0]) j++;                   // first point different from p[0]
+    for (size_t i = j + 1; i < p.size(); i++)
+        if (turn(p[0], p[j], p[i]) != 0) return false;
+    return true;
+}
+
+### seginter
+--idea
+Two segments are finite pieces of a line. They intersect if they share at least one point, including touching at an end and overlapping along the same line. A quick picture: if you stand on a segment `a-b`, the other segment `c-d` crosses it when `c` and `d` are on opposite sides of the line through `a-b`, and `a` and `b` are on opposite sides of the line through `c-d`.
+That two-sided test is exact using the orientation test. The only trap is the case where everything is collinear: all four points lie on one line, and then "opposite sides" says nothing (every orientation is zero). Then you must check whether the shadows on the line overlap, which is a one-dimensional interval test.
+--build
+1. Compute `o1 = orient(a, b, c)`, `o2 = orient(a, b, d)`, `o3 = orient(c, d, a)`, `o4 = orient(c, d, b)`.
+2. General case: if `o1 != o2` and `o3 != o4`, the segments intersect. This covers a proper crossing and also a touching end, where one orientation is 0 and the other is not.
+3. Comparing with `!=` (not `o1 * o2 <= 0`) matters: when all four points are collinear every orientation is 0, and the `<=` form would wrongly say "intersect".
+4. Collinear case: if `o1 == 0` and `c` is on segment `a-b`, they intersect. Do the same for `o2 == 0` with `d`, `o3 == 0` with `a` on `c-d`, and `o4 == 0` with `b` on `c-d`.
+5. Otherwise no intersection.
+6. Degenerate segments (a point, `a == b`) work: all orientations with `a, b` are 0, and the `on_segment` checks do the right thing.
+7. Code: `orient` (the piece) gives the four signs, and `onSegment` (the piece, which checks collinearity and the bounding box together) handles the touching cases.
+--think
+- Signal: "do these two roads cross", "does the line of sight hit a wall", "count crossings", polygon self-intersection, point in polygon.
+- Decide first what counts: do touching ends or overlapping collinear segments count? This code says yes (closed segments). If the problem wants only proper crossings, require `o1*o2 < 0` and `o3*o4 < 0` and skip the collinear branch.
+- Using only the sign test `o1*o2 <= 0 and o3*o4 <= 0` is wrong when all four points are collinear and the segments are apart: the products are all 0 so it says "intersect". That is why the collinear branch exists.
+- Neighbours: line intersection gives the actual meeting point, sweep line (Shamos-Hoey) finds whether any pair among many crosses, and a bounding box test is a cheap filter before this.
+- Pitfalls: floating point (use integers), overflow in orientation, and forgetting degenerate zero-length segments.
+--cost
+O(1) time and space for one pair.
+--uses
+u-orientf
+u-segon
+--java
+static int sgn(long v) { return Long.signum(v); }
+
+// do closed segments a-b and c-d share a point
+static boolean segInter(long[] a, long[] b, long[] c, long[] d) {
+    int o1 = sgn(orient(a[0], a[1], b[0], b[1], c[0], c[1])), o2 = sgn(orient(a[0], a[1], b[0], b[1], d[0], d[1]));
+    int o3 = sgn(orient(c[0], c[1], d[0], d[1], a[0], a[1])), o4 = sgn(orient(c[0], c[1], d[0], d[1], b[0], b[1]));
+    if (o1 != o2 && o3 != o4) return true;      // c,d split a-b and a,b split c-d
+    return onSegment(a[0], a[1], b[0], b[1], c[0], c[1])        // touching or overlapping cases
+        || onSegment(a[0], a[1], b[0], b[1], d[0], d[1])
+        || onSegment(c[0], c[1], d[0], d[1], a[0], a[1])
+        || onSegment(c[0], c[1], d[0], d[1], b[0], b[1]);
+}
+--py
+def sgn(v):
+    return (v > 0) - (v < 0)
+
+def seg_inter(a, b, c, d):
+    """Do closed segments a-b and c-d share a point."""
+    o1, o2 = sgn(orient(*a, *b, *c)), sgn(orient(*a, *b, *d))
+    o3, o4 = sgn(orient(*c, *d, *a)), sgn(orient(*c, *d, *b))
+    if o1 != o2 and o3 != o4:        # c,d split a-b and a,b split c-d
+        return True
+    return (on_segment(*a, *b, *c) or on_segment(*a, *b, *d)      # touching or overlapping
+            or on_segment(*c, *d, *a) or on_segment(*c, *d, *b))
+--cpp
+typedef pair<long long,long long> P;
+
+int sgn(long long v) { return (v > 0) - (v < 0); }
+
+// do closed segments a-b and c-d share a point
+bool segInter(P a, P b, P c, P d) {
+    int o1 = sgn(orient(a.first, a.second, b.first, b.second, c.first, c.second));
+    int o2 = sgn(orient(a.first, a.second, b.first, b.second, d.first, d.second));
+    int o3 = sgn(orient(c.first, c.second, d.first, d.second, a.first, a.second));
+    int o4 = sgn(orient(c.first, c.second, d.first, d.second, b.first, b.second));
+    if (o1 != o2 && o3 != o4) return true;      // c,d split a-b and a,b split c-d
+    return onSegment(a.first, a.second, b.first, b.second, c.first, c.second)   // touching or overlapping
+        || onSegment(a.first, a.second, b.first, b.second, d.first, d.second)
+        || onSegment(c.first, c.second, d.first, d.second, a.first, a.second)
+        || onSegment(c.first, c.second, d.first, d.second, b.first, b.second);
+}
+
+### lineinter
+--idea
+Two lines in a plane either meet in exactly one point, never meet (parallel), or are the same line. To find the meeting point, describe the first line as a start point plus a multiple of a direction: `p + t*r`. The second is `q + u*s`. The lines meet when these are equal, and the cross product lets you solve for `t` in one step.
+The trick is to take the cross product of both sides with `s`. The `u*s` term vanishes because `cross(s, s) = 0`, leaving `t = cross(q - p, s) / cross(r, s)`. If the bottom `cross(r, s)` is zero the directions are parallel and there is no single meeting point. The answer is a fraction of integers, so keep numerator and denominator separate as long as you can.
+--build
+1. Describe line 1 by points `p1, p2` and line 2 by `p3, p4`. Let `r = p2 - p1`, `s = p4 - p3`.
+2. Compute `den = cross(r, s)`. If `den == 0` the lines are parallel (or the same line): report "no unique point".
+3. Compute `num = cross(p3 - p1, s)`. Then `t = num / den`.
+4. The meeting point is `p1 + t * r = (p1.x + r.x*num/den, p1.y + r.y*num/den)`.
+5. To stay exact, return the point as `(x_num / den, y_num / den)` with `x_num = p1.x*den + r.x*num`. Divide only when you must print.
+6. To tell parallel from identical, check `cross(p3 - p1, r) == 0` when `den == 0`.
+7. For segments rather than lines, accept the point only if `0 <= t <= 1` and `0 <= u <= 1` (compare `num` with `0` and `den` after fixing the sign of `den`).
+8. Code: the `cross` piece computes both `den` and `num`.
+--think
+- Signal: "where do the two paths meet", "reflect a point in a mirror line", "intersect two walls", building polygons from half-planes.
+- Decide first if you want the lines (infinite) or segments (finite), and whether you need the exact point or only to know it exists (if only existence, use the orientation test).
+- The returned coordinates are rational. Doubles are fine when you print them, but do not compare two computed points with `==`. Compare the exact fractions or use an epsilon.
+- Neighbours: segment intersection (yes or no, exact), half-plane intersection (many lines at once), circle intersection (quadratic instead of linear).
+- Pitfalls: dividing before checking `den == 0`, treating nearly parallel lines with huge intersection coordinates carelessly, and mixing the `p1`-relative and absolute coordinates.
+--cost
+O(1) time and space.
+--uses
+u-cross
+--java
+// intersection of lines p1-p2 and p3-p4; null if parallel or identical.
+// returns {x, y} as doubles; the numerators are computed exactly in longs.
+static double[] lineInter(long[] p1, long[] p2, long[] p3, long[] p4) {
+    long rx = p2[0] - p1[0], ry = p2[1] - p1[1];
+    long sx = p4[0] - p3[0], sy = p4[1] - p3[1];
+    long den = cross(rx, ry, sx, sy);
+    if (den == 0) return null;
+    long num = cross(p3[0] - p1[0], p3[1] - p1[1], sx, sy);   // t = num / den
+    return new double[]{p1[0] + (double) rx * num / den, p1[1] + (double) ry * num / den};
+}
+--py
+from fractions import Fraction
+
+def line_inter(p1, p2, p3, p4):
+    """Intersection of lines p1-p2 and p3-p4 as exact Fractions; None if parallel."""
+    rx, ry = p2[0] - p1[0], p2[1] - p1[1]
+    sx, sy = p4[0] - p3[0], p4[1] - p3[1]
+    den = cross(rx, ry, sx, sy)
+    if den == 0:
+        return None
+    num = cross(p3[0] - p1[0], p3[1] - p1[1], sx, sy)   # t = num / den
+    t = Fraction(num, den)
+    return (p1[0] + rx * t, p1[1] + ry * t)
+--cpp
+typedef pair<long long,long long> P;
+
+// intersection of lines p1-p2 and p3-p4; false if parallel or identical.
+bool lineInter(P p1, P p2, P p3, P p4, double& x, double& y) {
+    long long rx = p2.first - p1.first, ry = p2.second - p1.second;
+    long long sx = p4.first - p3.first, sy = p4.second - p3.second;
+    long long den = cross(rx, ry, sx, sy);
+    if (den == 0) return false;
+    long long num = cross(p3.first - p1.first, p3.second - p1.second, sx, sy);  // t = num / den
+    x = p1.first + (double)rx * num / den;
+    y = p1.second + (double)ry * num / den;
+    return true;
+}
+
+### polyarea
+--idea
+The shoelace formula gives the area of any simple polygon (one whose edges do not cross) from its corner coordinates alone. Walk around the boundary; for each edge from `p[i]` to `p[i+1]`, compute `x_i*y_{i+1} - x_{i+1}*y_i`, add them all up, and halve the absolute value.
+Why it works: each term is the signed area of the triangle formed by the origin and that edge. Edges going counter-clockwise around the origin add area, edges going the other way subtract it. Everything outside the polygon is added once and subtracted once, so only the inside is left. The sign of the total also tells you the winding: positive means the corners are listed counter-clockwise.
+--build
+1. List the corners in order around the boundary as `p[0..n-1]`, either direction, no repeats.
+2. Start `s = 0`. For `i` from 0 to `n-1`, let `j = (i + 1) % n` (the last corner wraps to the first).
+3. Add `cross(p[i], p[j]) = p[i].x*p[j].y - p[i].y*p[j].x` to `s`.
+4. `s` is twice the signed area. Positive means counter-clockwise, negative clockwise.
+5. The area is `|s| / 2`. Return `|s|` (twice the area) when you want to stay in integers: for integer corners, twice the area is always an integer.
+6. To reduce overflow, subtract one corner from all the others first (use `cross(p[i]-p[0], p[j]-p[0])`), which keeps the numbers small.
+7. Code: `polygonArea2` (the shoelace piece, taking an array of `x` and an array of `y`) does steps 2 to 4. `area2` takes its absolute value and `isCounterClockwise` checks its sign.
+--think
+- Signal: "area of the polygon", "is it oriented clockwise", "area of a region from boundary points", "is the point set a rectangle". It is also a hidden tool inside Pick's theorem and polygon triangulation.
+- Decide first whether the polygon is simple. For a self-intersecting polygon the formula returns a signed sum that is not an area.
+- Keep it doubled. Dividing by two loses nothing in the answer but turns an integer into a fraction. Only print `s/2` and `.5` at the end.
+- Neighbours: Pick's theorem (area from lattice points), triangulation (split into triangles), convex hull (find the polygon first), `cross3` for a single triangle.
+- Pitfalls: forgetting the wrap-around edge, overflow when summing `10^18` terms (use the shifted form or `__int128`), and taking `abs` too early when you need the winding sign.
+--cost
+O(n) time, O(1) extra space.
+--uses
+u-polyarea2
+--java
+// twice the (unsigned) area; exact in integers
+static long area2(long[] x, long[] y) { return Math.abs(polygonArea2(x, y)); }
+
+// are the corners listed counter-clockwise
+static boolean isCounterClockwise(long[] x, long[] y) { return polygonArea2(x, y) > 0; }
+--py
+def area2(x, y):
+    """Twice the (unsigned) area; exact in integers."""
+    return abs(polygon_area2(x, y))
+
+def is_counter_clockwise(x, y):
+    """Are the corners listed counter-clockwise."""
+    return polygon_area2(x, y) > 0
+--cpp
+// twice the (unsigned) area; exact in integers
+long long area2(const vector<long long>& x, const vector<long long>& y) { return llabs(polygonArea2(x, y)); }
+
+// are the corners listed counter-clockwise
+bool isCounterClockwise(const vector<long long>& x, const vector<long long>& y) { return polygonArea2(x, y) > 0; }
+
+### manhattan
+--idea
+Manhattan distance is how far you walk in a city grid where you can only move along streets: `|dx| + |dy|`. Chebyshev distance is how many moves a chess king needs: `max(|dx|, |dy|)`. They look different but are the same thing seen from a turned head: rotate the plane by 45 degrees and stretch it, using `u = x + y` and `v = x - y`, and Manhattan distance in `(x, y)` becomes Chebyshev distance in `(u, v)`, and the other way round.
+That turn makes hard questions easy. The farthest pair in Manhattan distance is the pair with the largest spread in `u` or in `v`, so you only need the min and max of two numbers per point instead of comparing all pairs.
+--build
+1. Manhattan: `manhattan(a, b) = |a.x - b.x| + |a.y - b.y|`. Chebyshev: `cheb(a, b) = max(|a.x - b.x|, |a.y - b.y|)`.
+2. Identity: `|dx| + |dy| = max(|dx + dy|, |dx - dy|)`. So Manhattan distance equals Chebyshev distance of the transformed points `(x + y, x - y)`.
+3. To find the largest Manhattan distance between any two of `n` points: compute `u = x + y` and `v = x - y` for every point.
+4. Track `maxU, minU, maxV, minV`.
+5. The answer is `max(maxU - minU, maxV - minV)`.
+6. For the nearest or farthest point to a query, the same four extremes (with the query's own `u`, `v`) work. Transform back if you need coordinates: `x = (u + v) / 2`, `y = (u - v) / 2`, which needs `u + v` even.
+7. Code: the pieces `dist` (absolute difference of two numbers) and `sign` (minus one, zero or one) are called by `manhattan`, `cheb` and `kingStep`. These pieces take `int`, so coordinates here are ints.
+--think
+- Signal: moves along a grid with no diagonals (Manhattan), moves with diagonals costing the same (Chebyshev), "farthest pair", "minimum distance sum".
+- Decide first which metric the movement rule defines, then whether a transform removes the absolute values. Absolute values are the sign of a rotation trick.
+- Neighbours: median for minimising the sum of Manhattan distances to a set (take the median x and the median y separately), BFS on grids when walls exist.
+- Manhattan circles are diamonds and Chebyshev circles are squares: a diamond becomes an axis aligned square after the transform, which is why range counting turns into a rectangle query.
+- Pitfalls: the transformed points only occupy points where `u` and `v` have the same parity, forgetting that `/2` loses this, and using Euclidean thinking (squares of differences) where the problem says Manhattan.
+--cost
+O(n) time, O(1) space for the farthest pair.
+--uses
+u-abs
+--java
+static long manhattan(int[] a, int[] b) { return (long) dist(a[0], b[0]) + dist(a[1], b[1]); }
+static long cheb(int[] a, int[] b) { return Math.max(dist(a[0], b[0]), dist(a[1], b[1])); }
+
+// one king move from a toward b (each step is -1, 0 or 1)
+static int[] kingStep(int[] a, int[] b) { return new int[]{sign(b[0] - a[0]), sign(b[1] - a[1])}; }
+
+// largest Manhattan distance between any two points, in O(n)
+static long maxManhattan(int[][] p) {
+    long maxU = Long.MIN_VALUE, minU = Long.MAX_VALUE, maxV = Long.MIN_VALUE, minV = Long.MAX_VALUE;
+    for (int[] q : p) {
+        long u = (long) q[0] + q[1], v = (long) q[0] - q[1];      // rotated coordinates
+        maxU = Math.max(maxU, u); minU = Math.min(minU, u);
+        maxV = Math.max(maxV, v); minV = Math.min(minV, v);
+    }
+    return Math.max(maxU - minU, maxV - minV);
+}
+--py
+def manhattan(a, b):
+    return dist(a[0], b[0]) + dist(a[1], b[1])
+
+def cheb(a, b):
+    return max(dist(a[0], b[0]), dist(a[1], b[1]))
+
+def king_step(a, b):
+    """One king move from a toward b (each step is -1, 0 or 1)."""
+    return (sign(b[0] - a[0]), sign(b[1] - a[1]))
+
+def max_manhattan(p):
+    """Largest Manhattan distance between any two points, in O(n)."""
+    us = [x + y for x, y in p]      # rotated coordinates
+    vs = [x - y for x, y in p]
+    return max(max(us) - min(us), max(vs) - min(vs))
+--cpp
+long long manhattan(pair<int,int> a, pair<int,int> b) { return (long long)dist(a.first, b.first) + dist(a.second, b.second); }
+long long cheb(pair<int,int> a, pair<int,int> b) { return max(dist(a.first, b.first), dist(a.second, b.second)); }
+
+// one king move from a toward b (each step is -1, 0 or 1)
+pair<int,int> kingStep(pair<int,int> a, pair<int,int> b) { return {sign(b.first - a.first), sign(b.second - a.second)}; }
+
+// largest Manhattan distance between any two points, in O(n)
+long long maxManhattan(const vector<pair<int,int>>& p) {
+    long long maxU = LLONG_MIN, minU = LLONG_MAX, maxV = LLONG_MIN, minV = LLONG_MAX;
+    for (auto& q : p) {
+        long long u = (long long)q.first + q.second, v = (long long)q.first - q.second;   // rotated coordinates
+        maxU = max(maxU, u); minU = min(minU, u);
+        maxV = max(maxV, v); minV = min(minV, v);
+    }
+    return max(maxU - minU, maxV - minV);
+}
+
+### pip
+--idea
+Point in polygon asks whether a point lies inside a shape drawn by its corners. The trick is to shoot a ray from the point straight to the right, forever, and count how many polygon edges it crosses. An odd count means you started inside, an even count means outside. Picture walking out of a walled garden: every wall you cross flips whether you are in the garden or not, and once you are far away you are certainly outside.
+This works for any simple polygon, convex or not. The care goes into the edge cases: a ray that passes exactly through a corner, a ray that runs along a horizontal edge, and a point sitting right on the boundary. A clean rule handles them all without special cases: count an edge only if one of its ends is strictly above the ray's height and the other is not (a half-open test), and check the boundary separately first.
+--build
+1. Let the polygon have corners `p[0..n-1]` and edges `p[i] -> p[(i+1) % n]`. Let `q` be the query point. Set `inside = false`.
+2. For each edge `a -> b`: if `q` lies on the closed segment `a-b` (orientation 0 and inside the bounding box), return "boundary" at once.
+3. Check whether the edge straddles the ray's height with the half-open rule: `(a.y > q.y) != (b.y > q.y)`. Horizontal edges fail this automatically, and a corner exactly at the ray's height is counted for only one of its two edges.
+4. If it straddles, decide if the crossing is to the right of `q`. With `c = cross(b - a, q - a)`: when the edge goes up (`b.y > a.y`) the crossing is to the right of `q` exactly when `c > 0`. When it goes down it is when `c < 0`. This avoids division and stays exact.
+5. If the crossing is to the right, flip `inside`.
+6. After all edges return "inside" or "outside". Use codes 0 outside, 1 inside, 2 boundary.
+7. Code: step 2 and step 4 both use the `orient` piece (the raw cross value `c`).
+--think
+- Signal: "is this point in the region", "count points inside the field", "does the robot stay in the polygon". For a convex polygon you can also do a binary search over the fan of triangles, in O(log n).
+- Decide first whether boundary points count as inside. Check the boundary first, separately, and the rest of the code becomes clean.
+- Use integers so the cross product is exact. A floating point version that computes the x of the crossing and compares has to fight rounding at corners.
+- Neighbours: winding number (handles self-intersecting shapes and gives the number of loops), many queries against one polygon (sweep or trapezoid maps), and the segment intersection test.
+- Pitfalls: the ray hitting a corner twice (use the half-open rule `>` on one side only), horizontal edges, mixing up the direction test of step 4, and forgetting the wrap edge.
+--cost
+O(n) time per query, O(1) space.
+--uses
+u-orientf
+--java
+// 0 outside, 1 inside, 2 on the boundary
+static int pointInPolygon(long[][] p, long[] q) {
+    int n = p.length;
+    boolean inside = false;
+    for (int i = 0; i < n; i++) {
+        long[] a = p[i], b = p[(i + 1) % n];
+        long c = orient(a[0], a[1], b[0], b[1], q[0], q[1]);
+        if (c == 0 && Math.min(a[0], b[0]) <= q[0] && q[0] <= Math.max(a[0], b[0])
+                   && Math.min(a[1], b[1]) <= q[1] && q[1] <= Math.max(a[1], b[1])) return 2;
+        if ((a[1] > q[1]) != (b[1] > q[1])) {          // edge straddles the ray's height
+            if (b[1] > a[1] ? c > 0 : c < 0) inside = !inside;   // crossing is right of q
+        }
+    }
+    return inside ? 1 : 0;
+}
+--py
+def point_in_polygon(p, q):
+    """0 outside, 1 inside, 2 on the boundary."""
+    n = len(p)
+    inside = False
+    for i in range(n):
+        a, b = p[i], p[(i + 1) % n]
+        c = orient(a[0], a[1], b[0], b[1], q[0], q[1])
+        if (c == 0 and min(a[0], b[0]) <= q[0] <= max(a[0], b[0])
+                and min(a[1], b[1]) <= q[1] <= max(a[1], b[1])):
+            return 2
+        if (a[1] > q[1]) != (b[1] > q[1]):             # edge straddles the ray's height
+            if (c > 0) if b[1] > a[1] else (c < 0):     # crossing is right of q
+                inside = not inside
+    return 1 if inside else 0
+--cpp
+typedef pair<long long,long long> P;
+
+// 0 outside, 1 inside, 2 on the boundary
+int pointInPolygon(const vector<P>& p, P q) {
+    int n = p.size();
+    bool inside = false;
+    for (int i = 0; i < n; i++) {
+        P a = p[i], b = p[(i + 1) % n];
+        long long c = orient(a.first, a.second, b.first, b.second, q.first, q.second);
+        if (c == 0 && min(a.first, b.first) <= q.first && q.first <= max(a.first, b.first)
+                   && min(a.second, b.second) <= q.second && q.second <= max(a.second, b.second)) return 2;
+        if ((a.second > q.second) != (b.second > q.second)) {      // edge straddles the ray's height
+            if (b.second > a.second ? c > 0 : c < 0) inside = !inside;   // crossing is right of q
+        }
+    }
+    return inside ? 1 : 0;
+}
+
+### hull
+--idea
+The convex hull of a set of points is the smallest convex shape that contains them all. Picture hammering nails into a board at each point and stretching a rubber band around the outside: the band settles on the hull, touching only the outermost nails. Convex means that if you walk around the band you only ever turn left (never right).
+Andrew's monotone chain builds it in two sweeps. Sort the points left to right. Build the bottom edge by scanning from left to right, keeping a stack of points and dropping the last one whenever the new point would make a right turn or a straight line. Then do the same going back right to left to build the top edge. The orientation test decides every drop, and sorting makes it correct: each scan only ever needs to look at the top two points of the stack.
+--build
+1. Sort the points by `(x, y)` and remove duplicates. If fewer than 2 points remain, return them as they are.
+2. Lower hull: make an empty list `h`. For each point `p` in sorted order: while `h` has at least 2 points and `cross(h[-2], h[-1], p) <= 0`, pop the last point (it makes a right turn or is collinear, so it is not a corner). Then push `p`.
+3. Upper hull: let `t = len(h) + 1`. Go through the points again in reverse order, skipping the very last point (it is already in `h`). Use the same loop, but compare `len(h) >= t` instead of `>= 2` so that you do not pop the lower hull.
+4. The last point pushed equals the first one (the loop closes the cycle). Remove it.
+5. The result lists the corners counter-clockwise, starting from the leftmost lowest point, with no three collinear points.
+6. Use `<= 0` in step 2 to throw away collinear points on the boundary. Use `< 0` if the problem wants them kept (then handle the all-collinear case separately).
+Invariant: after processing each point the stack is the convex chain of all points seen so far, turning only left.
+7. Code: the `orient` piece gives the turn test in steps 2 and 3 (wrapped as `turn`). The piece `sortByAngle` is not used: Graham-style angle sorting needs `atan2` on doubles, which is not exact, so this lesson sorts by `(x, y)` instead.
+--think
+- Signal: "smallest fence", "outer boundary", "farthest pair" (hull, then rotating calipers), "is the point inside the hull", "convex layers".
+- Decide first whether to keep collinear points on the boundary. The default is to drop them. Also decide what to return for one point, two points, or all points on one line.
+- Duplicates break the cross product test in subtle ways (a zero turn). Removing them first is the easy fix.
+- Neighbours: Graham scan (the same idea sorted by angle, trickier with ties), gift wrapping (O(nh), good when the hull is tiny), rotating calipers (diameter, width on the finished hull), half-plane intersection (hull of constraints).
+- Pitfalls: popping with `<` and leaving collinear junk, forgetting `t` in the upper pass, and floating point input (round to integers, or use an exact predicate).
+--cost
+O(n log n) for the sort, then O(n) for the two sweeps. Space O(n).
+--uses
+u-orientf
+--java
+// cross of (a - o) and (b - o) using the orient piece
+static long turn(long[] o, long[] a, long[] b) { return orient(o[0], o[1], a[0], a[1], b[0], b[1]); }
+
+// corners of the convex hull, counter-clockwise, no collinear points
+static List<long[]> convexHull(long[][] pts) {
+    long[][] p = pts.clone();
+    Arrays.sort(p, (u, v) -> u[0] != v[0] ? Long.compare(u[0], v[0]) : Long.compare(u[1], v[1]));
+    List<long[]> q = new ArrayList<>();
+    for (long[] x : p) if (q.isEmpty() || !Arrays.equals(q.get(q.size() - 1), x)) q.add(x);  // drop duplicates
+    if (q.size() < 3) return q;
+    List<long[]> h = new ArrayList<>();
+    for (long[] x : q) {                                    // lower hull
+        while (h.size() >= 2 && turn(h.get(h.size() - 2), h.get(h.size() - 1), x) <= 0) h.remove(h.size() - 1);
+        h.add(x);
+    }
+    int t = h.size() + 1;
+    for (int i = q.size() - 2; i >= 0; i--) {               // upper hull
+        long[] x = q.get(i);
+        while (h.size() >= t && turn(h.get(h.size() - 2), h.get(h.size() - 1), x) <= 0) h.remove(h.size() - 1);
+        h.add(x);
+    }
+    h.remove(h.size() - 1);                                 // last point repeats the first
+    return h;
+}
+--py
+def turn(o, a, b):
+    """cross of (a - o) and (b - o) using the orient piece."""
+    return orient(o[0], o[1], a[0], a[1], b[0], b[1])
+
+def convex_hull(pts):
+    """Corners of the convex hull, counter-clockwise, no collinear points."""
+    p = sorted(set(pts))                       # sorted and without duplicates
+    if len(p) < 3:
+        return p
+    h = []
+    for x in p:                                # lower hull
+        while len(h) >= 2 and turn(h[-2], h[-1], x) <= 0:
+            h.pop()
+        h.append(x)
+    t = len(h) + 1
+    for x in reversed(p[:-1]):                 # upper hull
+        while len(h) >= t and turn(h[-2], h[-1], x) <= 0:
+            h.pop()
+        h.append(x)
+    h.pop()                                    # last point repeats the first
+    return h
+--cpp
+typedef pair<long long,long long> P;
+
+// cross of (a - o) and (b - o) using the orient piece
+long long turn(P o, P a, P b) { return orient(o.first, o.second, a.first, a.second, b.first, b.second); }
+
+// corners of the convex hull, counter-clockwise, no collinear points
+vector<P> convexHull(vector<P> p) {
+    sort(p.begin(), p.end());
+    p.erase(unique(p.begin(), p.end()), p.end());           // drop duplicates
+    if (p.size() < 3) return p;
+    vector<P> h;
+    for (auto& x : p) {                                     // lower hull
+        while (h.size() >= 2 && turn(h[h.size() - 2], h.back(), x) <= 0) h.pop_back();
+        h.push_back(x);
+    }
+    size_t t = h.size() + 1;
+    for (int i = (int)p.size() - 2; i >= 0; i--) {          // upper hull
+        while (h.size() >= t && turn(h[h.size() - 2], h.back(), p[i]) <= 0) h.pop_back();
+        h.push_back(p[i]);
+    }
+    h.pop_back();                                           // last point repeats the first
+    return h;
+}
+
+### circle
+--idea
+A circle is every point at a fixed distance `r` (the radius) from a centre. Most circle questions can be answered without any square roots or angles, by comparing squared distances. A point is inside when its squared distance to the centre is less than `r*r`, on the circle when equal, outside when greater.
+Two circles with centres `d` apart (compare `d*d`, the squared distance) are in one of a few relations: far apart (`d > r1 + r2`), touching from outside (`d = r1 + r2`), crossing at two points, touching from inside (`d = |r1 - r2|`), one inside the other (`d < |r1 - r2|`), or identical. A circle through three non-collinear points exists and is unique; its centre is where the perpendicular bisectors of the sides meet.
+--build
+1. Point test: `dist2(p, c)` against `r*r`. Equal means on the circle.
+2. Two circles `(c1, r1)` and `(c2, r2)`: let `D = dist2(c1, c2)`, `S = (r1 + r2)^2`, `T = (r1 - r2)^2`.
+3. If `D == 0` and `r1 == r2` they are the same circle (infinitely many common points). If `D == 0` otherwise they are nested with 0 common points.
+4. Otherwise: `D > S` or `D < T` gives 0 points, `D == S` or `D == T` gives 1 point, and `T < D < S` gives 2 points.
+5. To find the 2 points: let `d = sqrt(D)`, `a = (r1^2 - r2^2 + D) / (2d)` (distance from `c1` along the centre line to the chord), `h = sqrt(r1^2 - a^2)`. The base point is `m = c1 + a*(c2 - c1)/d`; the two points are `m +- h*(-(c2.y-c1.y), c2.x-c1.x)/d`.
+6. Circle through `a, b, c`: shift so `a` is the origin, `B = b - a`, `C = c - a`, `den = 2*cross(B, C)`. If `den == 0` the points are collinear (no circle). The centre offset is `((C.y*|B|^2 - B.y*|C|^2) / den, (B.x*|C|^2 - C.x*|B|^2) / den)`.
+7. Code: the `dist2` piece (squared distance, `int` coordinates) is called by `commonPoints` for `D` and by `where` for the point test. So circle inputs here are ints.
+--think
+- Signal: "do these circles overlap", "coverage by radar", "circle through three points", "tangent from a point", "intersection of a circle and a line".
+- Decide first whether you only need yes/no or a count (squared integer comparisons, exact) or the actual points (square roots, so doubles and epsilon).
+- Square roots only appear at the end. Squares of integers up to `10^9` are up to `10^18`, which still fit 64 bits; the sum `S = (r1+r2)^2` can overflow, so use `__int128` for huge inputs.
+- Neighbours: minimum enclosing circle (smallest circle around points), power of a point and tangents (`tangent length^2 = dist2(p, c) - r^2`), line-circle intersection (distance from centre to line versus `r`), inversion for tricky tangency problems.
+- Pitfalls: concentric circles dividing by zero in step 5, `h^2` slightly negative from rounding (clamp at 0), and comparing `d` to `r1 + r2` with floating point when integers would do.
+--cost
+O(1) time and space.
+--uses
+u-dist2
+--java
+// number of common points of two circles: 0, 1, 2, or -1 for identical (infinitely many)
+static int commonPoints(int x1, int y1, int r1, int x2, int y2, int r2) {
+    long D = dist2(x1, y1, x2, y2), S = (long) (r1 + r2) * (r1 + r2), T = (long) (r1 - r2) * (r1 - r2);
+    if (D == 0 && r1 == r2) return -1;
+    if (D > S || D < T) return 0;
+    if (D == S || D == T) return 1;
+    return 2;
+}
+
+// -1 if the point is inside the circle, 0 on it, 1 outside
+static int where(int px, int py, int cx, int cy, int r) {
+    return Long.compare(dist2(px, py, cx, cy), (long) r * r);
+}
+
+// centre of the circle through three points; null if they are collinear
+static double[] circumcenter(int[] a, int[] b, int[] c) {
+    long bx = b[0] - a[0], by = b[1] - a[1], cx = c[0] - a[0], cy = c[1] - a[1];
+    long den = 2 * (bx * cy - by * cx);
+    if (den == 0) return null;
+    long b2 = bx * bx + by * by, c2 = cx * cx + cy * cy;
+    return new double[]{a[0] + (double) (cy * b2 - by * c2) / den, a[1] + (double) (bx * c2 - cx * b2) / den};
+}
+--py
+def common_points(x1, y1, r1, x2, y2, r2):
+    """Number of common points of two circles: 0, 1, 2, or -1 if identical."""
+    D = dist2(x1, y1, x2, y2)
+    S = (r1 + r2) ** 2
+    T = (r1 - r2) ** 2
+    if D == 0 and r1 == r2:
+        return -1
+    if D > S or D < T:
+        return 0
+    if D == S or D == T:
+        return 1
+    return 2
+
+def where(px, py, cx, cy, r):
+    """-1 if the point is inside the circle, 0 on it, 1 outside."""
+    d = dist2(px, py, cx, cy)
+    return (d > r * r) - (d < r * r)
+
+def circumcenter(a, b, c):
+    """Centre of the circle through three points; None if they are collinear."""
+    bx, by, cx, cy = b[0] - a[0], b[1] - a[1], c[0] - a[0], c[1] - a[1]
+    den = 2 * (bx * cy - by * cx)
+    if den == 0:
+        return None
+    b2, c2 = bx * bx + by * by, cx * cx + cy * cy
+    return (a[0] + (cy * b2 - by * c2) / den, a[1] + (bx * c2 - cx * b2) / den)
+--cpp
+// number of common points of two circles: 0, 1, 2, or -1 for identical (infinitely many)
+int commonPoints(int x1, int y1, int r1, int x2, int y2, int r2) {
+    long long D = dist2(x1, y1, x2, y2), S = (long long)(r1 + r2) * (r1 + r2), T = (long long)(r1 - r2) * (r1 - r2);
+    if (D == 0 && r1 == r2) return -1;
+    if (D > S || D < T) return 0;
+    if (D == S || D == T) return 1;
+    return 2;
+}
+
+// -1 if the point is inside the circle, 0 on it, 1 outside
+int where(int px, int py, int cx, int cy, int r) {
+    long long d = dist2(px, py, cx, cy), rr = (long long)r * r;
+    return (d > rr) - (d < rr);
+}
+
+// centre of the circle through three points; false if they are collinear
+bool circumcenter(pair<int,int> a, pair<int,int> b, pair<int,int> c, double& ox, double& oy) {
+    long long bx = b.first - a.first, by = b.second - a.second;
+    long long cx = c.first - a.first, cy = c.second - a.second;
+    long long den = 2 * (bx * cy - by * cx);
+    if (den == 0) return false;
+    long long b2 = bx * bx + by * by, c2 = cx * cx + cy * cy;
+    ox = a.first + (double)(cy * b2 - by * c2) / den;
+    oy = a.second + (double)(bx * c2 - cx * b2) / den;
+    return true;
+}
+
+### picks
+--idea
+Pick's theorem links the area of a polygon whose corners sit on integer grid points to counting grid points: `A = I + B/2 - 1`, where `I` is the number of grid points strictly inside and `B` is the number on the boundary. Picture a polygon drawn on graph paper: count the dots inside, add half the dots on the edges, subtract one, and you have the area.
+The reason it works is that it is true for the smallest piece (a triangle with no other grid points has area 1/2), it adds up correctly when you glue two polygons along an edge, and every polygon can be cut into such triangles. In practice you use it in two directions: find the area (shoelace) and the boundary count (gcd) and then solve for the interior count `I`, which would otherwise be impossible to count directly in a huge polygon.
+--build
+1. Corners `p[0..n-1]` are integer points, the polygon is simple (edges do not cross), the order is around the boundary.
+2. Twice the area: `A2 = |sum of cross(p[i], p[i+1])|` (the shoelace formula).
+3. Boundary points: for each edge `p[i] -> p[i+1]` the number of grid points on it, not counting the start, is `gcd(|dx|, |dy|)`. Sum these to get `B`. (An edge with `dx = 0` gives `|dy|`.)
+4. Rearrange Pick: `I = A - B/2 + 1`. In integers: `I = (A2 - B + 2) / 2`.
+5. Return `(I, B)`. The total number of lattice points inside or on the shape is `I + B`.
+6. Sanity check: a unit square has `A2 = 2`, `B = 4`, so `I = (2 - 4 + 2) / 2 = 0`.
+7. Code: step 3 calls the gcd piece (Java `gcd`, Python `math.gcd`, C++ `std::gcd` from `<numeric>`). The gcd piece takes `int`, so corners here are ints.
+--think
+- Signal: "count integer points inside a triangle or polygon", "area is huge but corners are integer", "how many cells does the walk enclose".
+- Decide first that the corners are on the lattice and the polygon is simple. If edges cross or corners are not integers, the theorem does not apply.
+- It goes both ways: if you can count `I` and `B` cheaply, you get the area, and the reverse. Many problems ask for the interior count of a polygon with a million-unit sides, and the answer is a single formula.
+- Neighbours: shoelace area (the first half), gcd on the edges (the second half), floor sums for lattice points under a line, Euler's formula for similar counting identities.
+- Pitfalls: summing gcd per edge counts each corner once as long as you skip the starting point of each edge, parity (`A2 - B + 2` is always even for a valid polygon), and overflow in the shoelace sum.
+--cost
+O(n log C) time where C is the largest coordinate (the gcds), O(1) space.
+--java
+// returns {interior points I, boundary points B} of a simple lattice polygon
+static long[] picks(int[][] p) {
+    int n = p.length;
+    long a2 = 0, b = 0;
+    for (int i = 0; i < n; i++) {
+        int j = (i + 1) % n;
+        a2 += (long) p[i][0] * p[j][1] - (long) p[i][1] * p[j][0];             // shoelace
+        b += gcd(Math.abs(p[j][0] - p[i][0]), Math.abs(p[j][1] - p[i][1]));    // points on the edge
+    }
+    a2 = Math.abs(a2);
+    return new long[]{(a2 - b + 2) / 2, b};
+}
+--py
+from math import gcd
+
+def picks(p):
+    """Returns (interior points I, boundary points B) of a simple lattice polygon."""
+    n = len(p)
+    a2 = b = 0
+    for i in range(n):
+        j = (i + 1) % n
+        a2 += p[i][0] * p[j][1] - p[i][1] * p[j][0]                        # shoelace
+        b += gcd(abs(p[j][0] - p[i][0]), abs(p[j][1] - p[i][1]))            # points on the edge
+    a2 = abs(a2)
+    return ((a2 - b + 2) // 2, b)
+--cpp
+// returns {interior points I, boundary points B} of a simple lattice polygon
+pair<long long,long long> picks(const vector<pair<int,int>>& p) {
+    int n = p.size();
+    long long a2 = 0, b = 0;
+    for (int i = 0; i < n; i++) {
+        int j = (i + 1) % n;
+        a2 += (long long)p[i].first * p[j].second - (long long)p[i].second * p[j].first;   // shoelace
+        b += gcd(abs(p[j].first - p[i].first), abs(p[j].second - p[i].second));          // points on the edge
+    }
+    a2 = llabs(a2);
+    return {(a2 - b + 2) / 2, b};
+}
+
+### lattice
+--idea
+A lattice point is a point with integer coordinates, like a corner of graph paper. Two questions come up again and again: how many lattice points lie on a segment, and how many lie under a line (or inside a triangle). The first has a neat answer: a segment from `a` to `b` has `gcd(|dx|, |dy|) + 1` lattice points, because stepping by the reduced direction `(dx/g, dy/g)` lands exactly on lattice points and on nothing in between.
+The second is counting `sum of floor((a*i + b) / m)` over `i = 0..n-1`, the number of integer points on or under a sloped line. A direct loop is too slow when `n` is enormous. The floor sum trick works like the Euclidean algorithm: reduce `a` and `b` modulo `m`, pull out the whole part in closed form, then swap the roles of the line's height and width and repeat. The numbers shrink as in gcd, so it takes logarithmic time.
+--build
+1. Points on a segment: `g = gcd(|dx|, |dy|)`. There are `g + 1` lattice points including both ends, `g - 1` strictly between them.
+2. Goal of the floor sum: `f(n, m, a, b) = sum for i in [0, n) of floor((a*i + b) / m)`, with `a, b >= 0`, `m > 0`.
+3. If `a >= m`: write `a = (a / m)*m + a % m`. The part `(a / m) * i` adds `(a / m) * n*(n-1)/2` to the answer. Replace `a` by `a % m`.
+4. If `b >= m`: the whole part adds `(b / m) * n`. Replace `b` by `b % m`.
+5. Now `a < m` and `b < m`. Let `y = a*n + b`. If `y < m` every term is 0: stop.
+6. Otherwise the line's top is `y`; count by rows instead of columns. Set `n = y / m`, `b = y % m`, and swap `m` and `a`. Repeat from step 3.
+7. Using it: lattice points with `x` in `[1, n]` and `1 <= y <= (a*x + b)/m` are `f(n + 1, m, a, b) - floor(b/m)`.
+8. Code: step 1 calls the gcd piece (Java `gcd`, Python `math.gcd`, C++ `std::gcd` from `<numeric>`), which takes `int`.
+--think
+- Signal: "count integer points under the line y = ax/m", "number of pairs (x, y) with a*x + b*y <= c", "points inside a triangle with integer corners" (combine with Pick's theorem), "sum of floor of a linear function".
+- Decide first whether you can reduce to a floor sum (a linear floor inside a sum) or to the gcd count (points exactly on a segment).
+- Floor sum is a small Euclid: each swap replaces `(m, a)` by `(a, m % a)`-like smaller numbers, so the depth is logarithmic.
+- Neighbours: Pick's theorem (area and boundary give interior), extended Euclid for solving `a*x + b*y = c` over integers, number theory sums with floors (divisor block trick).
+- Pitfalls: negative `a` or `b` (shift into non-negative first with floor division), overflow of `n*(n-1)/2*(a/m)` (the answer itself may exceed 64 bits), and using `/` on negatives in Java and C++ (it truncates toward zero).
+--cost
+Floor sum O(log m). Points on a segment O(log C) for the gcd.
+--java
+// lattice points on the closed segment a-b
+static long pointsOnSegment(int[] a, int[] b) {
+    return gcd(Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1])) + 1;
+}
+
+// sum of floor((a*i + b) / m) for i in [0, n), with a, b >= 0 and m > 0
+static long floorSum(long n, long m, long a, long b) {
+    long ans = 0;
+    while (true) {
+        if (a >= m) { ans += n * (n - 1) / 2 * (a / m); a %= m; }
+        if (b >= m) { ans += n * (b / m); b %= m; }
+        long y = a * n + b;
+        if (y < m) break;
+        n = y / m; b = y % m;          // count by rows instead of columns
+        long t = m; m = a; a = t;      // swap the roles
+    }
+    return ans;
+}
+--py
+from math import gcd
+
+def points_on_segment(a, b):
+    """Lattice points on the closed segment a-b."""
+    return gcd(abs(b[0] - a[0]), abs(b[1] - a[1])) + 1
+
+def floor_sum(n, m, a, b):
+    """Sum of (a*i + b) // m for i in [0, n), with a, b >= 0 and m > 0."""
+    ans = 0
+    while True:
+        if a >= m:
+            ans += n * (n - 1) // 2 * (a // m)
+            a %= m
+        if b >= m:
+            ans += n * (b // m)
+            b %= m
+        y = a * n + b
+        if y < m:
+            break
+        n, b = y // m, y % m        # count by rows instead of columns
+        m, a = a, m                 # swap the roles
+    return ans
+--cpp
+// lattice points on the closed segment a-b
+long long pointsOnSegment(pair<int,int> a, pair<int,int> b) {
+    return gcd(abs(b.first - a.first), abs(b.second - a.second)) + 1;
+}
+
+// sum of floor((a*i + b) / m) for i in [0, n), with a, b >= 0 and m > 0
+long long floorSum(long long n, long long m, long long a, long long b) {
+    long long ans = 0;
+    while (true) {
+        if (a >= m) { ans += n * (n - 1) / 2 * (a / m); a %= m; }
+        if (b >= m) { ans += n * (b / m); b %= m; }
+        long long y = a * n + b;
+        if (y < m) break;
+        n = y / m; b = y % m;          // count by rows instead of columns
+        swap(m, a);                    // swap the roles
+    }
+    return ans;
+}
+
+### rotation
+--idea
+Turning a point around the origin by an angle is a multiplication in disguise. Treat the point `(x, y)` as the complex number `x + y*i`. Multiplying by `cos(t) + i*sin(t)` turns it anticlockwise by angle `t` and keeps its distance from the origin. Written out, the new point is `(x*cos t - y*sin t, x*sin t + y*cos t)`.
+Two exact cases need no trigonometry at all. A quarter turn is `(x, y) -> (-y, x)`, and a half turn is `(-x, -y)`. If you multiply by an integer vector `(c, s)` instead of `(cos, sin)` you get a turn plus a stretch by the length of `(c, s)`, still in exact integers. To turn around some other centre, subtract the centre, turn, and add the centre back.
+--build
+1. Rotate by 90 degrees anticlockwise: `rot90(x, y) = (-y, x)`. Apply it twice for 180, three times for 270.
+2. Rotate by any angle `t`: `c = cos t`, `s = sin t`, new point `(x*c - y*s, x*s + y*c)`. This is multiplying the complex numbers `(x + iy)` and `(c + is)`.
+3. To rotate around a centre `o`: set `v = p - o`, rotate `v`, add `o` back.
+4. Exact spiral: multiply by an integer pair `(c, s)` to get `(x*c - y*s, x*s + y*c)`. The point is turned by `atan2(s, c)` and its distance is multiplied by `sqrt(c*c + s*s)`. No rounding happens.
+5. To get the angle of a vector use `atan2(y, x)` (range `-pi` to `pi`), or better, sort by angle with half-plane plus cross product, which is exact.
+6. After many floating point rotations the length drifts; rotate once from the original point instead of repeatedly.
+7. Code: `spiral` calls the `cross` piece for the new `x` (`x*c - y*s` is `cross(x, y, s, c)`).
+--think
+- Signal: "rotate the shape", "spin around the centre", "after k quarter turns", "regular polygon vertices", "reflect through a line" (rotate, flip, rotate back).
+- Decide first whether the angle is a multiple of 90 degrees (use exact swaps), an integer vector (exact multiplication), or arbitrary (floating point, then expect `1e-9` size errors).
+- Complex numbers also give: dot product as `Re(a * conj(b))`, cross product as `Im(conj(a) * b)`, and rotation by repeated powers for regular polygons.
+- Neighbours: orientation and cross product (exact angle comparisons), convex hull (rotation invariants), FFT (roots of unity are rotations).
+- Pitfalls: degrees versus radians, rotating clockwise by mistake (sign of `s`), forgetting to move the centre, and using `==` on rotated coordinates.
+--cost
+O(1) per point.
+--uses
+u-cross
+--java
+// quarter turn anticlockwise, exact
+static long[] rot90(long[] p) { return new long[]{-p[1], p[0]}; }
+
+// multiply (x + iy) by (c + is): a turn plus a stretch, exact in integers
+static long[] spiral(long[] p, long c, long s) {
+    return new long[]{cross(p[0], p[1], s, c), p[0] * s + p[1] * c};   // x*c - y*s, then x*s + y*c
+}
+
+// rotate p by angle t (radians) anticlockwise around centre o
+static double[] rotateAround(double[] p, double[] o, double t) {
+    double vx = p[0] - o[0], vy = p[1] - o[1];
+    double c = Math.cos(t), s = Math.sin(t);
+    return new double[]{o[0] + vx * c - vy * s, o[1] + vx * s + vy * c};
+}
+--py
+from math import cos, sin
+
+def rot90(p):
+    """Quarter turn anticlockwise, exact."""
+    return (-p[1], p[0])
+
+def spiral(p, c, s):
+    """Multiply (x + iy) by (c + is): a turn plus a stretch, exact in integers."""
+    return (cross(p[0], p[1], s, c), p[0] * s + p[1] * c)    # x*c - y*s, then x*s + y*c
+
+def rotate_around(p, o, t):
+    """Rotate p by angle t (radians) anticlockwise around centre o."""
+    vx, vy = p[0] - o[0], p[1] - o[1]
+    c, s = cos(t), sin(t)
+    return (o[0] + vx * c - vy * s, o[1] + vx * s + vy * c)
+--cpp
+typedef pair<long long,long long> P;
+
+// quarter turn anticlockwise, exact
+P rot90(P p) { return {-p.second, p.first}; }
+
+// multiply (x + iy) by (c + is): a turn plus a stretch, exact in integers
+P spiral(P p, long long c, long long s) {
+    return {cross(p.first, p.second, s, c), p.first * s + p.second * c};   // x*c - y*s, then x*s + y*c
+}
+
+// rotate p by angle t (radians) anticlockwise around centre o
+pair<double,double> rotateAround(pair<double,double> p, pair<double,double> o, double t) {
+    double vx = p.first - o.first, vy = p.second - o.second;
+    double c = cos(t), s = sin(t);
+    return {o.first + vx * c - vy * s, o.second + vx * s + vy * c};
+}
+
+### calipers
+--idea
+Rotating calipers is the idea of measuring a convex shape with a pair of parallel rulers that you rotate all the way around it. At every angle the two rulers touch the shape at two points on opposite sides, an antipodal pair. The farthest two points of a convex polygon (its diameter) are always an antipodal pair, so instead of checking all `n^2` pairs you only check the `O(n)` pairs the rulers touch.
+The reason it is cheap: as you walk once around the hull edge by edge, the point farthest from the current edge moves forward around the hull and never goes backward. So one pointer `j` that only ever advances finds the whole sweep, in linear time in total. This lesson uses the hull in counter-clockwise order with no three collinear points (what the convex hull lesson returns).
+--build
+1. Input: `h[0..n-1]`, the hull corners counter-clockwise, strictly convex. If `n == 1` the answer is 0. If `n == 2` it is the squared distance between the two points.
+2. Keep a pointer `j` (start at 1) for the corner farthest from the current edge.
+3. For each edge `h[i] -> h[i+1]` (indices mod `n`), the distance of a corner from this edge is proportional to `cross(h[i], h[i+1], corner)`, the doubled triangle area.
+4. Advance `j` while the next corner is farther from the edge: `cross(h[i], h[i+1], h[j+1]) > cross(h[i], h[i+1], h[j])`. This never overshoots because along the hull the distance first grows, then shrinks (it is unimodal).
+5. Now `h[j]` is antipodal to the edge. Update the best squared distance with `dist2(h[i], h[j])` and `dist2(h[i+1], h[j])`.
+6. After all edges, the best value is the squared diameter. Take a square root only if asked.
+Invariant: at the start of edge `i`, the pointer `j` is no further forward than the farthest corner for edge `i`, so pushing it forward finds that corner.
+7. Code: the `cross` piece is called by `area`, the doubled triangle area used in step 3 and step 4.
+--think
+- Signal: "farthest pair among points", "smallest width of a shape", "minimum bounding rectangle", "largest triangle inside a convex polygon", anything saying "convex polygon" plus an extremal quantity.
+- Decide first: compute the hull of the raw points (convex hull lesson), then do the sweep. The sweep itself needs a strictly convex counter-clockwise polygon, so remove collinear points and fix the direction first.
+- The pointer only moves forward and total moves are at most `2n`, which is why the whole thing is linear after the hull.
+- Neighbours: hull (the input), closest pair (the opposite problem, nearest instead of farthest), and ternary search on a convex function when you need minimum width by angle.
+- Pitfalls: a hull given clockwise (the area comparison reverses), collinear boundary points (the `>` test can stall), the two-point and one-point hulls, and comparing with `>=` which can loop forever on parallel edges.
+--cost
+O(n) time after the hull, O(1) extra space. With the hull, O(n log n) overall.
+--uses
+u-cross
+--java
+// doubled area of triangle o, a, b: how far b is from the line o-a
+static long area(long[] o, long[] a, long[] b) {
+    return cross(a[0] - o[0], a[1] - o[1], b[0] - o[0], b[1] - o[1]);
+}
+static long sq(long[] a, long[] b) {
+    long dx = a[0] - b[0], dy = a[1] - b[1];
+    return dx * dx + dy * dy;
+}
+
+// squared diameter of a strictly convex polygon given counter-clockwise
+static long diameter2(long[][] h) {
+    int n = h.length;
+    if (n == 1) return 0;
+    if (n == 2) return sq(h[0], h[1]);
+    long best = 0;
+    int j = 1;
+    for (int i = 0; i < n; i++) {
+        int ni = (i + 1) % n;
+        while (area(h[i], h[ni], h[(j + 1) % n]) > area(h[i], h[ni], h[j])) j = (j + 1) % n;
+        best = Math.max(best, Math.max(sq(h[i], h[j]), sq(h[ni], h[j])));
+    }
+    return best;
+}
+--py
+def area(o, a, b):
+    """Doubled area of triangle o, a, b: how far b is from the line o-a."""
+    return cross(a[0] - o[0], a[1] - o[1], b[0] - o[0], b[1] - o[1])
+
+def sq(a, b):
+    return (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2
+
+def diameter2(h):
+    """Squared diameter of a strictly convex polygon given counter-clockwise."""
+    n = len(h)
+    if n == 1:
+        return 0
+    if n == 2:
+        return sq(h[0], h[1])
+    best = 0
+    j = 1
+    for i in range(n):
+        ni = (i + 1) % n
+        while area(h[i], h[ni], h[(j + 1) % n]) > area(h[i], h[ni], h[j]):
+            j = (j + 1) % n                        # the farthest corner only moves forward
+        best = max(best, sq(h[i], h[j]), sq(h[ni], h[j]))
+    return best
+--cpp
+typedef pair<long long,long long> P;
+
+// doubled area of triangle o, a, b: how far b is from the line o-a
+long long area(P o, P a, P b) {
+    return cross(a.first - o.first, a.second - o.second, b.first - o.first, b.second - o.second);
+}
+long long sq(P a, P b) {
+    long long dx = a.first - b.first, dy = a.second - b.second;
+    return dx * dx + dy * dy;
+}
+
+// squared diameter of a strictly convex polygon given counter-clockwise
+long long diameter2(const vector<P>& h) {
+    int n = h.size();
+    if (n == 1) return 0;
+    if (n == 2) return sq(h[0], h[1]);
+    long long best = 0;
+    int j = 1;
+    for (int i = 0; i < n; i++) {
+        int ni = (i + 1) % n;
+        while (area(h[i], h[ni], h[(j + 1) % n]) > area(h[i], h[ni], h[j])) j = (j + 1) % n;
+        best = max(best, max(sq(h[i], h[j]), sq(h[ni], h[j])));
+    }
+    return best;
+}
+
+### closest
+--idea
+The closest pair problem asks for the two nearest points among `n`. Checking every pair costs `n^2`. The divide and conquer method does it in `n log n`: split the points by a vertical line into a left half and a right half, solve each half, and then handle pairs that straddle the line.
+The insight that makes the straddling step cheap is a packing argument. If the best distance found so far is `d`, only points within distance `d` of the dividing line can form a better cross pair. Sort that thin strip by `y`, and each point only needs to be compared with the next few points above it, because a box of size `d` by `2d` can hold only a handful of points that are at least `d` apart from each other. So the strip is checked in linear time.
+--build
+1. Sort the points by `x`. The recursion `rec(l, r)` works on the slice `[l, r)`.
+2. Base case: 3 or fewer points: try all pairs, and sort the slice by `y`.
+3. Otherwise split at `m = (l + r) / 2`. Remember `midx = x of the point at m`. Solve both halves: `best = min(rec(l, m), rec(m, r))`. Each call leaves its slice sorted by `y`.
+4. Merge the two halves by `y` (a sort of two sorted runs, or a merge step). The slice is now sorted by `y`.
+5. Build the strip: all points in the slice with `(x - midx)^2 < best` (squared distances, no square roots).
+6. For each strip point `i`, look at the following strip points `j` while `(y_j - y_i)^2 < best`. Update `best` with the squared distance. At most about 7 points are examined per `i`.
+7. Return `best`, the smallest squared distance. Duplicate points give 0.
+Invariant: after `rec(l, r)` returns, `best` is the true closest squared distance inside the slice and the slice is sorted by `y`.
+8. Code: step 1 calls the `sortIndices` piece on the `x` values to order the points. Steps 2 and 6 call the `dist2` piece (squared distance, `int` coordinates), so points here have `int` coordinates.
+--think
+- Signal: "nearest pair", "minimum distance between any two", "are any two points within d". Maybe also "smallest triangle perimeter" with the same split idea.
+- Decide first that the question is about all pairs among many points; for a query point against a fixed set use a k-d tree or grid instead.
+- Alternatives: a randomised grid (cell size `d`, hash the cells) is expected linear and easy; sweep line with a sorted set by `y` is another route; for small inputs the O(n^2) loop is fine.
+- Keep distances squared and integer. Take the square root once at the end.
+- Pitfalls: re-sorting the whole slice by `y` in every call costs `n log^2 n` (fine in practice, merge it to get `n log n`), comparing with `<=` in the strip and doing quadratic work on many equal points, and forgetting to `y`-sort the slice before returning.
+--cost
+O(n log n) with a merge (O(n log^2 n) with a plain sort per level). Space O(n).
+--uses
+u-dist2
+u-sortidx
+--java
+static long closest(int[][] pts) {
+    int n = pts.length;
+    int[] xs = new int[n];
+    for (int i = 0; i < n; i++) xs[i] = pts[i][0];
+    Integer[] ord = sortIndices(xs);                     // positions ordered by x
+    int[][] p = new int[n][];
+    for (int i = 0; i < n; i++) p[i] = pts[ord[i]];
+    return rec(p, 0, n);
+}
+
+// slice [l, r) of p; returns the best squared distance and leaves the slice sorted by y
+static long rec(int[][] p, int l, int r) {
+    long best = Long.MAX_VALUE;
+    if (r - l <= 3) {
+        for (int i = l; i < r; i++)
+            for (int j = i + 1; j < r; j++) best = Math.min(best, dist2(p[i][0], p[i][1], p[j][0], p[j][1]));
+        Arrays.sort(p, l, r, (u, v) -> Integer.compare(u[1], v[1]));
+        return best;
+    }
+    int m = (l + r) / 2;
+    long midx = p[m][0];
+    best = Math.min(rec(p, l, m), rec(p, m, r));
+    Arrays.sort(p, l, r, (u, v) -> Integer.compare(u[1], v[1]));   // merges two sorted runs
+    List<int[]> strip = new ArrayList<>();
+    for (int i = l; i < r; i++) if ((p[i][0] - midx) * (p[i][0] - midx) < best) strip.add(p[i]);
+    for (int i = 0; i < strip.size(); i++)
+        for (int j = i + 1; j < strip.size(); j++) {
+            long dy = strip.get(j)[1] - strip.get(i)[1];
+            if (dy * dy >= best) break;
+            best = Math.min(best, dist2(strip.get(i)[0], strip.get(i)[1], strip.get(j)[0], strip.get(j)[1]));
+        }
+    return best;
+}
+--py
+def closest(points):
+    """Smallest squared distance between any two of the points (needs 2 or more)."""
+    order = sort_indices([q[0] for q in points])        # positions ordered by x
+    p = [points[i] for i in order]
+
+    def rec(l, r):                                      # slice [l, r); leaves it sorted by y
+        if r - l <= 3:
+            best = min(dist2(p[i][0], p[i][1], p[j][0], p[j][1])
+                       for i in range(l, r) for j in range(i + 1, r))
+            p[l:r] = sorted(p[l:r], key=lambda q: q[1])
+            return best
+        m = (l + r) // 2
+        midx = p[m][0]
+        best = min(rec(l, m), rec(m, r))
+        p[l:r] = sorted(p[l:r], key=lambda q: q[1])     # merges two sorted runs
+        strip = [q for q in p[l:r] if (q[0] - midx) ** 2 < best]
+        for i in range(len(strip)):
+            j = i + 1
+            while j < len(strip) and (strip[j][1] - strip[i][1]) ** 2 < best:
+                best = min(best, dist2(strip[i][0], strip[i][1], strip[j][0], strip[j][1]))
+                j += 1
+        return best
+
+    return rec(0, len(p))
+--cpp
+typedef pair<int,int> P;
+
+// slice [l, r) of p; returns the best squared distance and leaves the slice sorted by y
+long long closestRec(vector<P>& p, int l, int r) {
+    auto byY = [](const P& a, const P& b) { return a.second < b.second; };
+    long long best = LLONG_MAX;
+    if (r - l <= 3) {
+        for (int i = l; i < r; i++)
+            for (int j = i + 1; j < r; j++) best = min(best, dist2(p[i].first, p[i].second, p[j].first, p[j].second));
+        sort(p.begin() + l, p.begin() + r, byY);
+        return best;
+    }
+    int m = (l + r) / 2;
+    long long midx = p[m].first;
+    best = min(closestRec(p, l, m), closestRec(p, m, r));
+    inplace_merge(p.begin() + l, p.begin() + m, p.begin() + r, byY);   // both halves are sorted by y
+    vector<P> strip;
+    for (int i = l; i < r; i++)
+        if ((p[i].first - midx) * (p[i].first - midx) < best) strip.push_back(p[i]);
+    for (size_t i = 0; i < strip.size(); i++)
+        for (size_t j = i + 1; j < strip.size(); j++) {
+            long long dy = strip[j].second - strip[i].second;
+            if (dy * dy >= best) break;
+            best = min(best, dist2(strip[i].first, strip[i].second, strip[j].first, strip[j].second));
+        }
+    return best;
+}
+
+long long closest(const vector<P>& pts) {
+    vector<int> xs;
+    for (auto& q : pts) xs.push_back(q.first);
+    vector<int> ord = sortIndices(xs);                   // positions ordered by x
+    vector<P> p;
+    for (int i : ord) p.push_back(pts[i]);
+    return closestRec(p, 0, p.size());
+}
+
+### hpi
+--idea
+A half-plane is everything on one side of a line, like "the points where `3x + 2y <= 10`". Many problems are a list of such limits (budgets, walls, "stay left of this guard"), and you want the region that satisfies all of them at once. That region is the half-plane intersection. It is always a convex shape (possibly empty, a point, or unbounded), and it is the dual of the convex hull: the hull wraps points, this carves with lines.
+The sort-and-deque method works like this. Describe each limit as a directed line whose allowed side is on its left. Sort the lines by the angle of their direction. Walk through them keeping a deque (a list you can pop from both ends) of lines that still form part of the boundary. A new line may make the newest lines at the back useless (the corner they form is now outside the new line), and may make the oldest at the front useless too. Pop those, push the new one. At the end, the corners between neighbouring survivors are the answer. The sorting by angle is why neighbouring lines are the only ones that can form corners.
+--build
+1. Represent a half-plane as a point `p`, a direction `d`, and the allowed side is the left of `d`: a point `r` is allowed when `cross(d, r - p) >= 0`. Call it `out(h, r)` when `cross(d, r - p) < -eps`.
+2. Add four half-planes for a huge bounding box (for example plus or minus `1e9`) so the answer is always bounded.
+3. Sort all half-planes by `atan2(d.y, d.x)`.
+4. `inter(a, b)` is the point where lines `a` and `b` meet: `t = cross(b.p - a.p, b.d) / cross(a.d, b.d)`, point `a.p + t * a.d`.
+5. For each half-plane `h` in sorted order: while the deque has at least 2 lines and the meeting point of the last two is `out` of `h`, pop the back. While it has at least 2 and the meeting point of the first two is `out` of `h`, pop the front.
+6. Parallel case: if `h` is parallel to the back line (cross about 0): if the directions are opposite, the result is empty; if `h` cuts the back line's point out (`out(h, back.p)`), the new one is stricter, so drop the back and push `h`; otherwise skip `h`.
+7. Push `h`. After all lines: while at least 3 remain and the meeting point of the last two is out of the front line, pop the back. While at least 3 remain and the meeting point of the first two is out of the back line, pop the front.
+8. If fewer than 3 lines remain, the region is empty. Otherwise the polygon corners are `inter(dq[i], dq[i+1])` going around, wrapping at the end.
+Invariant: the deque holds the lines that currently touch the boundary of the region cut by all half-planes seen so far, in angle order.
+--think
+- Signal: "set of linear inequalities in two variables", "is there a point on the left of all these directed lines", "kernel of a polygon", "feasible region", linear programming in 2D, Voronoi cells.
+- Decide first whether you can do it by hand with exact numbers. This code uses doubles, because the corners are fractions. Pick `eps` to match the scale of the inputs (`1e-9` works for coordinates around `1e4`; scale up when coordinates are huge).
+- Empty and degenerate results (a single point or a segment) are numerically fragile. Decide whether touching counts as non-empty, and shrink a half-plane by `eps` if you must tell them apart.
+- Neighbours: convex hull (dual problem), cut a polygon by one line repeatedly (simple `O(n^2)` clipping, easier to get right for small `n`), 2D linear programming (randomised incremental), binary search on the answer plus half-plane intersection for "largest circle" problems.
+- Pitfalls: not adding the bounding box (unbounded regions break the deque), sorting ties inconsistently, wrong left versus right convention, and trusting equality tests on doubles.
+--cost
+O(n log n) for the sort, O(n) for the deque pass. Space O(n).
+--java
+static final double EPS = 1e-9;
+static double cr(double ax, double ay, double bx, double by) { return ax * by - ay * bx; }
+static boolean out(double[] h, double[] r) { return cr(h[2], h[3], r[0] - h[0], r[1] - h[1]) < -EPS; }
+static double[] inter(double[] a, double[] b) {
+    double t = cr(b[0] - a[0], b[1] - a[1], b[2], b[3]) / cr(a[2], a[3], b[2], b[3]);
+    return new double[]{a[0] + a[2] * t, a[1] + a[3] * t};
+}
+
+// each half-plane is {px, py, dx, dy}; allowed side is the left of the direction.
+// include a big bounding box among them. Returns the corners, or an empty list.
+static List<double[]> hpi(List<double[]> in) {
+    double[][] hs = in.toArray(new double[0][]);
+    Arrays.sort(hs, (u, v) -> Double.compare(Math.atan2(u[3], u[2]), Math.atan2(v[3], v[2])));
+    double[][] dq = new double[hs.length][];
+    int head = 0, tail = 0;
+    List<double[]> res = new ArrayList<>();
+    for (double[] h : hs) {
+        while (tail - head >= 2 && out(h, inter(dq[tail - 1], dq[tail - 2]))) tail--;
+        while (tail - head >= 2 && out(h, inter(dq[head], dq[head + 1]))) head++;
+        if (tail - head > 0 && Math.abs(cr(h[2], h[3], dq[tail - 1][2], dq[tail - 1][3])) < EPS) {
+            if (h[2] * dq[tail - 1][2] + h[3] * dq[tail - 1][3] < 0) return res;  // opposite: empty
+            if (out(h, dq[tail - 1])) tail--; else continue;     // keep only the stricter line
+        }
+        dq[tail++] = h;
+    }
+    while (tail - head >= 3 && out(dq[head], inter(dq[tail - 1], dq[tail - 2]))) tail--;
+    while (tail - head >= 3 && out(dq[tail - 1], inter(dq[head], dq[head + 1]))) head++;
+    if (tail - head < 3) return res;
+    for (int i = head; i < tail; i++) res.add(inter(dq[i], dq[i + 1 < tail ? i + 1 : head]));
+    return res;
+}
+--py
+from math import atan2
+from collections import deque
+
+EPS = 1e-9
+
+def cr(ax, ay, bx, by):
+    return ax * by - ay * bx
+
+def out(h, r):
+    """Is point r strictly outside half-plane h = (px, py, dx, dy)."""
+    return cr(h[2], h[3], r[0] - h[0], r[1] - h[1]) < -EPS
+
+def inter(a, b):
+    t = cr(b[0] - a[0], b[1] - a[1], b[2], b[3]) / cr(a[2], a[3], b[2], b[3])
+    return (a[0] + a[2] * t, a[1] + a[3] * t)
+
+def hpi(planes):
+    """Corners of the intersection of half-planes (allowed side is left of the direction).
+    Include a big bounding box among the planes. Returns [] if empty."""
+    hs = sorted(planes, key=lambda h: atan2(h[3], h[2]))
+    dq = deque()
+    for h in hs:
+        while len(dq) >= 2 and out(h, inter(dq[-1], dq[-2])):
+            dq.pop()
+        while len(dq) >= 2 and out(h, inter(dq[0], dq[1])):
+            dq.popleft()
+        if dq and abs(cr(h[2], h[3], dq[-1][2], dq[-1][3])) < EPS:
+            if h[2] * dq[-1][2] + h[3] * dq[-1][3] < 0:
+                return []                              # opposite directions: empty
+            if out(h, dq[-1]):
+                dq.pop()                               # keep only the stricter line
+            else:
+                continue
+        dq.append(h)
+    while len(dq) >= 3 and out(dq[0], inter(dq[-1], dq[-2])):
+        dq.pop()
+    while len(dq) >= 3 and out(dq[-1], inter(dq[0], dq[1])):
+        dq.popleft()
+    if len(dq) < 3:
+        return []
+    return [inter(dq[i], dq[(i + 1) % len(dq)]) for i in range(len(dq))]
+--cpp
+typedef array<double,4> HP;   // {px, py, dx, dy}; allowed side is the left of the direction
+const double EPS = 1e-9;
+
+double cr(double ax, double ay, double bx, double by) { return ax * by - ay * bx; }
+bool outside(const HP& h, double rx, double ry) { return cr(h[2], h[3], rx - h[0], ry - h[1]) < -EPS; }
+pair<double,double> inter(const HP& a, const HP& b) {
+    double t = cr(b[0] - a[0], b[1] - a[1], b[2], b[3]) / cr(a[2], a[3], b[2], b[3]);
+    return {a[0] + a[2] * t, a[1] + a[3] * t};
+}
+
+// include a big bounding box among the planes. Returns the corners, or an empty vector.
+vector<pair<double,double>> hpi(vector<HP> hs) {
+    sort(hs.begin(), hs.end(), [](const HP& u, const HP& v) { return atan2(u[3], u[2]) < atan2(v[3], v[2]); });
+    vector<HP> dq(hs.size());
+    int head = 0, tail = 0;
+    vector<pair<double,double>> res;
+    for (auto& h : hs) {
+        while (tail - head >= 2) { auto q = inter(dq[tail-1], dq[tail-2]); if (!outside(h, q.first, q.second)) break; tail--; }
+        while (tail - head >= 2) { auto q = inter(dq[head], dq[head+1]); if (!outside(h, q.first, q.second)) break; head++; }
+        if (tail - head > 0 && fabs(cr(h[2], h[3], dq[tail-1][2], dq[tail-1][3])) < EPS) {
+            if (h[2] * dq[tail-1][2] + h[3] * dq[tail-1][3] < 0) return res;   // opposite: empty
+            if (outside(h, dq[tail-1][0], dq[tail-1][1])) tail--; else continue; // keep the stricter line
+        }
+        dq[tail++] = h;
+    }
+    while (tail - head >= 3) { auto q = inter(dq[tail-1], dq[tail-2]); if (!outside(dq[head], q.first, q.second)) break; tail--; }
+    while (tail - head >= 3) { auto q = inter(dq[head], dq[head+1]); if (!outside(dq[tail-1], q.first, q.second)) break; head++; }
+    if (tail - head < 3) return res;
+    for (int i = head; i < tail; i++) res.push_back(inter(dq[i], dq[i + 1 < tail ? i + 1 : head]));
+    return res;
+}
+
+### mec
+--idea
+The minimum enclosing circle is the smallest circle that has every given point inside or on it. Picture a coin you want to place flat on a table so it covers a scatter of dots, using the smallest coin possible. The best circle is always pinned down by just two points (opposite ends of a diameter) or three points (all on the circle), no matter how many dots there are.
+Welzl's idea, in its simple iterative form, builds the circle incrementally. Process points in random order. Keep the best circle for the points so far. When a new point is outside it, that point must lie on the boundary of the new best circle. So restart with that point fixed on the boundary and rebuild over the earlier points, again fixing a second point when needed, and a third. Random order makes the restarts rare, so the expected total work is linear.
+--build
+1. Shuffle the points randomly (the shuffle is what gives the expected linear time).
+2. Start with the circle centred at `p[0]` with radius 0.
+3. For `i = 1..n-1`: if `p[i]` is outside the current circle, set the circle to `(p[i], 0)` and run step 4.
+4. For `j = 0..i-1`: if `p[j]` is outside, set the circle to the one with diameter `p[i]-p[j]` (centre the midpoint, radius half the distance) and run step 5.
+5. For `k = 0..j-1`: if `p[k]` is outside, set the circle to the circle through `p[i], p[j], p[k]` (the circumcircle).
+6. "Outside" means `distance(point, centre) > r + eps`, with a tiny `eps` (like `1e-9`) so that points on the boundary are not rebuilt forever.
+7. Circumcircle of three points: the formula from the circle lesson (shift `p[i]` to the origin, `den = 2*cross(B, C)`). If the three are collinear (`den == 0`), use the circle on the farthest pair as a fallback.
+Invariant: after finishing loop `i`, the circle covers `p[0..i]` and has `p[i]` on its boundary (when `p[i]` was outside before).
+--think
+- Signal: "smallest circle covering all points", "minimum radius radar placement", "where to put a well so the farthest house is closest". Binary search plus a check also works but this is direct.
+- Decide first if a floating point answer is acceptable. The centre is a fraction, so the output is a double. Print with enough digits.
+- Three nested loops look cubic but the expected cost is `O(n)` because each point is outside the running circle with probability about `3/i`. Without shuffling, a sorted adversarial input makes it `O(n^3)`.
+- Neighbours: circle geometry (circumcircle), convex hull (the circle only depends on hull points, so hull first speeds it up), ternary search for the 1D or 2D convex objective, Welzl's recursive version.
+- Pitfalls: forgetting to shuffle, no epsilon (infinite re-adjusting from rounding), collinear triples, and duplicate points (they are never outside, which is fine).
+--cost
+Expected O(n) time after the shuffle, O(1) extra space.
+--java
+static boolean outside(double[] c, double[] p) {          // c = {cx, cy, r}
+    return Math.hypot(p[0] - c[0], p[1] - c[1]) > c[2] + 1e-9;
+}
+static double[] fromTwo(double[] a, double[] b) {
+    return new double[]{(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, Math.hypot(a[0] - b[0], a[1] - b[1]) / 2};
+}
+static double[] fromThree(double[] a, double[] b, double[] c) {
+    double bx = b[0] - a[0], by = b[1] - a[1], cx = c[0] - a[0], cy = c[1] - a[1];
+    double den = 2 * (bx * cy - by * cx);
+    if (Math.abs(den) < 1e-12) {                          // collinear: use the farthest pair
+        double[] best = fromTwo(a, b), t = fromTwo(a, c), u = fromTwo(b, c);
+        if (t[2] > best[2]) best = t;
+        if (u[2] > best[2]) best = u;
+        return best;
+    }
+    double b2 = bx * bx + by * by, c2 = cx * cx + cy * cy;
+    double ux = (cy * b2 - by * c2) / den, uy = (bx * c2 - cx * b2) / den;
+    return new double[]{a[0] + ux, a[1] + uy, Math.hypot(ux, uy)};
+}
+
+// returns {cx, cy, r}
+static double[] minEnclosingCircle(double[][] pts) {
+    double[][] p = pts.clone();
+    Random rnd = new Random(12345);
+    for (int i = p.length - 1; i > 0; i--) { int j = rnd.nextInt(i + 1); double[] t = p[i]; p[i] = p[j]; p[j] = t; }
+    double[] c = {p[0][0], p[0][1], 0};
+    for (int i = 1; i < p.length; i++) {
+        if (!outside(c, p[i])) continue;
+        c = new double[]{p[i][0], p[i][1], 0};
+        for (int j = 0; j < i; j++) {
+            if (!outside(c, p[j])) continue;
+            c = fromTwo(p[i], p[j]);
+            for (int k = 0; k < j; k++)
+                if (outside(c, p[k])) c = fromThree(p[i], p[j], p[k]);
+        }
+    }
+    return c;
+}
+--py
+from math import hypot
+import random
+
+def outside(c, p):
+    return hypot(p[0] - c[0], p[1] - c[1]) > c[2] + 1e-9    # c = (cx, cy, r)
+
+def from_two(a, b):
+    return ((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, hypot(a[0] - b[0], a[1] - b[1]) / 2)
+
+def from_three(a, b, c):
+    bx, by, cx, cy = b[0] - a[0], b[1] - a[1], c[0] - a[0], c[1] - a[1]
+    den = 2 * (bx * cy - by * cx)
+    if abs(den) < 1e-12:                                    # collinear: use the farthest pair
+        return max(from_two(a, b), from_two(a, c), from_two(b, c), key=lambda t: t[2])
+    b2, c2 = bx * bx + by * by, cx * cx + cy * cy
+    ux, uy = (cy * b2 - by * c2) / den, (bx * c2 - cx * b2) / den
+    return (a[0] + ux, a[1] + uy, hypot(ux, uy))
+
+def min_enclosing_circle(pts):
+    """Returns (cx, cy, r). Expected O(n) after the shuffle."""
+    p = list(pts)
+    random.shuffle(p)
+    c = (p[0][0], p[0][1], 0.0)
+    for i in range(1, len(p)):
+        if not outside(c, p[i]):
+            continue
+        c = (p[i][0], p[i][1], 0.0)
+        for j in range(i):
+            if not outside(c, p[j]):
+                continue
+            c = from_two(p[i], p[j])
+            for k in range(j):
+                if outside(c, p[k]):
+                    c = from_three(p[i], p[j], p[k])
+    return c
+--cpp
+typedef array<double,3> Circ;   // {cx, cy, r}
+typedef pair<double,double> Pt;
+
+bool outsideC(const Circ& c, Pt p) { return hypot(p.first - c[0], p.second - c[1]) > c[2] + 1e-9; }
+Circ fromTwo(Pt a, Pt b) {
+    return {(a.first + b.first) / 2, (a.second + b.second) / 2, hypot(a.first - b.first, a.second - b.second) / 2};
+}
+Circ fromThree(Pt a, Pt b, Pt c) {
+    double bx = b.first - a.first, by = b.second - a.second, cx = c.first - a.first, cy = c.second - a.second;
+    double den = 2 * (bx * cy - by * cx);
+    if (fabs(den) < 1e-12) {                                // collinear: use the farthest pair
+        Circ best = fromTwo(a, b), t = fromTwo(a, c), u = fromTwo(b, c);
+        if (t[2] > best[2]) best = t;
+        if (u[2] > best[2]) best = u;
+        return best;
+    }
+    double b2 = bx * bx + by * by, c2 = cx * cx + cy * cy;
+    double ux = (cy * b2 - by * c2) / den, uy = (bx * c2 - cx * b2) / den;
+    return {a.first + ux, a.second + uy, hypot(ux, uy)};
+}
+
+Circ minEnclosingCircle(vector<Pt> p) {
+    mt19937 rng(12345);
+    shuffle(p.begin(), p.end(), rng);
+    Circ c = {p[0].first, p[0].second, 0};
+    for (size_t i = 1; i < p.size(); i++) {
+        if (!outsideC(c, p[i])) continue;
+        c = {p[i].first, p[i].second, 0};
+        for (size_t j = 0; j < i; j++) {
+            if (!outsideC(c, p[j])) continue;
+            c = fromTwo(p[i], p[j]);
+            for (size_t k = 0; k < j; k++)
+                if (outsideC(c, p[k])) c = fromThree(p[i], p[j], p[k]);
+        }
+    }
+    return c;
+}
+
+### sweepseg
+--idea
+Given `n` segments, do any two of them cross? Testing every pair costs `n^2`. A sweep line does it in `n log n`. Imagine a vertical line sliding from left to right across the plane. At any moment it cuts some segments, and those can be stacked bottom to top by where they cross the line. Two segments can only start to cross by becoming neighbours in that stack, so you never need to compare non-neighbours.
+This is the Shamos-Hoey idea. Keep a sorted set of the segments currently under the sweep line, ordered by height. When a segment starts, insert it and test it against the one just above and the one just below. When a segment ends, the two segments that were above and below it become neighbours, so test them against each other. The first crossing, if any, is guaranteed to be caught by one of these neighbour tests. The order of the stack is stable until the first crossing, which is why the set does not need to be reordered over time.
+--build
+1. Normalise each segment so its left end comes first (smaller `x`; for a vertical segment, the lower end first).
+2. Make events: for each segment, an insert at its left `x` and a remove at its right `x`. Sort by `x`, with inserts before removes at the same `x` (so touching segments overlap in time).
+3. Order inside the set: compare two segments by their height at `x0 = max(left x of a, left x of b)`. To stay exact for integers, write the height of a segment at `x` as the fraction `num/den` with `den = dx > 0` and `num = y1*dx + (y2-y1)*(x - x1)`, a vertical segment as `y1 / 1`, and compare fractions by cross multiplication. Ties are broken by the segment id.
+4. Sweep over the events. For an insert of `s`: find the segment `above` just after it and `below` just before it in the set. If `s` meets either (exact segment intersection test), report the pair. Then insert `s`.
+5. For a remove of `s`: find its `above` and `below`. If both exist and they meet each other, report that pair. Then remove `s`.
+6. If the sweep ends with no report, no two segments intersect.
+Invariant: while no crossing has been reported, no two segments in the set cross, so their top to bottom order never changes and the set stays correctly sorted.
+7. Code: the `orient` piece gives the four signs and the `onSegment` piece does the touching checks inside `meet`.
+--think
+- Signal: "do any two roads cross", "is this polyline simple", "detect overlap among many segments", "check polygon is simple". For counting or listing all crossings use Bentley-Ottmann, the same sweep with a crossing event that swaps two neighbours.
+- Decide first whether touching counts (here yes, all closed segments). Also decide whether you need only a yes or a witness pair; this returns one pair.
+- Always do the final check with the exact integer segment test, not with the height comparison. The ordering is only used to find candidates.
+- Neighbours: segment intersection (the single pair test), rectangle union (a different sweep over x), closest pair (sweep with a sorted set by y).
+- Pitfalls: vertical segments (give them height `y1` and rely on the neighbour test), the order of insert versus remove events at equal `x`, shared endpoints, and overflow in the cross multiplication of the fractions (keep coordinates up to about `10^5` for 64-bit exactness, or use bigger integers).
+--cost
+O(n log n) time with a balanced tree (TreeSet or std::set). The Python version below uses a plain list and costs O(n^2) in the worst case. Space O(n).
+--uses
+u-orientf
+u-segon
+--java
+static long[][] sg;                                  // normalised segments {x1, y1, x2, y2}
+
+static boolean meet(int i, int j) {                  // exact closed segment intersection
+    long[] a = sg[i], b = sg[j];
+    int o1 = Long.signum(orient(a[0], a[1], a[2], a[3], b[0], b[1])), o2 = Long.signum(orient(a[0], a[1], a[2], a[3], b[2], b[3]));
+    int o3 = Long.signum(orient(b[0], b[1], b[2], b[3], a[0], a[1])), o4 = Long.signum(orient(b[0], b[1], b[2], b[3], a[2], a[3]));
+    if (o1 != o2 && o3 != o4) return true;
+    return onSegment(a[0], a[1], a[2], a[3], b[0], b[1]) || onSegment(a[0], a[1], a[2], a[3], b[2], b[3])
+        || onSegment(b[0], b[1], b[2], b[3], a[0], a[1]) || onSegment(b[0], b[1], b[2], b[3], a[2], a[3]);
+}
+static int cmp(int i, int j) {                       // height order at the later left end
+    if (i == j) return 0;
+    long x = Math.max(sg[i][0], sg[j][0]);
+    long da = sg[i][2] - sg[i][0], db = sg[j][2] - sg[j][0];
+    long na = da == 0 ? sg[i][1] : sg[i][1] * da + (sg[i][3] - sg[i][1]) * (x - sg[i][0]);
+    long nb = db == 0 ? sg[j][1] : sg[j][1] * db + (sg[j][3] - sg[j][1]) * (x - sg[j][0]);
+    if (da == 0) da = 1;
+    if (db == 0) db = 1;
+    int c = Long.compare(na * db, nb * da);
+    return c != 0 ? c : Integer.compare(i, j);
+}
+
+// returns {i, j} for two segments that meet, or null
+static int[] anyIntersection(long[][] seg) {
+    int n = seg.length;
+    sg = new long[n][];
+    for (int i = 0; i < n; i++) {
+        long[] s = seg[i].clone();
+        if (s[0] > s[2] || (s[0] == s[2] && s[1] > s[3])) { long a = s[0], b = s[1]; s[0] = s[2]; s[1] = s[3]; s[2] = a; s[3] = b; }
+        sg[i] = s;
+    }
+    long[][] ev = new long[2 * n][];                 // {x, type (0 insert, 1 remove), id}
+    for (int i = 0; i < n; i++) { ev[2 * i] = new long[]{sg[i][0], 0, i}; ev[2 * i + 1] = new long[]{sg[i][2], 1, i}; }
+    Arrays.sort(ev, (u, v) -> u[0] != v[0] ? Long.compare(u[0], v[0]) : Long.compare(u[1], v[1]));
+    TreeSet<Integer> set = new TreeSet<>((u, v) -> cmp(u, v));
+    for (long[] e : ev) {
+        int id = (int) e[2];
+        Integer up = set.higher(id), down = set.lower(id);
+        if (e[1] == 0) {
+            if (up != null && meet(up, id)) return new int[]{up, id};
+            if (down != null && meet(down, id)) return new int[]{down, id};
+            set.add(id);
+        } else {
+            if (up != null && down != null && meet(up, down)) return new int[]{down, up};
+            set.remove(id);
+        }
+    }
+    return null;
+}
+--py
+def any_intersection(seg):
+    """Indices (i, j) of two segments that meet, or None. Segments are (x1, y1, x2, y2) integers.
+    Plain-list version: O(n^2) worst case; use a balanced tree for O(n log n)."""
+    s = []
+    for x1, y1, x2, y2 in seg:
+        if (x1, y1) > (x2, y2):
+            x1, y1, x2, y2 = x2, y2, x1, y1
+        s.append((x1, y1, x2, y2))
+
+    def sgn(v):
+        return (v > 0) - (v < 0)
+
+    def meet(i, j):                                  # exact closed segment intersection
+        a, b = s[i], s[j]
+        o1, o2 = sgn(orient(*a, b[0], b[1])), sgn(orient(*a, b[2], b[3]))
+        o3, o4 = sgn(orient(*b, a[0], a[1])), sgn(orient(*b, a[2], a[3]))
+        if o1 != o2 and o3 != o4:
+            return True
+        return (on_segment(*a, b[0], b[1]) or on_segment(*a, b[2], b[3])
+                or on_segment(*b, a[0], a[1]) or on_segment(*b, a[2], a[3]))
+
+    def cmp(i, j):                                   # height order at the later left end
+        if i == j:
+            return 0
+        x = max(s[i][0], s[j][0])
+        da, db = s[i][2] - s[i][0], s[j][2] - s[j][0]
+        na = s[i][1] if da == 0 else s[i][1] * da + (s[i][3] - s[i][1]) * (x - s[i][0])
+        nb = s[j][1] if db == 0 else s[j][1] * db + (s[j][3] - s[j][1]) * (x - s[j][0])
+        da, db = da or 1, db or 1
+        l, r = na * db, nb * da
+        return (l > r) - (l < r) or (i > j) - (i < j)
+
+    events = sorted([(s[i][0], 0, i) for i in range(len(s))] + [(s[i][2], 1, i) for i in range(len(s))])
+    order = []                                       # segment ids, bottom to top
+    for _, kind, i in events:
+        lo, hi = 0, len(order)
+        while lo < hi:                               # first position not below segment i
+            mid = (lo + hi) // 2
+            if cmp(order[mid], i) < 0:
+                lo = mid + 1
+            else:
+                hi = mid
+        if kind == 0:
+            if lo < len(order) and meet(order[lo], i):
+                return (order[lo], i)
+            if lo > 0 and meet(order[lo - 1], i):
+                return (order[lo - 1], i)
+            order.insert(lo, i)
+        else:
+            if 0 < lo < len(order) - 1 and meet(order[lo - 1], order[lo + 1]):
+                return (order[lo - 1], order[lo + 1])
+            order.pop(lo)                            # order[lo] is i itself
+    return None
+--cpp
+vector<array<long long,4>> sg;                       // normalised segments {x1, y1, x2, y2}
+
+int sgnS(long long v) { return (v > 0) - (v < 0); }
+bool meet(int i, int j) {                            // exact closed segment intersection
+    auto &a = sg[i], &b = sg[j];
+    int o1 = sgnS(orient(a[0], a[1], a[2], a[3], b[0], b[1])), o2 = sgnS(orient(a[0], a[1], a[2], a[3], b[2], b[3]));
+    int o3 = sgnS(orient(b[0], b[1], b[2], b[3], a[0], a[1])), o4 = sgnS(orient(b[0], b[1], b[2], b[3], a[2], a[3]));
+    if (o1 != o2 && o3 != o4) return true;
+    return onSegment(a[0], a[1], a[2], a[3], b[0], b[1]) || onSegment(a[0], a[1], a[2], a[3], b[2], b[3])
+        || onSegment(b[0], b[1], b[2], b[3], a[0], a[1]) || onSegment(b[0], b[1], b[2], b[3], a[2], a[3]);
+}
+bool below(int i, int j) {                           // height order at the later left end
+    if (i == j) return false;
+    long long x = max(sg[i][0], sg[j][0]);
+    long long da = sg[i][2] - sg[i][0], db = sg[j][2] - sg[j][0];
+    long long na = da == 0 ? sg[i][1] : sg[i][1] * da + (sg[i][3] - sg[i][1]) * (x - sg[i][0]);
+    long long nb = db == 0 ? sg[j][1] : sg[j][1] * db + (sg[j][3] - sg[j][1]) * (x - sg[j][0]);
+    if (da == 0) da = 1;
+    if (db == 0) db = 1;
+    __int128 l = (__int128)na * db, r = (__int128)nb * da;
+    return l != r ? l < r : i < j;
+}
+
+// returns {i, j} for two segments that meet, or {-1, -1}
+pair<int,int> anyIntersection(vector<array<long long,4>> seg) {
+    int n = seg.size();
+    for (auto& s : seg)
+        if (s[0] > s[2] || (s[0] == s[2] && s[1] > s[3])) { swap(s[0], s[2]); swap(s[1], s[3]); }
+    sg = seg;
+    vector<array<long long,3>> ev;                   // {x, type (0 insert, 1 remove), id}
+    for (int i = 0; i < n; i++) { ev.push_back({sg[i][0], 0, i}); ev.push_back({sg[i][2], 1, i}); }
+    sort(ev.begin(), ev.end());
+    set<int, bool(*)(int,int)> st(below);
+    for (auto& e : ev) {
+        int id = e[2];
+        auto it = st.lower_bound(id);                // first element not below id
+        bool hasUp = false, hasDown = it != st.begin();
+        int up = -1, down = hasDown ? *prev(it) : -1;
+        if (it != st.end() && *it == id) { auto nx = next(it); if (nx != st.end()) { hasUp = true; up = *nx; } }
+        else if (it != st.end()) { hasUp = true; up = *it; }
+        if (e[1] == 0) {
+            if (hasUp && meet(up, id)) return {up, id};
+            if (hasDown && meet(down, id)) return {down, id};
+            st.insert(id);
+        } else {
+            if (hasUp && hasDown && meet(up, down)) return {down, up};
+            st.erase(id);
+        }
+    }
+    return {-1, -1};
+}
+
+### rectunion
+--idea
+Given many axis-aligned rectangles that may overlap, what is the total area covered by at least one of them? Adding up the areas counts overlaps more than once. The sweep line fixes this: slide a vertical line across the plane from left to right. Between two consecutive rectangle edges (`x` values) the set of rectangles under the line does not change, so the covered area in that strip is `(width of the strip) * (length of the line that is covered)`.
+What you need is a structure that tells you the total covered length along the vertical line as rectangles start (add their `y` range) and end (remove it). A segment tree over the compressed `y` coordinates does this: each node keeps a counter of how many rectangles fully cover its range, and the covered length of its range. Covered length is the whole range if the counter is positive, else the sum of its children. There is no need to push the counter down, because every add is matched by the same remove.
+--build
+1. Collect every `y1` and `y2`, sort and deduplicate into `ys`. There are `m = len(ys) - 1` elementary intervals; interval `i` is `[ys[i], ys[i+1])`.
+2. Make events for each rectangle `(x1, y1, x2, y2)` with positive area: `(x1, +1, y1, y2)` and `(x2, -1, y1, y2)`. Sort by `x`.
+3. Segment tree on `m` leaves. Each node `o` has `cnt[o]` and `cov[o]`. To update a range `[a, b)` of leaf indices by `v`: if the node's range is inside `[a, b)` then `cnt[o] += v`; otherwise recurse into the children.
+4. After recursing, recompute `cov[o]`: if `cnt[o] > 0` then `ys[r] - ys[l]` (the whole range), else if it is a leaf then 0, else `cov[left] + cov[right]`.
+5. Sweep the events in order. Before applying an event at `x`, add `cov[root] * (x - prevX)` to the area. Then apply the event and set `prevX = x`.
+6. The final sum is the union area.
+Invariant: just before each event, `cov[root]` is the total length of the sweep line covered by the rectangles currently open.
+--think
+- Signal: "total area covered", "union of rectangles or squares", "area painted by n strokes", perimeter of the union (same sweep, count boundary changes), and many 2D "cover" problems.
+- Decide first whether to do it in `O(n log n)` with the tree or, for small `n` or small coordinates, by compressing both axes and marking a grid in `O(n^3)` or `O(n^2)`.
+- The `cnt` trick: a node's counter is only decremented by the very same range that incremented it, so you never need lazy pushes. This is the only subtle idea.
+- Neighbours: sweep line for segments, segment trees (range update with a single `cover` function), coordinate compression, the inclusion-exclusion alternative for very few rectangles.
+- Pitfalls: skipping zero area rectangles (they would break `cnt` balance only if mishandled), treating rectangles as closed versus half-open (the area is the same), 64-bit overflow of the area for large coordinates, and forgetting that `ys` has `m + 1` entries for `m` leaves.
+--cost
+O(n log n) time, O(n) space for `2n` events and the tree.
+--java
+static long[] ys, cov;
+static int[] cnt;
+
+static void update(int o, int l, int r, int a, int b, int v) {   // leaves [l, r), update [a, b)
+    if (b <= l || r <= a) return;
+    if (a <= l && r <= b) cnt[o] += v;
+    else {
+        int m = (l + r) / 2;
+        update(2 * o, l, m, a, b, v);
+        update(2 * o + 1, m, r, a, b, v);
+    }
+    if (cnt[o] > 0) cov[o] = ys[r] - ys[l];
+    else if (r - l == 1) cov[o] = 0;
+    else cov[o] = cov[2 * o] + cov[2 * o + 1];
+}
+
+// rects[i] = {x1, y1, x2, y2} with x1 < x2 and y1 < y2
+static long unionArea(long[][] rects) {
+    TreeSet<Long> set = new TreeSet<>();
+    for (long[] r : rects) if (r[0] < r[2] && r[1] < r[3]) { set.add(r[1]); set.add(r[3]); }
+    if (set.size() < 2) return 0;
+    ys = new long[set.size()];
+    int k = 0;
+    for (long y : set) ys[k++] = y;
+    int m = ys.length - 1;
+    cnt = new int[4 * m]; cov = new long[4 * m];
+    List<long[]> ev = new ArrayList<>();                 // {x, v, leafLo, leafHi}
+    for (long[] r : rects) {
+        if (r[0] >= r[2] || r[1] >= r[3]) continue;
+        int a = Arrays.binarySearch(ys, r[1]), b = Arrays.binarySearch(ys, r[3]);
+        ev.add(new long[]{r[0], 1, a, b});
+        ev.add(new long[]{r[2], -1, a, b});
+    }
+    ev.sort((u, v) -> Long.compare(u[0], v[0]));
+    long area = 0, prev = ev.get(0)[0];
+    for (long[] e : ev) {
+        area += cov[1] * (e[0] - prev);                  // covered length times strip width
+        update(1, 0, m, (int) e[2], (int) e[3], (int) e[1]);
+        prev = e[0];
+    }
+    return area;
+}
+--py
+from bisect import bisect_left
+
+def union_area(rects):
+    """Area covered by axis-aligned rectangles (x1, y1, x2, y2) with x1 < x2 and y1 < y2."""
+    rects = [r for r in rects if r[0] < r[2] and r[1] < r[3]]
+    ys = sorted({y for r in rects for y in (r[1], r[3])})
+    if len(ys) < 2:
+        return 0
+    m = len(ys) - 1
+    cnt = [0] * (4 * m)
+    cov = [0] * (4 * m)
+
+    def update(o, l, r, a, b, v):                       # leaves [l, r), update [a, b)
+        if b <= l or r <= a:
+            return
+        if a <= l and r <= b:
+            cnt[o] += v
+        else:
+            mid = (l + r) // 2
+            update(2 * o, l, mid, a, b, v)
+            update(2 * o + 1, mid, r, a, b, v)
+        if cnt[o] > 0:
+            cov[o] = ys[r] - ys[l]
+        elif r - l == 1:
+            cov[o] = 0
+        else:
+            cov[o] = cov[2 * o] + cov[2 * o + 1]
+
+    ev = []
+    for x1, y1, x2, y2 in rects:
+        a, b = bisect_left(ys, y1), bisect_left(ys, y2)
+        ev.append((x1, 1, a, b))
+        ev.append((x2, -1, a, b))
+    ev.sort()
+    area, prev = 0, ev[0][0]
+    for x, v, a, b in ev:
+        area += cov[1] * (x - prev)                     # covered length times strip width
+        update(1, 0, m, a, b, v)
+        prev = x
+    return area
+--cpp
+// rects[i] = {x1, y1, x2, y2} with x1 < x2 and y1 < y2
+long long unionArea(const vector<array<long long,4>>& all) {
+    vector<array<long long,4>> rects;
+    for (auto& r : all) if (r[0] < r[2] && r[1] < r[3]) rects.push_back(r);
+    vector<long long> ys;
+    for (auto& r : rects) { ys.push_back(r[1]); ys.push_back(r[3]); }
+    sort(ys.begin(), ys.end());
+    ys.erase(unique(ys.begin(), ys.end()), ys.end());
+    if (ys.size() < 2) return 0;
+    int m = ys.size() - 1;
+    vector<int> cnt(4 * m, 0);
+    vector<long long> cov(4 * m, 0);
+    function<void(int,int,int,int,int,int)> update = [&](int o, int l, int r, int a, int b, int v) {
+        if (b <= l || r <= a) return;                   // leaves [l, r), update [a, b)
+        if (a <= l && r <= b) cnt[o] += v;
+        else {
+            int mid = (l + r) / 2;
+            update(2 * o, l, mid, a, b, v);
+            update(2 * o + 1, mid, r, a, b, v);
+        }
+        if (cnt[o] > 0) cov[o] = ys[r] - ys[l];
+        else if (r - l == 1) cov[o] = 0;
+        else cov[o] = cov[2 * o] + cov[2 * o + 1];
+    };
+    vector<array<long long,4>> ev;                      // {x, v, leafLo, leafHi}
+    for (auto& r : rects) {
+        long long a = lower_bound(ys.begin(), ys.end(), r[1]) - ys.begin();
+        long long b = lower_bound(ys.begin(), ys.end(), r[3]) - ys.begin();
+        ev.push_back({r[0], 1, a, b});
+        ev.push_back({r[2], -1, a, b});
+    }
+    sort(ev.begin(), ev.end());
+    long long area = 0, prev = ev[0][0];
+    for (auto& e : ev) {
+        area += cov[1] * (e[0] - prev);                 // covered length times strip width
+        update(1, 0, m, (int)e[2], (int)e[3], (int)e[1]);
+        prev = e[0];
+    }
+    return area;
+}
+
+### voronoi
+--idea
+Given a set of sites (points like post offices), the Voronoi diagram splits the plane into one cell per site: the cell of a site is every location that is closer to that site than to any other. Picture each post office with a catchment area, and the walls between neighbouring areas run exactly half way between the two offices. Each cell is a convex polygon (possibly unbounded), because it is the intersection of half-planes: "closer to `s` than to `t`" is one half-plane for each other site `t`, bounded by the perpendicular bisector (the line half way between and at right angles).
+That sentence is also the simplest algorithm: for each site, start from a big bounding box and cut it with the bisector of every other site. The result is that site's cell. It costs `O(n^2)` cuts for all cells with this lesson's version, which is perfectly fine for a few thousand sites. The famous `O(n log n)` method is Fortune's sweep (a parabola front moving across the plane), and the cells are the dual of the Delaunay triangulation, so in practice people compute Delaunay and read the diagram off it.
+--build
+1. Choose a bounding box (corners listed counter-clockwise) large enough to contain everything you care about. The cells are clipped to it, which also makes unbounded cells finite.
+2. For site `s_i`, start with `poly = box`.
+3. For every other site `s_j` (skip exact duplicates of `s_i`, which share a cell): the points closer to `s_i` satisfy `(s_j - s_i) . p <= (|s_j|^2 - |s_i|^2) / 2`. Write this as `a*x + b*y <= c` with `a = s_j.x - s_i.x`, `b = s_j.y - s_i.y`, `c = (|s_j|^2 - |s_i|^2) / 2`.
+4. Clip `poly` by that half-plane: walk the polygon edge by edge. For an edge `p -> q` compute `fp = a*p.x + b*p.y - c` and `fq` likewise. If `fp <= 0` keep `p`. If `fp` and `fq` have strictly opposite signs, also keep the crossing point `p + (q - p) * fp / (fp - fq)`.
+5. After all `j`, `poly` is the cell (empty if the site's area was cut away, which cannot happen for distinct sites inside the box).
+6. To answer "which site is nearest to `q`" just take the minimum squared distance; the diagram is for when you need the shapes (areas, neighbours, region borders).
+Invariant: after cutting with sites `j_1..j_k`, `poly` is exactly the part of the box closer to `s_i` than to each of those sites.
+7. Code: `nearestSite` calls the `dist2` piece (squared distance, `int` coordinates), which is why sites are ints.
+--think
+- Signal: "nearest facility for every location", "territory of each tower", "largest empty circle", "which sites are neighbours". Largest empty circle centres sit on Voronoi vertices.
+- Decide first whether you really need the shapes. If you only need the nearest site of a query point, a k-d tree or a grid is much simpler. Build the diagram when you need areas, neighbours, or borders.
+- The Delaunay triangulation is the dual: connect two sites when their cells share an edge. Use whichever is easier to compute and convert.
+- Cells are convex, so everything in the half-plane and convex hull toolbox applies: you can also write the cell as a half-plane intersection in `O(n log n)` per site.
+- Pitfalls: a box too small (cells are cut by the box, not the true diagram), duplicate sites (a zero `a` and `b` makes a degenerate half-plane), floating point error in the clipping (use an `eps` for emptiness), and cocircular sites (four sites on a circle make a Voronoi vertex of degree 4).
+--cost
+O(n) per cut and O(n) cuts per cell give O(n^2) per cell and O(n^3) for all cells in the worst case, although cells stay small in practice. Fortune's sweep achieves O(n log n).
+--uses
+u-dist2
+--java
+// keep the part of the convex polygon where a*x + b*y <= c
+static List<double[]> clip(List<double[]> poly, double a, double b, double c) {
+    List<double[]> res = new ArrayList<>();
+    int n = poly.size();
+    for (int i = 0; i < n; i++) {
+        double[] p = poly.get(i), q = poly.get((i + 1) % n);
+        double fp = a * p[0] + b * p[1] - c, fq = a * q[0] + b * q[1] - c;
+        if (fp <= 0) res.add(p);
+        if ((fp < 0 && fq > 0) || (fp > 0 && fq < 0)) {          // the edge crosses the cut line
+            double t = fp / (fp - fq);
+            res.add(new double[]{p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t});
+        }
+    }
+    return res;
+}
+
+// Voronoi cell of site i inside the box (box corners counter-clockwise)
+static List<double[]> voronoiCell(int[][] sites, int i, double[][] box) {
+    List<double[]> poly = new ArrayList<>(Arrays.asList(box));
+    int[] s = sites[i];
+    for (int j = 0; j < sites.length && !poly.isEmpty(); j++) {
+        int[] t = sites[j];
+        if (t[0] == s[0] && t[1] == s[1]) continue;              // duplicate site
+        double a = t[0] - s[0], b = t[1] - s[1];
+        double c = ((double) t[0] * t[0] + (double) t[1] * t[1] - (double) s[0] * s[0] - (double) s[1] * s[1]) / 2;
+        poly = clip(poly, a, b, c);                              // keep the side closer to s
+    }
+    return poly;
+}
+
+// index of the site nearest to (qx, qy): which cell the point is in
+static int nearestSite(int[][] sites, int qx, int qy) {
+    int best = 0;
+    for (int i = 1; i < sites.length; i++)
+        if (dist2(sites[i][0], sites[i][1], qx, qy) < dist2(sites[best][0], sites[best][1], qx, qy)) best = i;
+    return best;
+}
+--py
+def clip(poly, a, b, c):
+    """Keep the part of the convex polygon where a*x + b*y <= c."""
+    res = []
+    n = len(poly)
+    for i in range(n):
+        p, q = poly[i], poly[(i + 1) % n]
+        fp = a * p[0] + b * p[1] - c
+        fq = a * q[0] + b * q[1] - c
+        if fp <= 0:
+            res.append(p)
+        if (fp < 0 < fq) or (fp > 0 > fq):                   # the edge crosses the cut line
+            t = fp / (fp - fq)
+            res.append((p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t))
+    return res
+
+def voronoi_cell(sites, i, box):
+    """Voronoi cell of site i inside the box (box corners counter-clockwise)."""
+    s = sites[i]
+    poly = list(box)
+    for t in sites:
+        if not poly:
+            break
+        if t == s:
+            continue                                         # duplicate site
+        a, b = t[0] - s[0], t[1] - s[1]
+        c = (t[0] ** 2 + t[1] ** 2 - s[0] ** 2 - s[1] ** 2) / 2
+        poly = clip(poly, a, b, c)                           # keep the side closer to s
+    return poly
+
+def nearest_site(sites, qx, qy):
+    """Index of the site nearest to (qx, qy): which cell the point is in."""
+    best = 0
+    for i in range(1, len(sites)):
+        if dist2(sites[i][0], sites[i][1], qx, qy) < dist2(sites[best][0], sites[best][1], qx, qy):
+            best = i
+    return best
+--cpp
+typedef pair<double,double> Pt;
+
+// keep the part of the convex polygon where a*x + b*y <= c
+vector<Pt> clipPoly(const vector<Pt>& poly, double a, double b, double c) {
+    vector<Pt> res;
+    int n = poly.size();
+    for (int i = 0; i < n; i++) {
+        Pt p = poly[i], q = poly[(i + 1) % n];
+        double fp = a * p.first + b * p.second - c, fq = a * q.first + b * q.second - c;
+        if (fp <= 0) res.push_back(p);
+        if ((fp < 0 && fq > 0) || (fp > 0 && fq < 0)) {          // the edge crosses the cut line
+            double t = fp / (fp - fq);
+            res.push_back({p.first + (q.first - p.first) * t, p.second + (q.second - p.second) * t});
+        }
+    }
+    return res;
+}
+
+// Voronoi cell of site i inside the box (box corners counter-clockwise)
+vector<Pt> voronoiCell(const vector<pair<int,int>>& sites, int i, const vector<Pt>& box) {
+    vector<Pt> poly = box;
+    pair<int,int> s = sites[i];
+    for (size_t j = 0; j < sites.size() && !poly.empty(); j++) {
+        pair<int,int> t = sites[j];
+        if (t == s) continue;                                    // duplicate site
+        double a = t.first - s.first, b = t.second - s.second;
+        double c = ((double)t.first * t.first + (double)t.second * t.second - (double)s.first * s.first - (double)s.second * s.second) / 2;
+        poly = clipPoly(poly, a, b, c);                          // keep the side closer to s
+    }
+    return poly;
+}
+
+// index of the site nearest to (qx, qy): which cell the point is in
+int nearestSite(const vector<pair<int,int>>& sites, int qx, int qy) {
+    int best = 0;
+    for (int i = 1; i < (int)sites.size(); i++)
+        if (dist2(sites[i].first, sites[i].second, qx, qy) < dist2(sites[best].first, sites[best].second, qx, qy)) best = i;
+    return best;
+}
+
+### delaunay
+--idea
+A triangulation of a point set joins the points into triangles that tile their convex hull. There are many ways to do it, and most give long, thin, ugly triangles. The Delaunay triangulation is the best-behaved one: it is the unique triangulation (for points in general position) where no point lies strictly inside the circle through the corners of any triangle. That empty circle rule maximises the smallest angle, so triangles are as fat as possible. It is used for terrain meshes, interpolation, and as the dual of the Voronoi diagram.
+The Bowyer-Watson method adds points one at a time. Start with one giant triangle that contains everything. When a new point arrives, find every current triangle whose circumcircle (the circle through its three corners) contains the point. Those triangles are now invalid. Together they form a hole with a polygon boundary. Delete them and fill the hole by joining the new point to every edge of the boundary. After the last point, drop any triangle that touches a corner of the giant starting triangle.
+--build
+1. Pick three super-triangle corners far outside the data (for example at distance `100 * (largest coordinate + 1)`), counter-clockwise. Give them indices `n, n+1, n+2` after the `n` real points. Start `tris` with that one triangle.
+2. In-circle test for a counter-clockwise triangle `(a, b, c)` and a point `p`: compute the determinant of rows `(ax-px, ay-py, (ax-px)^2 + (ay-py)^2)`, same for `b`, `c`. If it is positive, `p` is strictly inside the circumcircle.
+3. For each real point `i` in turn: collect the triangles `bad` for which `p_i` is inside the circumcircle.
+4. The edges of the bad triangles are directed (each triangle is counter-clockwise). An edge `(u, v)` is inside the hole if the reverse edge `(v, u)` is also an edge of a bad triangle. The edges with no reverse partner form the boundary of the hole.
+5. Remove the bad triangles and add one triangle `(u, v, i)` for every boundary edge `(u, v)`. This is again counter-clockwise because `p_i` lies on the left of every boundary edge.
+6. After all points, discard triangles that use an index `>= n`. The rest is the Delaunay triangulation of the points.
+Invariant: after inserting each point, `tris` is a Delaunay triangulation of the points inserted so far plus the three super corners.
+7. Code: the `orient` piece (exact integer turn test) is called at the end to throw away flat triangles with zero area, which can appear when input points are collinear.
+--think
+- Signal: "triangulate the points nicely", "nearest neighbour graph", "terrain from height samples", "largest empty circle", "minimum spanning tree of points" (the MST is a subset of Delaunay edges, so you only need `O(n)` candidate edges).
+- Decide first the size. This version scans all triangles for every point, so it is `O(n^2)`. That is fine up to a few thousand points. For more, use a divide and conquer or randomised incremental version with point location.
+- The super triangle is finite, so a few hull triangles can be missing if it is not far enough away. A bigger super triangle fixes it, at the cost of precision. Python integers are exact, doubles are not: in Java and C++ keep coordinates modest.
+- Cocircular points (four on one circle, like a grid) make the triangulation not unique. The strict `> 0` test leaves a valid choice. Collinear input has no triangles at all.
+- Neighbours: Voronoi diagram (the dual), convex hull (the outer boundary of the triangulation is the hull), polygon triangulation (a polygon with no point constraints).
+- Pitfalls: wrong orientation of the triangles (the in-circle sign flips), duplicate points (remove them first), and in-circle rounding errors with doubles.
+--cost
+O(n^2) time in this version (O(n log n) expected with point location), O(n) space.
+--uses
+u-orientf
+--java
+// in-circle test for a counter-clockwise triangle: true if p is strictly inside its circumcircle
+static boolean inCircle(double[] a, double[] b, double[] c, double[] p) {
+    double ax = a[0] - p[0], ay = a[1] - p[1], bx = b[0] - p[0], by = b[1] - p[1], cx = c[0] - p[0], cy = c[1] - p[1];
+    double det = (ax * ax + ay * ay) * (bx * cy - cx * by)
+               - (bx * bx + by * by) * (ax * cy - cx * ay)
+               + (cx * cx + cy * cy) * (ax * by - bx * ay);
+    return det > 1e-9;
+}
+
+// returns triangles as index triples into pts (counter-clockwise); pts must be distinct
+static List<int[]> delaunay(long[][] pts) {
+    int n = pts.length;
+    double big = 0;
+    double[][] P = new double[n + 3][];
+    for (int i = 0; i < n; i++) { P[i] = new double[]{pts[i][0], pts[i][1]}; big = Math.max(big, Math.max(Math.abs(P[i][0]), Math.abs(P[i][1]))); }
+    big = 100 * (big + 1);
+    P[n] = new double[]{-big, -big}; P[n + 1] = new double[]{big, -big}; P[n + 2] = new double[]{0, big};
+    List<int[]> tris = new ArrayList<>();
+    tris.add(new int[]{n, n + 1, n + 2});
+    for (int i = 0; i < n; i++) {
+        List<int[]> keep = new ArrayList<>(), bad = new ArrayList<>();
+        for (int[] t : tris) (inCircle(P[t[0]], P[t[1]], P[t[2]], P[i]) ? bad : keep).add(t);
+        Set<Long> edges = new HashSet<>();                      // directed edges of the bad triangles
+        for (int[] t : bad) for (int k = 0; k < 3; k++) edges.add((long) t[k] * (n + 3) + t[(k + 1) % 3]);
+        for (int[] t : bad) for (int k = 0; k < 3; k++) {
+            int u = t[k], v = t[(k + 1) % 3];
+            if (!edges.contains((long) v * (n + 3) + u)) keep.add(new int[]{u, v, i});   // boundary edge
+        }
+        tris = keep;
+    }
+    List<int[]> res = new ArrayList<>();
+    for (int[] t : tris)
+        if (t[0] < n && t[1] < n && t[2] < n
+                && orient(pts[t[0]][0], pts[t[0]][1], pts[t[1]][0], pts[t[1]][1], pts[t[2]][0], pts[t[2]][1]) > 0) res.add(t);
+    return res;
+}
+--py
+def in_circle(a, b, c, p):
+    """True if p is strictly inside the circumcircle of the counter-clockwise triangle abc."""
+    ax, ay, bx, by, cx, cy = a[0] - p[0], a[1] - p[1], b[0] - p[0], b[1] - p[1], c[0] - p[0], c[1] - p[1]
+    det = ((ax * ax + ay * ay) * (bx * cy - cx * by)
+           - (bx * bx + by * by) * (ax * cy - cx * ay)
+           + (cx * cx + cy * cy) * (ax * by - bx * ay))
+    return det > 0
+
+def delaunay(pts):
+    """Triangles as index triples into pts (counter-clockwise); pts must be distinct.
+    With integer points the arithmetic is exact."""
+    n = len(pts)
+    big = 100 * (max(max(abs(x), abs(y)) for x, y in pts) + 1)
+    P = list(pts) + [(-big, -big), (big, -big), (0, big)]       # super triangle corners
+    tris = [(n, n + 1, n + 2)]
+    for i in range(n):
+        bad = [t for t in tris if in_circle(P[t[0]], P[t[1]], P[t[2]], P[i])]
+        keep = [t for t in tris if t not in bad]
+        edges = {(t[k], t[(k + 1) % 3]) for t in bad for k in range(3)}   # directed edges
+        for u, v in edges:
+            if (v, u) not in edges:                              # no partner: boundary of the hole
+                keep.append((u, v, i))
+        tris = keep
+    return [t for t in tris if max(t) < n
+            and orient(*pts[t[0]], *pts[t[1]], *pts[t[2]]) > 0]   # drop flat triangles
+--cpp
+typedef array<int,3> Tri;
+
+// in-circle test for a counter-clockwise triangle: true if p is strictly inside its circumcircle
+bool inCircle(pair<double,double> a, pair<double,double> b, pair<double,double> c, pair<double,double> p) {
+    double ax = a.first - p.first, ay = a.second - p.second, bx = b.first - p.first, by = b.second - p.second;
+    double cx = c.first - p.first, cy = c.second - p.second;
+    double det = (ax * ax + ay * ay) * (bx * cy - cx * by)
+               - (bx * bx + by * by) * (ax * cy - cx * ay)
+               + (cx * cx + cy * cy) * (ax * by - bx * ay);
+    return det > 1e-9;
+}
+
+// triangles as index triples into pts (counter-clockwise); pts must be distinct
+vector<Tri> delaunay(const vector<pair<long long,long long>>& pts) {
+    int n = pts.size();
+    vector<pair<double,double>> P;
+    double big = 0;
+    for (auto& q : pts) { P.push_back({(double)q.first, (double)q.second}); big = max(big, max(fabs((double)q.first), fabs((double)q.second))); }
+    big = 100 * (big + 1);
+    P.push_back({-big, -big}); P.push_back({big, -big}); P.push_back({0, big});
+    vector<Tri> tris = {{n, n + 1, n + 2}};
+    for (int i = 0; i < n; i++) {
+        vector<Tri> keep, bad;
+        for (auto& t : tris) (inCircle(P[t[0]], P[t[1]], P[t[2]], P[i]) ? bad : keep).push_back(t);
+        set<pair<int,int>> edges;                               // directed edges of the bad triangles
+        for (auto& t : bad) for (int k = 0; k < 3; k++) edges.insert({t[k], t[(k + 1) % 3]});
+        for (auto& e : edges)
+            if (!edges.count({e.second, e.first})) keep.push_back({e.first, e.second, i});   // boundary edge
+        tris = keep;
+    }
+    vector<Tri> res;
+    for (auto& t : tris)
+        if (max({t[0], t[1], t[2]}) < n
+                && orient(pts[t[0]].first, pts[t[0]].second, pts[t[1]].first, pts[t[1]].second, pts[t[2]].first, pts[t[2]].second) > 0)
+            res.push_back(t);
+    return res;
+}
+
+### triang
+--idea
+Polygon triangulation cuts a simple polygon (one whose edges do not cross) into triangles using only diagonals between its corners. Every simple polygon with `n` corners can be cut into exactly `n - 2` triangles. Triangles are easy to work with: you can find their area, test points in them, or use them for drawing and for counting.
+The ear clipping method rests on one fact: every simple polygon with more than three corners has at least two ears. An ear is a corner whose two neighbours can be joined by a diagonal that lies completely inside the polygon, so the three corners make a triangle with no other corner in it. Cut that triangle off, and what is left is a smaller simple polygon. Repeat until only one triangle remains.
+--build
+1. Make the corners counter-clockwise (reverse the list if the signed area from the shoelace formula is negative). Keep a list `idx` of the corners still in the polygon, initially `0..n-1`.
+2. A corner `b` with neighbours `a` (before) and `c` (after) is convex if `cross(a, b, c) > 0` (a left turn). A reflex corner (right turn) can never be an ear.
+3. A convex corner `b` is an ear if no other remaining corner lies inside or on the triangle `a, b, c`. To test a point `p`: it is inside or on the border when `cross(a, b, p) >= 0`, `cross(b, c, p) >= 0` and `cross(c, a, p) >= 0`.
+4. Scan the remaining corners for an ear. Output the triangle `(a, b, c)` and delete `b` from `idx`.
+5. If a corner is collinear with its neighbours (`cross == 0`) it is a degenerate ear: delete it without outputting anything (its triangle has no area).
+6. Repeat while more than 3 corners remain. Output the last three corners as the final triangle.
+7. If a full scan finds no ear, the input was not a simple polygon (or is clockwise); stop and report failure.
+Invariant: the remaining corners always describe a simple counter-clockwise polygon whose area plus the area of the triangles already cut equals the area of the original.
+8. Code: step 1 calls the `polygonArea2` piece (shoelace, taking arrays `x` and `y`) to detect a clockwise input and reverse it. The turn tests in steps 2, 3 and 5 call the `orient` piece.
+--think
+- Signal: "split the polygon into triangles", "area of a polygon with holes or complex shape" (triangulate then sum), "guard the gallery", "count triangulations" (that is a Catalan number counting problem, a different topic).
+- Decide first the size and the shape. For convex polygons, a fan from corner 0 triangulates in `O(n)` with no tests. For huge simple polygons use monotone-polygon decomposition, `O(n log n)`.
+- This version is `O(n^2)` in practice and `O(n^3)` for adversarial spirals, because each ear search may re-scan many candidates with an `O(n)` inside test. That is fine for `n` up to a few hundred.
+- Neighbours: shoelace area (check that the triangle areas add up), point in polygon, convex hull (a polygon's hull), Delaunay (triangulating points rather than a polygon).
+- Pitfalls: clockwise input (every corner looks reflex), allowing a corner on the edge of the candidate triangle (use `>= 0`, the border counts as inside), and collinear corners.
+--cost
+O(n^2) typical, O(n^3) worst case for this simple scan. Space O(n).
+--uses
+u-polyarea2
+u-orientf
+--java
+// triangulate a simple polygon (either direction); returns index triples, or null if no ear is found
+static List<int[]> triangulate(long[] x, long[] y) {
+    int n = x.length;
+    List<Integer> idx = new ArrayList<>();
+    boolean ccw = polygonArea2(x, y) > 0;                      // reverse a clockwise polygon
+    for (int i = 0; i < n; i++) idx.add(ccw ? i : n - 1 - i);
+    List<int[]> res = new ArrayList<>();
+    while (idx.size() > 3) {
+        int m = idx.size();
+        boolean cut = false;
+        for (int k = 0; k < m && !cut; k++) {
+            int a = idx.get((k + m - 1) % m), b = idx.get(k), c = idx.get((k + 1) % m);
+            long cr = orient(x[a], y[a], x[b], y[b], x[c], y[c]);
+            if (cr < 0) continue;                                   // reflex corner, never an ear
+            boolean ear = true;
+            if (cr > 0)
+                for (int q : idx) {
+                    if (q == a || q == b || q == c) continue;
+                    if (orient(x[a], y[a], x[b], y[b], x[q], y[q]) >= 0 && orient(x[b], y[b], x[c], y[c], x[q], y[q]) >= 0
+                            && orient(x[c], y[c], x[a], y[a], x[q], y[q]) >= 0) { ear = false; break; }
+                }
+            if (!ear) continue;
+            if (cr > 0) res.add(new int[]{a, b, c});               // cr == 0: flat corner, drop silently
+            idx.remove(k);
+            cut = true;
+        }
+        if (!cut) return null;
+    }
+    res.add(new int[]{idx.get(0), idx.get(1), idx.get(2)});
+    return res;
+}
+--py
+def triangulate(x, y):
+    """Triangulate a simple polygon (either direction); index triples, or None if no ear is found."""
+    n = len(x)
+    idx = list(range(n)) if polygon_area2(x, y) > 0 else list(range(n - 1, -1, -1))   # make it counter-clockwise
+
+    def turn(a, b, c):
+        return orient(x[a], y[a], x[b], y[b], x[c], y[c])
+
+    res = []
+    while len(idx) > 3:
+        m = len(idx)
+        for k in range(m):
+            a, b, c = idx[k - 1], idx[k], idx[(k + 1) % m]
+            cr = turn(a, b, c)
+            if cr < 0:
+                continue                                   # reflex corner, never an ear
+            if cr > 0 and any(turn(a, b, q) >= 0 and turn(b, c, q) >= 0 and turn(c, a, q) >= 0
+                              for q in idx if q not in (a, b, c)):
+                continue                                   # another corner is inside the triangle
+            if cr > 0:
+                res.append((a, b, c))                      # cr == 0: flat corner, drop silently
+            idx.pop(k)
+            break
+        else:
+            return None
+    res.append(tuple(idx))
+    return res
+--cpp
+// triangulate a simple polygon (either direction); returns index triples, or empty if no ear is found
+vector<array<int,3>> triangulate(const vector<long long>& x, const vector<long long>& y) {
+    int n = x.size();
+    vector<int> idx(n);
+    iota(idx.begin(), idx.end(), 0);
+    if (polygonArea2(x, y) < 0) reverse(idx.begin(), idx.end());   // make it counter-clockwise
+    auto turn = [&](int a, int b, int c) { return orient(x[a], y[a], x[b], y[b], x[c], y[c]); };
+    vector<array<int,3>> res;
+    while (idx.size() > 3) {
+        int m = idx.size();
+        bool cut = false;
+        for (int k = 0; k < m && !cut; k++) {
+            int a = idx[(k + m - 1) % m], b = idx[k], c = idx[(k + 1) % m];
+            long long cr = turn(a, b, c);
+            if (cr < 0) continue;                                   // reflex corner, never an ear
+            bool ear = true;
+            if (cr > 0)
+                for (int q : idx) {
+                    if (q == a || q == b || q == c) continue;
+                    if (turn(a, b, q) >= 0 && turn(b, c, q) >= 0 && turn(c, a, q) >= 0) { ear = false; break; }
+                }
+            if (!ear) continue;
+            if (cr > 0) res.push_back({a, b, c});                   // cr == 0: flat corner, drop silently
+            idx.erase(idx.begin() + k);
+            cut = true;
+        }
+        if (!cut) return {};
+    }
+    res.push_back({idx[0], idx[1], idx[2]});
+    return res;
+}
+
+### geomdual
+--idea
+Duality is a dictionary that turns points into lines and lines into points while keeping the questions that matter (above, below, touching) intact. A common version maps the point `(a, b)` to the line `y = a*x - b`, and the line `y = m*x + c` to the point `(m, -c)`. A point lies above a line exactly when the dual line passes above the dual point. So a problem about many lines can become a problem about many points, and points have a tool that lines do not: the convex hull.
+The classic example is the upper envelope of lines, the function `f(x) = max over lines of (m*x + c)`. Which lines ever win? Treat each line as the pair `(m, c)`. Then `m*x + c` is the dot product of `(m, c)` with `(x, 1)`, and the biggest dot product in a direction is reached at a corner of the convex hull. The lines that matter are exactly the corners on the upper part of the hull of the points `(m, c)`. Sorting by slope and keeping the upper hull gives the envelope in `O(n log n)`.
+--build
+1. Each line is `y = m*x + c`, stored as the pair `(m, c)`.
+2. If two lines have the same slope `m`, only the one with the larger `c` can ever be the maximum. Keep the larger `c` per slope.
+3. Sort the remaining pairs by `m` increasing.
+4. Build the upper hull of the points `(m, c)` with the monotone chain scan: for each point `p`, while the stack has two points `s1, s2` (with `s2` on top) and `cross(s1, s2, p) >= 0` (a left turn or straight), pop `s2`. Then push `p`.
+5. The stack, left to right, lists the lines that appear on the envelope in the order they are on top as `x` goes from `-infinity` to `+infinity`.
+6. To evaluate `f(x)`, binary search which hull line is best at `x` (the breakpoints between consecutive lines are where two neighbours are equal), or just use the neighbouring check `value(i) >= value(i+1)`.
+7. The other direction of the dictionary is the same hull idea read backwards: the lower envelope uses the lower hull, and "common intersection of half-planes" is the dual of "convex hull of points".
+8. Code: the `cross` piece is called in step 4 for the turn test on three dual points.
+--think
+- Signal: "max over a set of linear functions", "best line for each query x" (the convex hull trick in DP optimisation), "which lines are visible from far above", "points and lines swapped" problems.
+- Decide first whether to think of the lines as points. If a problem is about lines and the word "above/below" appears, try the dual: the answer is often a hull or a half-plane intersection of the dual points.
+- The upper envelope is the engine of the convex hull trick: a DP of the form `dp[i] = min or max of (m_j * x_i + c_j)` is answered by walking along this hull when the slopes or the queries are sorted.
+- Neighbours: convex hull (the tool used), half-plane intersection (the same problem in a different outfit), segment tree of lines (Li Chao tree) when lines arrive online.
+- Pitfalls: equal slopes (keep the larger `c`), popping with `>` instead of `>=` (leaves lines that never win), cross product overflow (the 64-bit `cross` piece is exact while `m` and `c` stay below about `10^9`, beyond that use `__int128`), and mixing the upper and lower hull.
+--cost
+O(n log n) time for the sort, O(n) for the scan. Space O(n).
+--uses
+u-cross
+--java
+// lines are {m, c} for y = m*x + c. Returns the lines of the upper envelope, by increasing slope.
+static List<long[]> upperEnvelope(long[][] lines) {
+    TreeMap<Long, Long> best = new TreeMap<>();                 // per slope keep the highest c
+    for (long[] l : lines) best.merge(l[0], l[1], Math::max);
+    List<long[]> h = new ArrayList<>();
+    for (Map.Entry<Long, Long> e : best.entrySet()) {
+        long[] p = {e.getKey(), e.getValue()};
+        while (h.size() >= 2) {
+            long[] s1 = h.get(h.size() - 2), s2 = h.get(h.size() - 1);
+            if (cross(s2[0] - s1[0], s2[1] - s1[1], p[0] - s1[0], p[1] - s1[1]) >= 0) h.remove(h.size() - 1);
+            else break;                                         // s2 is never on top
+        }
+        h.add(p);
+    }
+    return h;
+}
+--py
+def upper_envelope(lines):
+    """Lines are (m, c) for y = m*x + c. Returns the lines of the upper envelope, by increasing slope."""
+    best = {}
+    for m, c in lines:                                         # per slope keep the highest c
+        if m not in best or c > best[m]:
+            best[m] = c
+    h = []
+    for p in sorted(best.items()):
+        while len(h) >= 2:
+            s1, s2 = h[-2], h[-1]
+            if cross(s2[0] - s1[0], s2[1] - s1[1], p[0] - s1[0], p[1] - s1[1]) >= 0:
+                h.pop()                                        # s2 is never on top
+            else:
+                break
+        h.append(p)
+    return h
+--cpp
+// lines are {m, c} for y = m*x + c. Returns the lines of the upper envelope, by increasing slope.
+vector<pair<long long,long long>> upperEnvelope(const vector<pair<long long,long long>>& lines) {
+    map<long long,long long> best;                              // per slope keep the highest c
+    for (auto& l : lines) {
+        auto it = best.find(l.first);
+        if (it == best.end() || it->second < l.second) best[l.first] = l.second;
+    }
+    vector<pair<long long,long long>> h;
+    for (auto& p : best) {
+        while (h.size() >= 2) {
+            auto s1 = h[h.size() - 2], s2 = h.back();
+            if (cross(s2.first - s1.first, s2.second - s1.second, p.first - s1.first, p.second - s1.second) >= 0) h.pop_back();
+            else break;                                         // s2 is never on top
+        }
+        h.push_back(p);
+    }
+    return h;
+}
+

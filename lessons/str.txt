@@ -1,0 +1,2719 @@
+### strparse
+--idea
+Parsing means turning raw text into pieces a program can use: numbers, words, commands. A string is just a row of characters, so parsing is a walk along that row with a pointer, deciding at each step what kind of piece starts here and where it ends. Picture reading a sentence with your finger: you stop at each space or symbol, say the piece you just crossed, and move on.
+Tokenizing is the first stage. A token is one meaningful piece (a number such as `12`, a word such as `abc`). Once you have tokens, a number token is turned into a value digit by digit (`value = value * 10 + digit`), and a word token can be turned into letters positions with a small table (`'a'` is 0, `'b'` is 1, and so on). Keeping the pointer logic simple and in one place is the whole skill.
+--build
+1. Keep an index `i` that moves left to right over the string `s`.
+2. If `s[i]` is a separator (a space, comma or any symbol that is neither letter nor digit), skip it: `i += 1`.
+3. Otherwise a token starts here. Decide its kind from the first character: digit or letter. Move `j` forward while `s[j]` has the same kind. The token is `s[i..j)`. Then set `i = j`.
+4. Worked example: `"abc12 de"`. `i=0` is a letter, so `j` runs over `abc` and stops at `1` (a digit, a different kind): token `abc`. `i=3`: digit, `j` runs over `12` and stops at the space: token `12`. `i=5` is a space, skip. `i=6`: letters `de`. Result: `abc`, `12`, `de`.
+5. Number value: start `v = 0`; for each digit `d` do `v = v * 10 + d`. For `"12"`: `0*10+1 = 1`, then `1*10+2 = 12`.
+6. Word value: for each letter add `charIdx(ch) + 1` (the piece `charIdx` turns `'a'..'z'` into `0..25`). For `"de"`: 4 + 5 = 9.
+--think
+- Signal: the input is a line of text with mixed numbers, words and separators, or an expression to read (`12+3*4`), or a format like `key=value`.
+- Decide first what the separators are and whether a number can be negative or have a decimal point. Write down the token kinds before coding.
+- Prefer one pass with an index over repeated `split` calls when the format is irregular. Use `split` when the separator is a single fixed character.
+- Neighbours: a stack for expressions with brackets, regular expressions for fixed shapes (only when allowed), hashing for comparing tokens.
+- Pitfalls: forgetting the last token when the string ends without a separator, overflow when a number has many digits (use a 64-bit integer or read it as text), uppercase letters when your table assumes lowercase, and an infinite loop when the pointer is not advanced on a character of an unknown kind.
+--cost
+O(n) time for a string of length `n`, one pass. Space O(n) for the tokens.
+--uses
+u-charidx
+--java
+// split into runs of digits and runs of letters; everything else separates tokens
+static List<String> tokenize(String s) {
+    List<String> out = new ArrayList<>();
+    int i = 0, n = s.length();
+    while (i < n) {
+        if (!Character.isLetterOrDigit(s.charAt(i))) { i++; continue; }   // separator
+        boolean digit = Character.isDigit(s.charAt(i));
+        int j = i;
+        while (j < n && Character.isLetterOrDigit(s.charAt(j)) && Character.isDigit(s.charAt(j)) == digit) j++;
+        out.add(s.substring(i, j));
+        i = j;
+    }
+    return out;
+}
+
+static long parseNumber(String t) {                  // "12" -> 12
+    long v = 0;
+    for (char ch : t.toCharArray()) v = v * 10 + (ch - '0');
+    return v;
+}
+
+static int wordValue(String w) {                     // "de" -> 4 + 5 = 9
+    int v = 0;
+    for (char ch : w.toCharArray()) v += charIdx(ch) + 1;
+    return v;
+}
+--py
+def tokenize(s):
+    """Split into runs of digits and runs of letters; everything else separates tokens."""
+    out, i, n = [], 0, len(s)
+    while i < n:
+        if not s[i].isalnum():
+            i += 1                                   # separator
+            continue
+        digit = s[i].isdigit()
+        j = i
+        while j < n and s[j].isalnum() and s[j].isdigit() == digit:
+            j += 1
+        out.append(s[i:j])
+        i = j
+    return out
+
+def parse_number(t):                                 # "12" -> 12
+    v = 0
+    for ch in t:
+        v = v * 10 + (ord(ch) - ord("0"))
+    return v
+
+def word_value(w):                                   # "de" -> 4 + 5 = 9
+    return sum(char_idx(ch) + 1 for ch in w)
+--cpp
+// split into runs of digits and runs of letters; everything else separates tokens
+vector<string> tokenize(const string& s) {
+    vector<string> out;
+    size_t i = 0, n = s.size();
+    while (i < n) {
+        if (!isalnum((unsigned char)s[i])) { i++; continue; }              // separator
+        bool digit = isdigit((unsigned char)s[i]);
+        size_t j = i;
+        while (j < n && isalnum((unsigned char)s[j]) && (bool)isdigit((unsigned char)s[j]) == digit) j++;
+        out.push_back(s.substr(i, j - i));
+        i = j;
+    }
+    return out;
+}
+
+long long parseNumber(const string& t) {             // "12" -> 12
+    long long v = 0;
+    for (char ch : t) v = v * 10 + (ch - '0');
+    return v;
+}
+
+int wordValue(const string& w) {                     // "de" -> 4 + 5 = 9
+    int v = 0;
+    for (char ch : w) v += charIdx(ch) + 1;
+    return v;
+}
+
+### strsearch
+--idea
+String search asks: where does the short pattern `p` appear inside the long text `t`? The naive method lines the pattern up under the text at every possible starting position and compares letter by letter. Picture sliding a stencil along a line of print: at each shift you check whether every letter shows through.
+It is simple and often fast enough. At each start `i` you compare until the first mismatch, so on typical text the comparison stops after a letter or two. The bad case is text and pattern made of nearly the same letters (`aaaa...a` and `aaab`), where every shift compares almost all of the pattern, giving `n * m` work. The smarter algorithms (KMP, Rabin-Karp, Z-function) exist to avoid that.
+--build
+1. Let `n = len(t)` and `m = len(p)`. The pattern can start at positions `0` to `n - m`.
+2. For each start `i`, count how many leading letters of `t[i..]` equal the pattern. That count is exactly the common prefix length of `t[i..i+m)` and `p`, which the piece `commonPrefix` returns.
+3. If that count equals `m`, the whole pattern matched: record `i`.
+4. Worked example: `t = "abaab"`, `p = "aab"`. Start 0: `aba` vs `aab` share 1 letter, no. Start 1: `baa` shares 0. Start 2: `aab` shares 3 = `m`, match at 2. Answer `[2]`.
+5. Edge cases: `m == 0` matches everywhere (decide what you want); `m > n` has no start positions.
+--think
+- Signal: "find the substring", "count occurrences", "does the text contain". For one search over small input this is enough.
+- Decide first how big `n * m` is. Up to about `10^7` total comparisons the naive loop is fine. Beyond that, or when the same pattern is searched in huge text, use KMP or hashing.
+- Neighbours: KMP and the Z-function (linear, exact), Rabin-Karp (rolling hash, good for many patterns of the same length), Aho-Corasick (many patterns at once), a suffix array (many queries on one text).
+- Pitfalls: stopping the outer loop at `n` instead of `n - m` (index out of range), counting overlapping matches wrongly (the loop above finds overlapping ones, which is usually what you want), and creating substrings in a hot loop in languages where that copies.
+--cost
+Time O(n * m) in the worst case, typically close to O(n). Space O(1) besides the answer.
+--uses
+u-lcp2
+--java
+// start positions of every occurrence of p in t (overlapping allowed)
+static List<Integer> naiveSearch(String t, String p) {
+    List<Integer> hits = new ArrayList<>();
+    int n = t.length(), m = p.length();
+    for (int i = 0; i + m <= n; i++)
+        if (commonPrefix(t.substring(i, i + m), p) == m) hits.add(i);   // whole pattern matched
+    return hits;
+}
+--py
+def naive_search(t, p):
+    """Start positions of every occurrence of p in t (overlapping allowed)."""
+    n, m = len(t), len(p)
+    return [i for i in range(n - m + 1) if common_prefix(t[i:i + m], p) == m]   # whole pattern matched
+--cpp
+// start positions of every occurrence of p in t (overlapping allowed)
+vector<int> naiveSearch(const string& t, const string& p) {
+    vector<int> hits;
+    int n = t.size(), m = p.size();
+    for (int i = 0; i + m <= n; i++)
+        if (commonPrefix(t.substr(i, m), p) == m) hits.push_back(i);    // whole pattern matched
+    return hits;
+}
+
+### str-count
+--idea
+Counting letters is the most reused trick with strings. Make a tally sheet with one box per letter, walk once through the string and add one to the box of each letter you see. After that, many questions are answered by reading the boxes and not the string: which letter is most common, does the string use every letter, can the letters be rearranged into a palindrome.
+The same idea works for any kind of item, not just letters: count how often each value appears and then look at the counts. For small alphabets (like 26 lowercase letters) an array is the best tally sheet. For large or unknown values use a hash map from value to count.
+--build
+1. Letters only: make an array `cnt` of 26 zeros. For each letter `ch`, do `cnt[ch - 'a'] += 1`. The piece `countLetters` does exactly this.
+2. Worked example: `"aabbc"` gives `a:2, b:2, c:1`. Number of letters with an odd count: 1 (`c`).
+3. Palindrome rearrangement: a string can be rearranged into a palindrome if at most one letter has an odd count (that letter sits in the middle). `canFormPalindrome` counts the odd boxes.
+4. Other values: use `countFreq` (the piece that returns a map from value to count). Here `mostCommonLength` counts how many words have each length and returns the length with the highest count (the smaller length on ties).
+5. Always decide the alphabet first: lowercase only, upper and lower, digits, or any character. Size the array to match.
+--think
+- Signal: "how many times", "most frequent", "same letters", "rearrange", "at most one odd", "does it contain all letters". Counting turns a string problem into an array problem.
+- Decide first the alphabet size. 26 (or 128 or 256) means an array; large values or words mean a hash map or a sorted map.
+- Neighbours: anagram checks (compare two count arrays), sliding window with counts (substring problems), sorting (when you need order), hashing (when the count array itself must be a key).
+- Pitfalls: `ch - 'a'` on an uppercase letter or a digit gives a negative or out of range index, forgetting to reset the array between test cases, and relying on map iteration order.
+--cost
+O(n) time and O(alphabet) space for the array, O(distinct values) for a map.
+--uses
+u-count26
+u-freq
+--java
+// can the letters of s be rearranged into a palindrome
+static boolean canFormPalindrome(String s) {
+    int[] cnt = countLetters(s);
+    int odd = 0;
+    for (int c : cnt) odd += c % 2;
+    return odd <= 1;
+}
+
+// the word length that occurs most often (smaller length on ties)
+static int mostCommonLength(String[] words) {
+    int[] lens = new int[words.length];
+    for (int i = 0; i < words.length; i++) lens[i] = words[i].length();
+    Map<Integer, Integer> f = countFreq(lens);
+    int best = -1;
+    for (Map.Entry<Integer, Integer> e : f.entrySet())
+        if (best == -1 || e.getValue() > f.get(best) || (e.getValue().equals(f.get(best)) && e.getKey() < best)) best = e.getKey();
+    return best;
+}
+--py
+def can_form_palindrome(s):
+    """Can the letters of s be rearranged into a palindrome."""
+    cnt = count_letters(s)
+    return sum(c % 2 for c in cnt) <= 1
+
+def most_common_length(words):
+    """The word length that occurs most often (smaller length on ties)."""
+    f = count_freq([len(w) for w in words])
+    return min(f, key=lambda k: (-f[k], k))
+--cpp
+// can the letters of s be rearranged into a palindrome
+bool canFormPalindrome(const string& s) {
+    auto cnt = countLetters(s);
+    int odd = 0;
+    for (int c : cnt) odd += c % 2;
+    return odd <= 1;
+}
+
+// the word length that occurs most often (smaller length on ties)
+int mostCommonLength(const vector<string>& words) {
+    vector<int> lens;
+    for (auto& w : words) lens.push_back(w.size());
+    map<int,int> f = countFreq(lens);
+    int best = -1;
+    for (auto& e : f)                                    // the map visits smaller lengths first
+        if (best == -1 || e.second > f[best]) best = e.first;
+    return best;
+}
+
+### anagram
+--idea
+Two words are anagrams when they use exactly the same letters the same number of times, only in a different order (`listen` and `silent`). Order does not matter, so throw the order away: what is left is the letter counts. Two strings are anagrams exactly when their count tables are equal.
+This gives two ways to work with anagrams. To compare two strings, build both tables and compare them. To group many words into families of anagrams, use the table (or the sorted letters) as a label: words with the same label belong together. A table of 26 numbers, or the word with its letters sorted, are both valid labels.
+--build
+1. Count the letters of each string with `countLetters` (an array of 26 numbers).
+2. Worked example: `listen` and `silent` both give `e:1 i:1 l:1 n:1 s:1 t:1`. The arrays are equal, so they are anagrams. `listen` and `listed` differ in two boxes (`n` and `d`), so they are not.
+3. `isAnagram(a, b)`: if the lengths differ answer no, else compare the two arrays.
+4. Grouping: for each word compute its table, turn it into a key (a string made of the 26 numbers), and put the word in a map under that key. Each map value is one family.
+5. To test whether `b` is hidden anywhere inside a longer text as an anagram, slide a window of length `len(b)` over the text and keep the window's table up to date by adding the entering letter and removing the leaving one.
+--think
+- Signal: "same letters", "rearrangement", "group words that", "find all anagrams of p in s", "can one string be built from another's letters".
+- Decide first the alphabet (lowercase letters here). For general characters use a map for the counts.
+- Table labels cost `O(26)` per word and are safe for any word length. Sorted letters cost `O(k log k)` per word of length `k` but are shorter to write. Both are correct.
+- Neighbours: letter counting (the building block), sliding window (anagrams inside text), hashing a count table (to compare windows in `O(1)`), sorting.
+- Pitfalls: not checking the lengths first when only comparing two arrays of the same size is intended, using a hash that can collide (summing letters is NOT a valid label: `ad` and `bc` have the same sum), and forgetting that capital letters need their own boxes.
+--cost
+O(n) per string for counting, plus O(26) to compare. Grouping `w` words of total length `N` is O(N + 26 w).
+--uses
+u-count26
+--java
+// are a and b made of the same letters with the same counts
+static boolean isAnagram(String a, String b) {
+    return a.length() == b.length() && Arrays.equals(countLetters(a), countLetters(b));
+}
+
+// group words into families of anagrams
+static Collection<List<String>> groupAnagrams(String[] words) {
+    Map<String, List<String>> groups = new HashMap<>();
+    for (String w : words)
+        groups.computeIfAbsent(Arrays.toString(countLetters(w)), k -> new ArrayList<>()).add(w);
+    return groups.values();
+}
+--py
+def is_anagram(a, b):
+    """Are a and b made of the same letters with the same counts."""
+    return len(a) == len(b) and count_letters(a) == count_letters(b)
+
+def group_anagrams(words):
+    """Group words into families of anagrams."""
+    groups = {}
+    for w in words:
+        groups.setdefault(tuple(count_letters(w)), []).append(w)
+    return list(groups.values())
+--cpp
+// are a and b made of the same letters with the same counts
+bool isAnagram(const string& a, const string& b) {
+    return a.size() == b.size() && countLetters(a) == countLetters(b);
+}
+
+// group words into families of anagrams
+vector<vector<string>> groupAnagrams(const vector<string>& words) {
+    map<array<int, 26>, vector<string>> groups;
+    for (auto& w : words) groups[countLetters(w)].push_back(w);
+    vector<vector<string>> res;
+    for (auto& g : groups) res.push_back(g.second);
+    return res;
+}
+
+### palin
+--idea
+A palindrome reads the same forwards and backwards (`level`, `abba`). To test one, compare the first letter with the last, the second with the second last, and so on towards the middle. To find palindromes hidden inside a longer string, think of the middle: every palindrome has a centre, and growing outwards from a centre while the two sides match finds all palindromes around it.
+There are `2n - 1` centres in a string of length `n`: each letter (odd length palindromes like `aba`) and each gap between two letters (even length like `abba`). Expanding from every centre costs at most `O(n)` each, so `O(n^2)` in total, which is simple and good enough up to a few thousand letters. Manacher's algorithm brings this down to linear.
+--build
+1. Test: `isPalindrome(s)` from the pieces compares `s[i]` with `s[n-1-i]` for every `i` up to the middle.
+2. Longest palindromic substring by centres: for each centre `c` from `0` to `2n - 2`, set `l = c / 2` and `r = l + c % 2` (even `c` gives an odd palindrome centred on one letter, odd `c` an even palindrome centred on a gap).
+3. While `l >= 0`, `r < n` and `s[l] == s[r]`, step `l -= 1`, `r += 1`. The palindrome found is `s[l+1..r-1]`. Keep the longest.
+4. Worked example: `"babad"`. Centre on the first `a` (index 1): `b` equals `b`, so `bab`; next `l=-1` stops. Centre on `b` index 2: `a`/`a` match giving `aba`; then `b`/`d` differ. Longest is `bab` (or `aba`).
+5. One deletion allowed: scan inward from both ends; at the first mismatch `l, r`, the string is fine if `s[l+1..r]` or `s[l..r-1]` is a palindrome (call `isPalindrome` on each). `almostPalindrome` does this.
+--think
+- Signal: "palindrome", "reads the same", "symmetric", "mirror", "reverse equals itself".
+- Decide first: do you need to test one string (two pointers), find the longest inside a string (centres, `O(n^2)`, or Manacher for `O(n)`), count all palindromic substrings (centres again), or the minimum edits (dynamic programming)?
+- Neighbours: counting letters (rearrange into a palindrome), Manacher (all palindromes in linear time), hashing with a reversed string (compare in `O(1)`), the palindromic tree (all distinct palindromes).
+- Pitfalls: forgetting even length palindromes, off-by-one when the expansion stops (the answer is `l+1..r-1`), mixing up palindromic substring (contiguous) with palindromic subsequence (not contiguous), and ignoring case or punctuation when the problem says to.
+--cost
+Test O(n). Longest by centres O(n^2) time, O(1) extra space.
+--uses
+u-ispalin
+--java
+// longest palindromic substring by expanding around the 2n - 1 centres
+static String longestPalindrome(String s) {
+    int n = s.length(), bestL = 0, bestLen = n == 0 ? 0 : 1;
+    for (int c = 0; c < 2 * n - 1; c++) {
+        int l = c / 2, r = l + c % 2;
+        while (l >= 0 && r < n && s.charAt(l) == s.charAt(r)) { l--; r++; }
+        if (r - l - 1 > bestLen) { bestLen = r - l - 1; bestL = l + 1; }
+    }
+    return s.substring(bestL, bestL + bestLen);
+}
+
+// is s a palindrome after deleting at most one letter
+static boolean almostPalindrome(String s) {
+    int l = 0, r = s.length() - 1;
+    while (l < r && s.charAt(l) == s.charAt(r)) { l++; r--; }
+    if (l >= r) return true;
+    return isPalindrome(s.substring(l + 1, r + 1)) || isPalindrome(s.substring(l, r));
+}
+--py
+def longest_palindrome(s):
+    """Longest palindromic substring by expanding around the 2n - 1 centres."""
+    n, best_l, best_len = len(s), 0, (1 if s else 0)
+    for c in range(2 * n - 1):
+        l = c // 2
+        r = l + c % 2
+        while l >= 0 and r < n and s[l] == s[r]:
+            l -= 1
+            r += 1
+        if r - l - 1 > best_len:
+            best_len, best_l = r - l - 1, l + 1
+    return s[best_l:best_l + best_len]
+
+def almost_palindrome(s):
+    """Is s a palindrome after deleting at most one letter."""
+    l, r = 0, len(s) - 1
+    while l < r and s[l] == s[r]:
+        l += 1
+        r -= 1
+    if l >= r:
+        return True
+    return is_palindrome(s[l + 1:r + 1]) or is_palindrome(s[l:r])
+--cpp
+// longest palindromic substring by expanding around the 2n - 1 centres
+string longestPalindrome(const string& s) {
+    int n = s.size(), bestL = 0, bestLen = n == 0 ? 0 : 1;
+    for (int c = 0; c < 2 * n - 1; c++) {
+        int l = c / 2, r = l + c % 2;
+        while (l >= 0 && r < n && s[l] == s[r]) { l--; r++; }
+        if (r - l - 1 > bestLen) { bestLen = r - l - 1; bestL = l + 1; }
+    }
+    return s.substr(bestL, bestLen);
+}
+
+// is s a palindrome after deleting at most one letter
+bool almostPalindrome(const string& s) {
+    int l = 0, r = (int)s.size() - 1;
+    while (l < r && s[l] == s[r]) { l++; r--; }
+    if (l >= r) return true;
+    return isPalindrome(s.substr(l + 1, r - l)) || isPalindrome(s.substr(l, r - l));
+}
+
+### rle
+--idea
+Run-length encoding squeezes repeated characters. A run is a maximal block of the same character: `aaabcc` has three runs, `aaa`, `b`, `cc`. Instead of writing every letter you write the letter and how many times it repeats: `a3b1c2`. When the text has long runs (pictures, sensor data, simple logs) this is much shorter.
+The algorithm is one scan with two pointers: `i` marks the start of a run and `j` walks forward while the letter stays the same. When it changes, the run is `s[i..j)`, you emit the letter and the count `j - i`, and the next run starts at `j`. The same scan answers many questions about runs without ever building the encoded text, such as the longest run of each letter.
+--build
+1. Set `i = 0`. While `i < n`: set `j = i`; while `j < n` and `s[j] == s[i]`, do `j += 1`.
+2. The run is letter `s[i]` with length `j - i`. Append them to the output. Set `i = j`.
+3. Worked example: `"aaabcc"`. `i=0`: `j` stops at 3 (`b`), run `a` of length 3. `i=3`: run `b` length 1. `i=4`: run `c` length 2. Encoded: `a3b1c2`.
+4. Decoding: read a letter, then read digits as a number `k` (can be more than one digit, so keep reading digits), and write the letter `k` times.
+5. Longest run per letter: for each run keep `best[charIdx(letter)] = max(best[...], length)`. The piece `charIdx` turns `'a'..'z'` into `0..25`. `longestRuns` does this.
+6. Always count the encoded form, not the original: `a1b1` is longer than `ab`. Decide whether to write counts of 1.
+--think
+- Signal: "compress", "consecutive equal characters", "longest block of the same", "group runs", "how many groups". Anything where consecutive equals matter.
+- Decide first whether a run of length 1 is written with its count, and whether counts can exceed one digit (they can: `a12`). Then decoding must read a whole number.
+- Neighbours: two pointers and sliding windows (similar scan), counting letters (counts regardless of position), Huffman coding (compression that uses frequency instead of runs).
+- Pitfalls: forgetting to flush the last run after the loop (the loop above handles it because `j` runs to `n`), assuming digits never appear in the text (then decoding is ambiguous), and counting letters globally when the question is about consecutive ones.
+--cost
+O(n) time, O(1) extra space besides the output.
+--uses
+u-charidx
+--java
+// "aaabcc" -> "a3b1c2"
+static String rleEncode(String s) {
+    StringBuilder sb = new StringBuilder();
+    for (int i = 0, j; i < s.length(); i = j) {
+        j = i;
+        while (j < s.length() && s.charAt(j) == s.charAt(i)) j++;
+        sb.append(s.charAt(i)).append(j - i);
+    }
+    return sb.toString();
+}
+
+// longest run of each letter 'a'..'z'
+static int[] longestRuns(String s) {
+    int[] best = new int[26];
+    for (int i = 0, j; i < s.length(); i = j) {
+        j = i;
+        while (j < s.length() && s.charAt(j) == s.charAt(i)) j++;
+        best[charIdx(s.charAt(i))] = Math.max(best[charIdx(s.charAt(i))], j - i);
+    }
+    return best;
+}
+--py
+def rle_encode(s):
+    """'aaabcc' -> 'a3b1c2'."""
+    out, i = [], 0
+    while i < len(s):
+        j = i
+        while j < len(s) and s[j] == s[i]:
+            j += 1
+        out.append(s[i] + str(j - i))
+        i = j
+    return "".join(out)
+
+def longest_runs(s):
+    """Longest run of each letter 'a'..'z'."""
+    best, i = [0] * 26, 0
+    while i < len(s):
+        j = i
+        while j < len(s) and s[j] == s[i]:
+            j += 1
+        k = char_idx(s[i])
+        best[k] = max(best[k], j - i)
+        i = j
+    return best
+--cpp
+// "aaabcc" -> "a3b1c2"
+string rleEncode(const string& s) {
+    string out;
+    for (size_t i = 0, j; i < s.size(); i = j) {
+        j = i;
+        while (j < s.size() && s[j] == s[i]) j++;
+        out += s[i];
+        out += to_string(j - i);
+    }
+    return out;
+}
+
+// longest run of each letter 'a'..'z'
+array<int, 26> longestRuns(const string& s) {
+    array<int, 26> best{};
+    for (size_t i = 0, j; i < s.size(); i = j) {
+        j = i;
+        while (j < s.size() && s[j] == s[i]) j++;
+        best[charIdx(s[i])] = max(best[charIdx(s[i])], (int)(j - i));
+    }
+    return best;
+}
+
+### strcmp
+--idea
+Lexicographic order is dictionary order. To compare two strings, find the first position where they differ; the string with the smaller letter there comes first. If one string is a prefix of the other (`app` and `apple`), the shorter one comes first. Everything else (sorting words, building the smallest string, binary searching a sorted list of words) rests on this one rule.
+Under the hood each letter is a number (its code), so comparing two letters is comparing two numbers: the piece `compare` returns negative, zero or positive in the usual three way style. A string comparison is a loop that calls it on the letters at each position until they differ.
+--build
+1. Let `k = 0`. While `k < min(len(a), len(b))`: compare the letters `a[k]` and `b[k]` as numbers with `compare(a[k], b[k])`.
+2. If the result is not 0, that is the answer (negative means `a` is smaller). Otherwise `k += 1`.
+3. If the loop ends with all compared letters equal, the shorter string is smaller: return `compare(len(a), len(b))`.
+4. Worked example: `"apple"` and `"apricot"`. Positions 0 and 1 match (`a`, `p`). At position 2, `p` (112) against `r` (114): `compare` is negative, so `"apple" < "apricot"`. And `"app"` vs `"apple"`: all 3 letters match, lengths 3 and 5, so `"app"` is smaller.
+5. To sort a list of strings, use this comparison as the sorting rule. To find the smallest string that can be made by joining pieces, compare `a + b` with `b + a` instead (the pieces are not ordered by themselves).
+--think
+- Signal: "dictionary order", "smallest string", "sort the words", "which comes first", "binary search over words", "next permutation of letters".
+- Decide first whether the comparison is by letter code (uppercase before lowercase), ignoring case, or by a custom alphabet order. Build a rank table for a custom alphabet and compare ranks.
+- Neighbours: sorting strings (it calls this rule), tries (shared prefixes), suffix arrays (sorted suffixes), hashing with binary search (compare long strings fast by finding the first difference).
+- Pitfalls: comparing lengths first by mistake (that is shortlex order, a different rule), forgetting the prefix rule, using `==` on string references in Java (use `equals`), and comparing numbers as text (`"10" < "9"` as strings).
+--cost
+O(min(len(a), len(b))) time per comparison, O(1) space. Sorting `w` strings costs O(w log w) comparisons.
+--uses
+u-cmp
+--java
+// <0 if a comes before b, 0 if equal, >0 if after (dictionary order)
+static int compareStrings(String a, String b) {
+    int k = 0, n = Math.min(a.length(), b.length());
+    for (; k < n; k++) {
+        int c = compare(a.charAt(k), b.charAt(k));    // letters as numbers
+        if (c != 0) return c;
+    }
+    return compare(a.length(), b.length());           // prefix rule: shorter first
+}
+--py
+def compare_strings(a, b):
+    """<0 if a comes before b, 0 if equal, >0 if after (dictionary order)."""
+    for k in range(min(len(a), len(b))):
+        c = compare(ord(a[k]), ord(b[k]))             # letters as numbers
+        if c != 0:
+            return c
+    return compare(len(a), len(b))                    # prefix rule: shorter first
+--cpp
+// <0 if a comes before b, 0 if equal, >0 if after (dictionary order)
+int compareStrings(const string& a, const string& b) {
+    size_t n = min(a.size(), b.size());
+    for (size_t k = 0; k < n; k++) {
+        int c = compare((unsigned char)a[k], (unsigned char)b[k]);   // letters as numbers
+        if (c != 0) return c;
+    }
+    return compare((int)a.size(), (int)b.size());     // prefix rule: shorter first
+}
+
+### hashing
+--idea
+String hashing turns a string into one number (its fingerprint) so that two strings can be compared by comparing numbers instead of letter by letter. If two strings are equal their fingerprints are equal. If they differ, the fingerprints differ with very high probability, so in practice a matching fingerprint means a matching string.
+The polynomial hash treats the string as a number written in some base `B`: for `"abc"` it is `a*B^2 + b*B + c`, all taken modulo a large prime `M` so it fits in a machine integer. Its great feature is the prefix trick: store the hash of every prefix, and the hash of ANY substring comes out of two prefix hashes with one subtraction and one multiplication, in constant time. That lets you compare any two substrings of a string in `O(1)` after `O(n)` preparation.
+--build
+1. Pick a base `B` (like 131) and a big prime modulus `M` (like `1_000_000_007`). Treat each letter as its character code.
+2. Prefix hashes: `h[0] = 0` and `h[i+1] = (h[i] * B + s[i]) mod M`. So `h[i]` is the hash of the first `i` letters. Also store powers `pw[i] = B^i mod M`.
+3. These two arrays come from the piece `buildHash(s)`. Keep them in shared variables `h` and `pw`.
+4. Substring hash of `s[l..r)` (from `l` up to but not including `r`): `get(l, r) = (h[r] - h[l] * pw[r-l]) mod M`. This is the piece `get`. Why: `h[r]` contains `h[l]` shifted left by `r - l` places; subtracting that shifted copy leaves only the substring.
+5. Worked example (tiny numbers, `B = 10`, letters as digits, ignoring `M`): `s = "1213"`. `h = [0, 1, 12, 121, 1213]`. Hash of `s[1..3) = "21"`: `h[3] - h[1] * 10^2 = 121 - 100 = 21`. Correct.
+6. Compare two substrings of the same length: equal hashes means (almost certainly) equal substrings. `sameSubstring` does this. `distinctOfLength` counts the different substrings of a given length by putting their hashes in a set.
+7. To lower the collision risk, use a random base, or two different moduli, or a 61-bit prime.
+--think
+- Signal: compare many substrings, find equal pieces, "does this string occur elsewhere", count distinct substrings of a length, palindromes via a forward and a reversed hash.
+- Decide first how many comparisons you will make. With modulus `10^9` and `10^6` comparisons a collision is likely (birthday effect). Use a modulus near `2^61`, or two moduli, when comparing millions of pairs.
+- Hash comparisons can be wrong in one direction only: different strings can share a hash, equal strings never differ. If correctness must be exact, verify a match by comparing the letters.
+- Neighbours: Rabin-Karp (search with a rolling hash), hashing plus binary search (longest common prefix, longest repeated piece), suffix arrays (exact, no collisions).
+- Pitfalls: negative results after subtraction (the `mod` fix), a letter mapped to 0 (then `"a"` and `"aa"` can collide, so map letters from 1), a fixed base that a test can attack, and overflow when multiplying two numbers near `M` in 32 bit.
+--cost
+O(n) to build, O(1) per substring hash, O(n) space.
+--uses
+u-hashroll
+u-substrhash
+--java
+static long[] h, pw;                                  // prefix hashes and powers, read by get(l, r)
+
+static void prepare(String s) { long[][] r = buildHash(s); h = r[0]; pw = r[1]; }
+
+// are s[a..a+len) and s[b..b+len) equal (up to hash collisions)
+static boolean sameSubstring(String s, int a, int b, int len) {
+    prepare(s);
+    return get(a, a + len) == get(b, b + len);
+}
+
+// number of different substrings of length k
+static int distinctOfLength(String s, int k) {
+    prepare(s);
+    Set<Long> seen = new HashSet<>();
+    for (int i = 0; i + k <= s.length(); i++) seen.add(get(i, i + k));
+    return seen.size();
+}
+--py
+h, pw = [0], [1]                                      # prefix hashes and powers, read by get(l, r)
+
+def prepare(s):
+    global h, pw
+    h, pw = build_hash(s)
+
+def same_substring(s, a, b, length):
+    """Are s[a:a+length] and s[b:b+length] equal (up to hash collisions)."""
+    prepare(s)
+    return get(a, a + length) == get(b, b + length)
+
+def distinct_of_length(s, k):
+    """Number of different substrings of length k."""
+    prepare(s)
+    return len({get(i, i + k) for i in range(len(s) - k + 1)})
+--cpp
+vector<long long> h, pw;                              // prefix hashes and powers, read by get(l, r)
+
+void prepare(const string& s) { auto r = buildHash(s); h = r.first; pw = r.second; }
+
+// are s[a..a+len) and s[b..b+len) equal (up to hash collisions)
+bool sameSubstring(const string& s, int a, int b, int len) {
+    prepare(s);
+    return get(a, a + len) == get(b, b + len);
+}
+
+// number of different substrings of length k
+int distinctOfLength(const string& s, int k) {
+    prepare(s);
+    set<long long> seen;
+    for (int i = 0; i + k <= (int)s.size(); i++) seen.insert(get(i, i + k));
+    return seen.size();
+}
+
+### rabinkarp
+--idea
+Rabin-Karp finds a pattern in a text by comparing fingerprints instead of letters. Compute the hash of the pattern once. Then slide a window of the pattern's length along the text and compare the hash of each window with the pattern's hash. A window whose hash differs cannot match, and checking a window's hash costs `O(1)` because the hash of the next window comes from the previous one by removing the leaving letter and adding the entering one (a rolling hash).
+When a window hash equals the pattern hash, the letters probably match but might not (a collision), so confirm by comparing the real letters. Collisions are rare, so confirmation happens almost only on real matches. The method is especially good for searching many patterns of the same length at once (put their hashes in a set) and for two dimensional matching.
+--build
+1. Build prefix hashes of the pattern `p` (piece `buildHash`) and read its full hash `ph = get(0, m)`, where `m = len(p)`.
+2. Build prefix hashes of the text `t` (again `buildHash`, replacing the shared `h` and `pw`).
+3. For each start `i` from `0` to `n - m`: the window hash is `get(i, i + m)` (the piece `get` computes it from the prefix hashes, which is the rolling step in closed form).
+4. If the window hash equals `ph`, verify by comparing `t[i..i+m)` with `p` letter by letter; if equal record `i`.
+5. Worked example: `t = "abab"`, `p = "ab"`. `ph = hash("ab")`. Windows: `ab` (equal, verified, record 0), `ba` (hash differs), `ab` (record 2). Answer `[0, 2]`.
+6. Use a modulus that is large and a base that is not guessable if the input could be hostile.
+--think
+- Signal: "search many patterns of the same length", "find any of these words", "duplicate substrings of length k", "2D pattern". For a single pattern with a hostile input, prefer KMP, which has no probability in it.
+- Decide first: do you need guaranteed correctness (verify every hash hit, cost `O(m)` per hit) or is a tiny error chance acceptable (skip verification)?
+- Worst case with verification is `O(n * m)` if the text has many true matches (for example `aaaa...` and pattern `aaa`), because each verified match costs `m`. Skip verification, or just count hits, when only the count matters and the error chance is fine.
+- Neighbours: KMP and Z (deterministic linear), Aho-Corasick (many patterns of different lengths), suffix arrays (many queries on one text), hashing (the building block).
+- Pitfalls: forgetting the verification step, forgetting the mod when subtracting, using a small modulus, and pattern longer than the text.
+--cost
+O(n + m) expected, plus O(m) per verified match. Space O(n + m).
+--uses
+u-hashroll
+u-substrhash
+--java
+static long[] h, pw;                                  // prefix hashes and powers, read by get(l, r)
+
+// start positions of p in t, found by comparing window hashes and then the letters
+static List<Integer> rabinKarp(String t, String p) {
+    List<Integer> hits = new ArrayList<>();
+    int n = t.length(), m = p.length();
+    if (m == 0 || m > n) return hits;
+    long[][] hp = buildHash(p);
+    h = hp[0]; pw = hp[1];
+    long ph = get(0, m);                              // fingerprint of the pattern
+    long[][] ht = buildHash(t);
+    h = ht[0]; pw = ht[1];
+    for (int i = 0; i + m <= n; i++)
+        if (get(i, i + m) == ph && t.startsWith(p, i)) hits.add(i);   // verify to rule out a collision
+    return hits;
+}
+--py
+h, pw = [0], [1]                                      # prefix hashes and powers, read by get(l, r)
+
+def rabin_karp(t, p):
+    """Start positions of p in t, found by comparing window hashes and then the letters."""
+    global h, pw
+    n, m = len(t), len(p)
+    if m == 0 or m > n:
+        return []
+    h, pw = build_hash(p)
+    ph = get(0, m)                                    # fingerprint of the pattern
+    h, pw = build_hash(t)
+    return [i for i in range(n - m + 1)
+            if get(i, i + m) == ph and t.startswith(p, i)]   # verify to rule out a collision
+--cpp
+vector<long long> h, pw;                              // prefix hashes and powers, read by get(l, r)
+
+// start positions of p in t, found by comparing window hashes and then the letters
+vector<int> rabinKarp(const string& t, const string& p) {
+    vector<int> hits;
+    int n = t.size(), m = p.size();
+    if (m == 0 || m > n) return hits;
+    auto hp = buildHash(p);
+    h = hp.first; pw = hp.second;
+    long long ph = get(0, m);                         // fingerprint of the pattern
+    auto ht = buildHash(t);
+    h = ht.first; pw = ht.second;
+    for (int i = 0; i + m <= n; i++)
+        if (get(i, i + m) == ph && t.compare(i, m, p) == 0) hits.push_back(i);   // verify
+    return hits;
+}
+
+### strsort
+--idea
+Sorting strings means putting words in dictionary order, but there are three different jobs hiding under that name. The plain job: sort words in dictionary order, using the rule that compares the first differing letter. The second: sort by some other key, such as length, with ties handled in a stated way. The third, smarter job: order pieces so that gluing them together gives the smallest (or largest) possible string. That one needs a special comparison, because the pieces are not ordered by their own letters.
+For the glue problem the rule is: put `a` before `b` if `a + b < b + a`. Example with `"3"` and `"30"`: `"330"` against `"303"`; `"303"` is smaller so for the smallest result `"30"` goes before `"3"`, even though `"3" < "30"` as words. This pairwise rule is consistent (it never contradicts itself), so ordinary sorting with it works.
+--build
+1. Dictionary order: sort with the string comparison (first differing letter, shorter first on a prefix). Every language's built in string sort does this.
+2. Sort by length: make an array `lens` of the word lengths and call the piece `sortIndices(lens)`, which returns the positions ordered by value. Read the words in that order. `sortByLength` does this. Words with equal lengths may come out in either order in C++ (its sort is not stable); Java and Python keep them in input order.
+3. Worked example: words `["bb", "a", "ccc", "dd"]`. Lengths `[2, 1, 3, 2]`. `sortIndices` gives `[1, 0, 3, 2]` (length 1, then the two of length 2, then 3). Result `a, bb, dd, ccc`.
+4. Smallest concatenation: sort the words with the comparison `a + b` against `b + a`, then join them. For `["3", "30", "34", "5", "9"]` the sorted order for the LARGEST number is `9, 5, 34, 3, 30` giving `9534330`. For the smallest number reverse the comparison.
+5. If the strings are very long, a comparison costs the length, so a sort of `w` strings of length `L` costs `O(w log w * L)`. A trie or a suffix array can do better.
+--think
+- Signal: "sort the words", "lexicographically smallest", "arrange to form the largest number", "order of letters in an alien dictionary" (that one is a topological sort on letter order), "group by first letter".
+- Decide first which key: letters, length, a custom alphabet (map each letter to its rank), or the glue rule. Using the wrong order is the main bug.
+- A custom comparison must be a valid ordering (transitive and consistent). The `a+b < b+a` rule is, which is why it is safe. A rule that is not consistent can crash a sort or give junk.
+- Neighbours: string comparison (the base rule), tries (sorted words by walking the trie), suffix arrays (sorting all suffixes), counting sort (for short fixed alphabets).
+- Pitfalls: comparing numbers as text (`"10" < "9"`), leading zeros in the glued answer (a result of all zeros should print `0`), and relying on stable sort order when the language does not promise it.
+--cost
+O(w log w) comparisons for `w` strings, each costing up to the string length.
+--uses
+u-sortidx
+--java
+// words ordered by length (ties keep input order here)
+static List<String> sortByLength(List<String> words) {
+    int[] lens = new int[words.size()];
+    for (int i = 0; i < lens.length; i++) lens[i] = words.get(i).length();
+    List<String> out = new ArrayList<>();
+    for (int i : sortIndices(lens)) out.add(words.get(i));     // positions ordered by length
+    return out;
+}
+
+// join the words in the order that gives the smallest possible string
+static String smallestConcat(List<String> words) {
+    List<String> w = new ArrayList<>(words);
+    w.sort((a, b) -> (a + b).compareTo(b + a));                 // a before b if a+b < b+a
+    return String.join("", w);
+}
+--py
+from functools import cmp_to_key
+
+def sort_by_length(words):
+    """Words ordered by length (ties keep input order here)."""
+    lens = [len(w) for w in words]
+    return [words[i] for i in sort_indices(lens)]              # positions ordered by length
+
+def smallest_concat(words):
+    """Join the words in the order that gives the smallest possible string."""
+    key = cmp_to_key(lambda a, b: (a + b > b + a) - (a + b < b + a))   # a before b if a+b < b+a
+    return "".join(sorted(words, key=key))
+--cpp
+// words ordered by length (ties may come in any order)
+vector<string> sortByLength(const vector<string>& words) {
+    vector<int> lens;
+    for (auto& w : words) lens.push_back(w.size());
+    vector<string> out;
+    for (int i : sortIndices(lens)) out.push_back(words[i]);     // positions ordered by length
+    return out;
+}
+
+// join the words in the order that gives the smallest possible string
+string smallestConcat(vector<string> w) {
+    sort(w.begin(), w.end(), [](const string& a, const string& b) { return a + b < b + a; });   // a before b if a+b < b+a
+    string s;
+    for (auto& x : w) s += x;
+    return s;
+}
+
+### zfunc
+--idea
+The Z-function describes a string by how much each position agrees with the beginning of the string. For each position `i`, `z[i]` is the length of the longest piece starting at `i` that is also a prefix of the whole string. For `"aabaab"`: `z = [-, 1, 0, 3, 1, 0]` (position 3 starts `aab`, which equals the first three letters). By convention `z[0]` is left as 0 (or the full length).
+It is the same information as the prefix function seen from the other side, and it is just as fast to compute. The trick that keeps it linear is a window `[l, r)`: the rightmost stretch already known to match a prefix. When position `i` falls inside the window, its value can be copied from the matching position `i - l` near the start (capped by the window edge), and only letters beyond the window are compared fresh. Each fresh comparison moves `r` to the right, so `r` only ever grows and total work is `O(n)`.
+--build
+1. `z` has length `n`, starts at all zeros. Keep a window `[l, r)` that starts empty (`l = r = 0`).
+2. For `i = 1..n-1`: if `i < r`, start with `z[i] = min(r - i, z[i - l])`. Otherwise start with 0.
+3. Extend by direct comparison: while `i + z[i] < n` and `s[z[i]] == s[i + z[i]]`, do `z[i] += 1`.
+4. If `i + z[i] > r`, the window moves: `l = i`, `r = i + z[i]`.
+5. This is the piece `zFunction(s)`. Worked example `"aabaab"`: `i=1`: compare `s[0]` and `s[1]` (a, a) so 1, then `s[1]` vs `s[2]` (a, b) stop: `z[1] = 1`, window `[1,2)`. `i=2`: outside the window, `s[0]` vs `s[2]` (a, b): 0. `i=3`: compares `aab` with `aab`: `z[3] = 3`, window `[3,6)`. `i=4`: inside the window, copy `min(6-4, z[1]) = 1`, no extension. `i=5`: `min(1, z[2]) = 0`.
+6. Search with it: compute `z` for `p + "#" + t` (the `#` is a letter in neither string). Every position `i` in the text part with `z[i] == len(p)` is a match, starting at `i - len(p) - 1` in `t`. `zSearch` does this.
+7. Smallest period: the smallest `k` that divides `n` and has `z[k] == n - k` (the string is `n / k` copies of its first `k` letters). `smallestPeriod` does this, and returns `n` when there is none smaller.
+--think
+- Signal: "how much does each suffix match the whole string", "prefix that is also somewhere inside", "periodic string", "find pattern" (with the separator trick), "number of distinct substrings" with Z recomputed on reversed prefixes.
+- Decide first between Z and the prefix function (KMP). They are two views of the same data and each can be turned into the other. Z is often simpler for "match against the start", KMP for "longest border of each prefix".
+- Invariant: the window `[l, r)` always satisfies `s[l..r) == s[0..r-l)`. That is why copying from `i - l` is valid.
+- Pitfalls: forgetting the separator (matches then cross from pattern into text and `z` can exceed `len(p)`), using `z[0]` as if it were meaningful, and off-by-one between `z[k] == n - k` and the period test.
+--cost
+O(n) time, O(n) space.
+--uses
+u-zfn
+--java
+// start positions of p in t, via the Z-function of p + "#" + t
+static List<Integer> zSearch(String t, String p) {
+    int m = p.length();
+    int[] z = zFunction(p + "#" + t);
+    List<Integer> hits = new ArrayList<>();
+    for (int i = m + 1; i < z.length; i++)
+        if (z[i] == m) hits.add(i - m - 1);
+    return hits;
+}
+
+// smallest k such that s is made of copies of s[0..k); n if there is none shorter
+static int smallestPeriod(String s) {
+    int n = s.length();
+    int[] z = zFunction(s);
+    for (int k = 1; k < n; k++)
+        if (n % k == 0 && z[k] == n - k) return k;
+    return n;
+}
+--py
+def z_search(t, p):
+    """Start positions of p in t, via the Z-function of p + '#' + t."""
+    m = len(p)
+    z = z_function(p + "#" + t)
+    return [i - m - 1 for i in range(m + 1, len(z)) if z[i] == m]
+
+def smallest_period(s):
+    """Smallest k such that s is made of copies of s[:k]; n if there is none shorter."""
+    n = len(s)
+    z = z_function(s)
+    for k in range(1, n):
+        if n % k == 0 and z[k] == n - k:
+            return k
+    return n
+--cpp
+// start positions of p in t, via the Z-function of p + "#" + t
+vector<int> zSearch(const string& t, const string& p) {
+    int m = p.size();
+    vector<int> z = zFunction(p + "#" + t), hits;
+    for (int i = m + 1; i < (int)z.size(); i++)
+        if (z[i] == m) hits.push_back(i - m - 1);
+    return hits;
+}
+
+// smallest k such that s is made of copies of s[0..k); n if there is none shorter
+int smallestPeriod(const string& s) {
+    int n = s.size();
+    vector<int> z = zFunction(s);
+    for (int k = 1; k < n; k++)
+        if (n % k == 0 && z[k] == n - k) return k;
+    return n;
+}
+
+### border
+--idea
+A border of a string is a piece that is both a prefix and a suffix (but not the whole string). In `"ababa"`: `a` is a border (starts and ends with `a`), and so is `aba`. Borders describe the self-overlap of a string, and from them you get its period: if the longest border has length `b`, the string repeats with period `n - b`.
+The prefix function gives all of it. `pi[i]` is the length of the longest border of the prefix `s[0..i]`. The borders of the whole string are then found by a chain: the longest is `pi[n-1]`; the next longest is the longest border of that border, `pi[pi[n-1] - 1]`; and so on until 0. So one linear pass gives every border and the smallest period.
+--build
+1. Compute `pi = prefixFunction(s)` (the piece). `pi[i]` is the length of the longest proper border of `s[0..i]`.
+2. Worked example `"ababa"`: `pi = [0, 0, 1, 2, 3]`. The longest border of the whole string has length `pi[4] = 3` (`aba`).
+3. All borders: start `k = pi[n-1]`. While `k > 0`: record `k`, then set `k = pi[k-1]`. For `"ababa"`: `k = 3`, record 3; `k = pi[2] = 1`, record 1; `k = pi[0] = 0` stop. Borders have lengths 3 and 1 (`aba` and `a`). `allBorders` does this.
+4. Period: `p = n - pi[n-1]` is the smallest `p` such that `s[i] == s[i+p]` for all valid `i`. For `"ababa"`: `5 - 3 = 2`.
+5. Whole copies: the string is made of repeated copies of a block exactly when `n % p == 0` and `p < n`, and the block is `s[0..p)`. For `"abab"` (`pi[3] = 2`, `p = 2`, `4 % 2 == 0`) the block is `ab`. `repeatBlock` returns the length of that block, or `n` if the string is not a repetition.
+--think
+- Signal: "prefix equal to a suffix", "shortest repeating unit", "the string is a repetition of", "smallest period", "append the fewest letters to make it a palindrome" (longest palindromic prefix is a border of `s + '#' + reverse(s)`).
+- Decide first whether the period can be partial (period `p` need not divide `n`, as in `ababa`) or must tile the string exactly (`p` divides `n`). The formula `n - pi[n-1]` is the first; add the divisibility check for the second.
+- Facts to rely on: borders of a string are the longest border plus the borders of that border (the chain), and `p` is a period if and only if `n - p` is a border length.
+- Neighbours: KMP (uses the same array to search), Z-function (the same data from the other direction), hashing (compare prefix and suffix hashes to test one candidate border), suffix automaton.
+- Pitfalls: confusing a border length with a border position, forgetting that the whole string is not a proper border, an empty string, and trusting `n - pi[n-1]` as a tiling block without the divisibility test.
+--cost
+O(n) time and space.
+--uses
+u-prefixfn
+--java
+// lengths of all proper borders of s, longest first
+static List<Integer> allBorders(String s) {
+    int[] pi = prefixFunction(s);
+    List<Integer> res = new ArrayList<>();
+    for (int k = s.isEmpty() ? 0 : pi[s.length() - 1]; k > 0; k = pi[k - 1]) res.add(k);   // follow the chain
+    return res;
+}
+
+// length of the block whose copies make up s exactly; n if s is not a repetition
+static int repeatBlock(String s) {
+    int n = s.length();
+    if (n == 0) return 0;
+    int p = n - prefixFunction(s)[n - 1];
+    return n % p == 0 ? p : n;
+}
+--py
+def all_borders(s):
+    """Lengths of all proper borders of s, longest first."""
+    pi = prefix_function(s)
+    res = []
+    k = pi[-1] if s else 0
+    while k > 0:                                      # follow the chain
+        res.append(k)
+        k = pi[k - 1]
+    return res
+
+def repeat_block(s):
+    """Length of the block whose copies make up s exactly; n if s is not a repetition."""
+    n = len(s)
+    if n == 0:
+        return 0
+    p = n - prefix_function(s)[-1]
+    return p if n % p == 0 else n
+--cpp
+// lengths of all proper borders of s, longest first
+vector<int> allBorders(const string& s) {
+    vector<int> pi = prefixFunction(s), res;
+    for (int k = s.empty() ? 0 : pi.back(); k > 0; k = pi[k - 1]) res.push_back(k);   // follow the chain
+    return res;
+}
+
+// length of the block whose copies make up s exactly; n if s is not a repetition
+int repeatBlock(const string& s) {
+    int n = s.size();
+    if (n == 0) return 0;
+    int p = n - prefixFunction(s).back();
+    return n % p == 0 ? p : n;
+}
+
+### manacher
+--idea
+Manacher's algorithm finds, for every centre of a string, the biggest palindrome around that centre, in a single linear pass. The simple method expands outward from each centre separately, which costs `O(n^2)` on strings like `aaaa...a`. Manacher notices that a palindrome is a mirror: if you already know a big palindrome, the part inside it repeats what you saw on the other side, so you can copy answers instead of recomputing.
+Keep the palindrome `[l, r]` that reaches furthest right among all found so far. A new centre `i` inside it has a mirror image `l + r - i` on the left, and the palindrome around the mirror is (almost) also a palindrome around `i`, limited by the right edge `r`. Only when the copied answer touches the edge do you try to grow it by comparing new letters, and each such comparison pushes `r` further right. Since `r` never moves left, the total number of comparisons is linear.
+--build
+1. Two arrays: `d1[i]` is the number of odd length palindromes centred at letter `i` (the palindrome `s[i-d1[i]+1 .. i+d1[i]-1]` is the longest), and `d2[i]` is the number of even length palindromes centred between letters `i-1` and `i` (longest is `s[i-d2[i] .. i+d2[i]-1]`).
+2. Odd case. Keep the window `[l, r]` of the rightmost odd palindrome found, starting with `l = 0, r = -1` (empty).
+3. For each `i`: if `i > r`, start with `k = 1`. Otherwise start with the mirror value `k = min(d1[l + r - i], r - i + 1)`.
+4. Grow: while `i - k >= 0`, `i + k < n` and `s[i-k] == s[i+k]`, do `k += 1`. Set `d1[i] = k`.
+5. If the palindrome now reaches beyond the window (`i + k - 1 > r`), set `l = i - k + 1` and `r = i + k - 1`.
+6. Even case is the same with small shifts. Start `k = 0` when `i > r`, else `k = min(d2[l + r - i + 1], r - i + 1)`. Grow while `i - k - 1 >= 0`, `i + k < n` and `s[i-k-1] == s[i+k]`. Set `d2[i] = k`. If `i + k - 1 > r`, set `l = i - k` and `r = i + k - 1`.
+7. Worked example `"abaab"`. Odd: `i=1`: letter `b` with neighbours `a`, `a` gives `aba`, so `d1[1] = 2` and the window is `[0, 2]`. `i=2`: the mirror is `0 + 2 - 2 = 0` with `d1[0] = 1`, capped by `r - i + 1 = 1`, so `k = 1`; the next letters `s[1]` and `s[3]` (b and a) differ, so `d1[2] = 1`. The other centres give 1. So `d1 = [1, 2, 1, 1, 1]`. Even: `i=3` compares `s[2]`, `s[3]` (a, a) so `k = 1`, then `s[1]`, `s[4]` (b, b) so `k = 2`: `d2[3] = 2`, the even palindrome `baab`. So `d2 = [0, 0, 0, 2, 0]`.
+8. Answer: the longest palindrome is the maximum of `2*d1[i] - 1` and `2*d2[i]`. The number of palindromic substrings is `sum(d1) + sum(d2)`.
+Invariant: `[l, r]` is always a palindrome inside the string and `r` is the largest right end found so far. Because of the mirror, any palindrome around `i` of radius up to `r - i` has the same radius around the mirror of `i`, so those letters never need comparing again.
+--think
+- Signal: "longest palindromic substring" with `n` up to `10^5` or more, "count palindromic substrings", "is `s[l..r]` a palindrome" for many queries, "split into palindromes" (as a building block).
+- Decide first whether `O(n^2)` is acceptable (centre expansion, less code) or you need linear. Also decide whether you need only the longest (a short loop) or the full arrays.
+- With `d1` and `d2` a query "is `s[l..r]` a palindrome" is `O(1)`: for odd length the centre is `m = (l + r) / 2` and you need `d1[m] >= m - l + 1`; for even length the centre is `m = (l + r + 1) / 2` and you need `d2[m] >= m - l`.
+- Neighbours: centre expansion (simple), hashing with a reversed string (compare in `O(1)` but with collision risk), palindromic tree (all distinct palindromes), suffix structures.
+- Pitfalls: mixing the `d1` and `d2` indexing (even palindromes sit between letters), the mirror index `l + r - i` (odd) versus `l + r - i + 1` (even), forgetting to cap by `r - i + 1`, and mixing "count" with "radius" meanings.
+--cost
+O(n) time and space.
+--uses
+u-ispalin
+--java
+// d1[i]: odd palindromes centred at i; d2[i]: even palindromes centred between i-1 and i
+static int[][] manacher(String s) {
+    int n = s.length();
+    int[] d1 = new int[n], d2 = new int[n];
+    for (int i = 0, l = 0, r = -1; i < n; i++) {
+        int k = i > r ? 1 : Math.min(d1[l + r - i], r - i + 1);          // copy from the mirror
+        while (i - k >= 0 && i + k < n && s.charAt(i - k) == s.charAt(i + k)) k++;
+        d1[i] = k--;
+        if (i + k > r) { l = i - k; r = i + k; }
+    }
+    for (int i = 0, l = 0, r = -1; i < n; i++) {
+        int k = i > r ? 0 : Math.min(d2[l + r - i + 1], r - i + 1);
+        while (i - k - 1 >= 0 && i + k < n && s.charAt(i - k - 1) == s.charAt(i + k)) k++;
+        d2[i] = k--;
+        if (i + k > r) { l = i - k - 1; r = i + k; }
+    }
+    return new int[][]{d1, d2};
+}
+
+static String longestPalindrome(String s) {
+    int[][] d = manacher(s);
+    int bestLen = 0, bestStart = 0;
+    for (int i = 0; i < s.length(); i++) {
+        if (2 * d[0][i] - 1 > bestLen) { bestLen = 2 * d[0][i] - 1; bestStart = i - d[0][i] + 1; }
+        if (2 * d[1][i] > bestLen) { bestLen = 2 * d[1][i]; bestStart = i - d[1][i]; }
+    }
+    return s.substring(bestStart, bestStart + bestLen);
+}
+
+// slow check for testing: try every substring with the isPalindrome piece
+static int longestBrute(String s) {
+    int best = 0;
+    for (int i = 0; i < s.length(); i++)
+        for (int j = i + 1; j <= s.length(); j++)
+            if (isPalindrome(s.substring(i, j))) best = Math.max(best, j - i);
+    return best;
+}
+--py
+def manacher(s):
+    """d1[i]: odd palindromes centred at i; d2[i]: even palindromes centred between i-1 and i."""
+    n = len(s)
+    d1, d2 = [0] * n, [0] * n
+    l, r = 0, -1
+    for i in range(n):
+        k = 1 if i > r else min(d1[l + r - i], r - i + 1)            # copy from the mirror
+        while i - k >= 0 and i + k < n and s[i - k] == s[i + k]:
+            k += 1
+        d1[i] = k
+        k -= 1
+        if i + k > r:
+            l, r = i - k, i + k
+    l, r = 0, -1
+    for i in range(n):
+        k = 0 if i > r else min(d2[l + r - i + 1], r - i + 1)
+        while i - k - 1 >= 0 and i + k < n and s[i - k - 1] == s[i + k]:
+            k += 1
+        d2[i] = k
+        k -= 1
+        if i + k > r:
+            l, r = i - k - 1, i + k
+    return d1, d2
+
+def longest_palindrome(s):
+    d1, d2 = manacher(s)
+    best_len, best_start = 0, 0
+    for i in range(len(s)):
+        if 2 * d1[i] - 1 > best_len:
+            best_len, best_start = 2 * d1[i] - 1, i - d1[i] + 1
+        if 2 * d2[i] > best_len:
+            best_len, best_start = 2 * d2[i], i - d2[i]
+    return s[best_start:best_start + best_len]
+
+def longest_brute(s):
+    """Slow check for testing: try every substring with the is_palindrome piece."""
+    return max((j - i for i in range(len(s)) for j in range(i + 1, len(s) + 1)
+                if is_palindrome(s[i:j])), default=0)
+--cpp
+// d1[i]: odd palindromes centred at i; d2[i]: even palindromes centred between i-1 and i
+pair<vector<int>, vector<int>> manacher(const string& s) {
+    int n = s.size();
+    vector<int> d1(n), d2(n);
+    for (int i = 0, l = 0, r = -1; i < n; i++) {
+        int k = i > r ? 1 : min(d1[l + r - i], r - i + 1);               // copy from the mirror
+        while (i - k >= 0 && i + k < n && s[i - k] == s[i + k]) k++;
+        d1[i] = k--;
+        if (i + k > r) { l = i - k; r = i + k; }
+    }
+    for (int i = 0, l = 0, r = -1; i < n; i++) {
+        int k = i > r ? 0 : min(d2[l + r - i + 1], r - i + 1);
+        while (i - k - 1 >= 0 && i + k < n && s[i - k - 1] == s[i + k]) k++;
+        d2[i] = k--;
+        if (i + k > r) { l = i - k - 1; r = i + k; }
+    }
+    return {d1, d2};
+}
+
+string longestPalindrome(const string& s) {
+    auto d = manacher(s);
+    int bestLen = 0, bestStart = 0;
+    for (int i = 0; i < (int)s.size(); i++) {
+        if (2 * d.first[i] - 1 > bestLen) { bestLen = 2 * d.first[i] - 1; bestStart = i - d.first[i] + 1; }
+        if (2 * d.second[i] > bestLen) { bestLen = 2 * d.second[i]; bestStart = i - d.second[i]; }
+    }
+    return s.substr(bestStart, bestLen);
+}
+
+// slow check for testing: try every substring with the isPalindrome piece
+int longestBrute(const string& s) {
+    int best = 0, n = s.size();
+    for (int i = 0; i < n; i++)
+        for (int j = i + 1; j <= n; j++)
+            if (isPalindrome(s.substr(i, j - i))) best = max(best, j - i);
+    return best;
+}
+
+### trixor
+--idea
+The XOR of two numbers is built bit by bit: a result bit is 1 exactly where the two inputs differ. To make `x XOR y` as large as possible you want the top bit of the result to be 1, which means `y` should have the opposite top bit from `x`; if that is impossible, take the same bit and move to the next one. So the best partner for `x` is found greedily from the highest bit down, always preferring the opposite bit.
+A bit trie makes that greedy walk fast. It is a tree where each number is a path of bits from the top bit to the bottom bit, left child for 0 and right child for 1. Inserting a number walks and creates the path. To find the best partner of `x`, walk from the root: at each level try the child holding the OPPOSITE bit of `x`; if it exists take it (this result bit is 1), otherwise take the same bit. The path you end on is the partner, and the XOR was built along the way.
+--build
+1. Choose the number of bits `B` (30 for non-negative values below `2^30`; 62 for 64-bit). Nodes are numbered from 1; node 0 is the root; child number `0` means "no such child". `nxt[node][bit]` stores the child.
+2. Insert `x`: `node = 0`. For `b` from `B-1` down to `0`: `bit = getBit(x, b)` (the piece that reads bit `b`). If `nxt[node][bit]` is 0, create a new node. Move to the child.
+3. Query best XOR with `x`: `node = 0`, `res = 0`. For `b` from `B-1` down to `0`: `bit = getBit(x, b)`, `want = 1 - bit`. If `nxt[node][want]` exists, set the bit `res |= 1 << b` and move to it. Otherwise move to `nxt[node][bit]` (it must exist because the trie is not empty).
+4. Worked example with 3 bit numbers `{1, 6}`, stored as the paths `001` and `110`. Query `x = 2 = 010`. Top bit of `x` is 0, so we want a 1: the root has a 1 child (the path `110`), so take it and set the top result bit. Next bit of `x` is 1, so we want a 0: that node has only a 1 child, so take the 1 and set nothing. Last bit of `x` is 0, so we want a 1: only a 0 child exists, take it. The result is `100 = 4`, and indeed `2 XOR 6 = 4`.
+5. Max XOR of any pair in an array: insert the first number, then for each next number query first and insert after. `maxXorPair` does that.
+6. Max XOR of a subarray: with prefix XORs `p[0..n]` (`p[0] = 0`, `p[i] = p[i-1] xor a[i-1]`), the XOR of `a[l..r)` is `p[l] xor p[r]`, so the answer is `maxXorPair(p)`. `maxXorSubarray` does that.
+--think
+- Signal: "maximum XOR", "pair with the largest XOR", "XOR of a subarray equals or is at least K", "closest XOR to a value". Whenever XOR and "best partner" meet, think bit trie.
+- Decide first the bit width, and whether you need a maximum (prefer the opposite bit), minimum (prefer the same bit), or a count of partners under a limit (store a count in each node and walk with the limit's bits).
+- The greedy is right because a higher bit is worth more than all the lower bits together. Once the high bits are decided, the lower choices cannot change them.
+- Neighbours: ordinary tries (letters instead of bits), hashing with sets (for "XOR equals exactly K"), Gaussian elimination over bits (a linear basis for max XOR of a subset, a different problem).
+- Pitfalls: not enough bits (a number with a high bit your trie ignores), memory (`n * B` nodes), forgetting that the trie must contain at least one number before a query, and negative numbers (the sign bit).
+--cost
+O(n * B) time and space for `n` numbers of `B` bits.
+--uses
+u-bit
+--java
+// largest x XOR y over all pairs in a (values below 2^30); needs at least 2 numbers
+static int maxXorPair(int[] a) {
+    int[][] nxt = new int[a.length * 30 + 2][2];
+    int cnt = 1, best = 0;
+    for (int idx = 0; idx < a.length; idx++) {
+        int x = a[idx];
+        if (idx > 0) {                                           // query before inserting x
+            int node = 0, res = 0;
+            for (int b = 29; b >= 0; b--) {
+                int bit = getBit(x, b) ? 1 : 0, want = 1 - bit;
+                if (nxt[node][want] != 0) { res |= 1 << b; node = nxt[node][want]; }
+                else node = nxt[node][bit];
+            }
+            best = Math.max(best, res);
+        }
+        int node = 0;                                            // insert x
+        for (int b = 29; b >= 0; b--) {
+            int bit = getBit(x, b) ? 1 : 0;
+            if (nxt[node][bit] == 0) nxt[node][bit] = cnt++;
+            node = nxt[node][bit];
+        }
+    }
+    return best;
+}
+
+// largest XOR of a contiguous block of a
+static int maxXorSubarray(int[] a) {
+    int[] p = new int[a.length + 1];
+    for (int i = 0; i < a.length; i++) p[i + 1] = p[i] ^ a[i];   // prefix XORs
+    return maxXorPair(p);
+}
+--py
+def max_xor_pair(a):
+    """Largest x XOR y over all pairs in a (values below 2**30); needs at least 2 numbers."""
+    nxt = [[0, 0]]
+    best = 0
+    for idx, x in enumerate(a):
+        if idx > 0:                                              # query before inserting x
+            node = res = 0
+            for b in range(29, -1, -1):
+                bit = 1 if get_bit(x, b) else 0
+                want = 1 - bit
+                if nxt[node][want]:
+                    res |= 1 << b
+                    node = nxt[node][want]
+                else:
+                    node = nxt[node][bit]
+            best = max(best, res)
+        node = 0                                                 # insert x
+        for b in range(29, -1, -1):
+            bit = 1 if get_bit(x, b) else 0
+            if not nxt[node][bit]:
+                nxt.append([0, 0])
+                nxt[node][bit] = len(nxt) - 1
+            node = nxt[node][bit]
+    return best
+
+def max_xor_subarray(a):
+    """Largest XOR of a contiguous block of a."""
+    p = [0]
+    for v in a:
+        p.append(p[-1] ^ v)                                      # prefix XORs
+    return max_xor_pair(p)
+--cpp
+// largest x XOR y over all pairs in a (values below 2^30); needs at least 2 numbers
+int maxXorPair(const vector<int>& a) {
+    vector<array<int, 2>> nxt(a.size() * 30 + 2);
+    int cnt = 1, best = 0;
+    for (size_t idx = 0; idx < a.size(); idx++) {
+        int x = a[idx];
+        if (idx > 0) {                                           // query before inserting x
+            int node = 0, res = 0;
+            for (int b = 29; b >= 0; b--) {
+                int bit = getBit(x, b), want = 1 - bit;
+                if (nxt[node][want]) { res |= 1 << b; node = nxt[node][want]; }
+                else node = nxt[node][bit];
+            }
+            best = max(best, res);
+        }
+        int node = 0;                                            // insert x
+        for (int b = 29; b >= 0; b--) {
+            int bit = getBit(x, b);
+            if (!nxt[node][bit]) nxt[node][bit] = cnt++;
+            node = nxt[node][bit];
+        }
+    }
+    return best;
+}
+
+// largest XOR of a contiguous block of a
+int maxXorSubarray(const vector<int>& a) {
+    vector<int> p(a.size() + 1, 0);
+    for (size_t i = 0; i < a.size(); i++) p[i + 1] = p[i] ^ a[i];   // prefix XORs
+    return maxXorPair(p);
+}
+
+### hashbs
+--idea
+Two strings share a common prefix of some length `k` exactly when their first `k` letters are equal. The key fact is monotone: if the first `k` letters match, so do the first `k - 1`. A property that is true up to some point and false after it is perfect for binary search. With substring hashes you can test "do the first `k` letters match" in `O(1)`, so the longest common prefix is found in `O(log n)` tests.
+The same pattern solves bigger problems. To find the longest substring that appears twice in a string, binary search on the length `k`: if some substring of length `k` appears twice then a substring of length `k - 1` does too, so again the property is monotone. Each test hashes every window of length `k` and looks for a repeat.
+--build
+1. Prepare hashes with the pieces: `buildHash` makes `h` and `pw`, and `get(l, r)` gives the hash of `s[l..r)`.
+2. Longest common prefix of `a` and `b`: join them as `c = a + "#" + b` (a letter in neither string) and prepare hashes of `c`. The prefix of `a` of length `k` is `get(0, k)` and the prefix of `b` of length `k` is `get(len(a)+1, len(a)+1+k)`.
+3. Binary search over `k`. Keep `lo` (a length known to work, start 0) and `hi` (a length known not to work, start `min(len(a), len(b)) + 1`). While `hi - lo > 1`: `m = mid(lo, hi)` (the piece that never overflows), test `m`: if the two hashes are equal, `lo = m`, otherwise `hi = m`.
+4. Worked example `a = "abcde"`, `b = "abcxy"`. `lo = 0`, `hi = 6`. `m = 3`: `abc` equals `abc`, so `lo = 3`. `m = 4`: `abcd` against `abcx` differ, so `hi = 4`. Now `hi - lo = 1`: the answer is 3.
+5. Longest repeated substring of `s`: binary search the length `k` in `[0, n)`. A length `k` works if two windows of length `k` have the same hash (use a set of hashes). Keep the start of one witness window. `longestRepeated` returns the substring.
+6. To be exact, confirm a hash hit by comparing the real letters, or accept a tiny error chance.
+--think
+- Signal: "longest common prefix of two suffixes" asked many times, "longest repeated substring", "longest common substring" (see the next topic), "smallest `k` such that" something about substrings of length `k`.
+- Decide first that the property is monotone in `k`. If it is not (for example "exactly `k`"), binary search does not apply.
+- It replaces a suffix array with a few lines of code when you can accept a small chance of error, and the cost is `O(n log n)` instead of building the array.
+- Neighbours: suffix array plus LCP (exact, answers all queries by range minimum), Z-function (common prefix with one fixed string), plain binary search (the same loop on any monotone yes/no test).
+- Pitfalls: off-by-one in the binary search bounds (use `lo` good, `hi` bad, as above), hash collisions making a length look possible, the separator that is not really absent from the strings, and `mid` overflow in other languages (the piece avoids it).
+--cost
+O(log n) hash tests for one common prefix after O(n) preparation. Longest repeated substring O(n log n) expected.
+--uses
+u-hashroll
+u-substrhash
+u-mid
+--java
+static long[] h, pw;                                  // prefix hashes and powers, read by get(l, r)
+
+// length of the longest common prefix of a and b
+static int commonPrefixLen(String a, String b) {
+    String c = a + "#" + b;
+    long[][] r = buildHash(c);
+    h = r[0]; pw = r[1];
+    int off = a.length() + 1, lo = 0, hi = Math.min(a.length(), b.length()) + 1;
+    while (hi - lo > 1) {                             // lo works, hi does not
+        int m = mid(lo, hi);
+        if (get(0, m) == get(off, off + m)) lo = m; else hi = m;
+    }
+    return lo;
+}
+
+// longest substring that occurs at least twice (the empty string if none)
+static String longestRepeated(String s) {
+    long[][] r = buildHash(s);
+    h = r[0]; pw = r[1];
+    int lo = 0, hi = s.length(), start = 0;
+    while (hi - lo > 1) {
+        int m = mid(lo, hi);
+        Map<Long, Integer> seen = new HashMap<>();
+        int found = -1;
+        for (int i = 0; i + m <= s.length() && found < 0; i++) {
+            Integer j = seen.putIfAbsent(get(i, i + m), i);
+            if (j != null) found = j;                 // same hash seen before at j
+        }
+        if (found >= 0) { lo = m; start = found; } else hi = m;
+    }
+    return s.substring(start, start + lo);
+}
+--py
+h, pw = [0], [1]                                      # prefix hashes and powers, read by get(l, r)
+
+def common_prefix_len(a, b):
+    """Length of the longest common prefix of a and b."""
+    global h, pw
+    h, pw = build_hash(a + "#" + b)
+    off = len(a) + 1
+    lo, hi = 0, min(len(a), len(b)) + 1
+    while hi - lo > 1:                                # lo works, hi does not
+        m = mid(lo, hi)
+        if get(0, m) == get(off, off + m):
+            lo = m
+        else:
+            hi = m
+    return lo
+
+def longest_repeated(s):
+    """Longest substring that occurs at least twice (the empty string if none)."""
+    global h, pw
+    h, pw = build_hash(s)
+    lo, hi, start = 0, len(s), 0
+    while hi - lo > 1:
+        m = mid(lo, hi)
+        seen, found = {}, -1
+        for i in range(len(s) - m + 1):
+            key = get(i, i + m)
+            if key in seen:
+                found = seen[key]                     # same hash seen before
+                break
+            seen[key] = i
+        if found >= 0:
+            lo, start = m, found
+        else:
+            hi = m
+    return s[start:start + lo]
+--cpp
+vector<long long> h, pw;                              // prefix hashes and powers, read by get(l, r)
+
+// length of the longest common prefix of a and b
+int commonPrefixLen(const string& a, const string& b) {
+    auto r = buildHash(a + "#" + b);
+    h = r.first; pw = r.second;
+    int off = a.size() + 1, lo = 0, hi = min(a.size(), b.size()) + 1;
+    while (hi - lo > 1) {                             // lo works, hi does not
+        int m = mid(lo, hi);
+        if (get(0, m) == get(off, off + m)) lo = m; else hi = m;
+    }
+    return lo;
+}
+
+// longest substring that occurs at least twice (the empty string if none)
+string longestRepeated(const string& s) {
+    auto r = buildHash(s);
+    h = r.first; pw = r.second;
+    int lo = 0, hi = s.size(), start = 0;
+    while (hi - lo > 1) {
+        int m = mid(lo, hi);
+        map<long long, int> seen;
+        int found = -1;
+        for (int i = 0; i + m <= (int)s.size() && found < 0; i++) {
+            auto it = seen.emplace(get(i, i + m), i);
+            if (!it.second) found = it.first->second;  // same hash seen before
+        }
+        if (found >= 0) { lo = m; start = found; } else hi = m;
+    }
+    return s.substr(start, lo);
+}
+
+### minrot
+--idea
+A rotation of a string moves some letters from the front to the back: the rotations of `"cab"` are `cab`, `abc`, `bca`. The minimal rotation is the one that comes first in dictionary order (`abc`). Checking every rotation costs `O(n^2)`; there is an `O(n)` method with two candidate pointers.
+The idea: keep two candidate start positions `i` and `j` (the smallest rotation must start at one of the current best candidates) and a length `k` which is how many letters from each start have been compared and found equal. When the two rotations first differ at offset `k`, the larger letter side loses, and not just that candidate: all starts `i, i+1, ..., i+k` are also beaten (each is beaten by the matching start of the other side). So the losing pointer jumps forward by `k + 1`, never looking back, and total movement is at most `2n`.
+--build
+1. Let `n = len(s)`. Treat the string as circular: letter at offset `t` from start `x` is `s[(x + t) % n]`.
+2. Set `i = 0`, `j = 1`, `k = 0`.
+3. While `i < n`, `j < n` and `k < n`: let `a = s[(i+k) % n]` and `b = s[(j+k) % n]`.
+4. If `a == b`, do `k += 1`.
+5. Else if `a > b`, the start `i` and all of `i+1..i+k` lose: set `i += k + 1`. Otherwise set `j += k + 1`. If now `i == j`, move `j += 1` (two pointers must differ). Reset `k = 0`.
+6. When the loop ends, the answer start is `min(i, j)`.
+7. Worked example `"cab"` (`n = 3`): `i=0, j=1`: `c` against `a`: `a > b`, so `i = 0 + 0 + 1 = 1`, now `i == j`, so `j = 2`. Compare `s[1]=a` with `s[2]=b`: `a < b`, so `j = 2 + 0 + 1 = 3`: loop ends. `min(1, 3) = 1`. Rotation starting at 1: `abc`.
+8. Number of different rotations: it equals the smallest period of the string when that divides `n`, else `n`. With the prefix function `pi` (the piece `prefixFunction`): `p = n - pi[n-1]`; if `n % p == 0` the answer is `p`, else `n`. `distinctRotations` does this. For `"abab"`: 2.
+Invariant: the best rotation starts at `i` or `j` or at a position larger than both. Every start skipped has been shown to be beaten by another start.
+--think
+- Signal: "lexicographically smallest rotation", "cyclic shift", "necklace", "are these two strings rotations of each other" (canonical form: compare minimal rotations, or search `a` in `b + b`).
+- Decide first whether you need the starting index (this method), the rotated string itself (build it from the index), or only equality up to rotation (compare the two minimal rotations).
+- Neighbours: Booth's algorithm and Duval's Lyndon decomposition (the same result by a different route), suffix array of `s + s` (heavier but gives every rotation's rank), KMP (search for `a` in `b + b` to test rotation).
+- Pitfalls: forgetting to wrap indices with `% n`, letting `i == j` stay (an infinite loop), taking `max(i, j)` instead of `min`, and mixing "first minimal index" with "any minimal index" when the string is periodic (this code returns the smaller index among the candidates, which is the first occurrence).
+--cost
+O(n) time, O(1) extra space. The prefix function adds O(n) for `distinctRotations`.
+--uses
+u-prefixfn
+--java
+// start index of the lexicographically smallest rotation of s
+static int minRotation(String s) {
+    int n = s.length(), i = 0, j = 1, k = 0;
+    while (i < n && j < n && k < n) {
+        char a = s.charAt((i + k) % n), b = s.charAt((j + k) % n);
+        if (a == b) { k++; continue; }
+        if (a > b) i += k + 1; else j += k + 1;          // the loser and the starts after it are beaten
+        if (i == j) j++;
+        k = 0;
+    }
+    return Math.min(i, j);
+}
+
+// how many different rotations s has (its smallest exact period)
+static int distinctRotations(String s) {
+    int n = s.length();
+    if (n == 0) return 0;
+    int p = n - prefixFunction(s)[n - 1];
+    return n % p == 0 ? p : n;
+}
+--py
+def min_rotation(s):
+    """Start index of the lexicographically smallest rotation of s."""
+    n, i, j, k = len(s), 0, 1, 0
+    while i < n and j < n and k < n:
+        a, b = s[(i + k) % n], s[(j + k) % n]
+        if a == b:
+            k += 1
+            continue
+        if a > b:
+            i += k + 1                                # the loser and the starts after it are beaten
+        else:
+            j += k + 1
+        if i == j:
+            j += 1
+        k = 0
+    return min(i, j)
+
+def distinct_rotations(s):
+    """How many different rotations s has (its smallest exact period)."""
+    n = len(s)
+    if n == 0:
+        return 0
+    p = n - prefix_function(s)[-1]
+    return p if n % p == 0 else n
+--cpp
+// start index of the lexicographically smallest rotation of s
+int minRotation(const string& s) {
+    int n = s.size(), i = 0, j = 1, k = 0;
+    while (i < n && j < n && k < n) {
+        char a = s[(i + k) % n], b = s[(j + k) % n];
+        if (a == b) { k++; continue; }
+        if (a > b) i += k + 1; else j += k + 1;          // the loser and the starts after it are beaten
+        if (i == j) j++;
+        k = 0;
+    }
+    return min(i, j);
+}
+
+// how many different rotations s has (its smallest exact period)
+int distinctRotations(const string& s) {
+    int n = s.size();
+    if (n == 0) return 0;
+    int p = n - prefixFunction(s)[n - 1];
+    return n % p == 0 ? p : n;
+}
+
+### dfa
+--idea
+A finite automaton (also called a state machine) matches text by remembering only one number: the state, which says how many letters of the pattern are currently matched. For each state and each next letter, a table tells you which state to move to. Scanning the text is then one table lookup per letter, no backing up, no comparing loops. Reaching the last state means the whole pattern was just matched.
+This is KMP with the fall-back work done in advance. KMP, on a mismatch, loops back through the prefix function until a letter matches. The automaton precomputes the final answer of that loop for every (state, letter) pair, so matching never loops. The price is a table of size `(m + 1) * alphabet`; the gain is a strictly constant step per letter, which also lets you combine automata (counting strings that avoid a pattern, for example).
+--build
+1. Pattern `p` of length `m`, alphabet 26 lowercase letters. States are `0..m`. State `i` means the last `i` letters of the text equal `p[0..i)`.
+2. Get `pi = prefixFunction(p)` (the piece). `pi[i-1]` is the state to fall back to from state `i` when its next letter fails.
+3. Build the table `go[state][c]`. For state `i` and letter `c`: if `i < m` and `p[i] == c`, then `go[i][c] = i + 1` (the match grows). Otherwise `go[i][c] = go[pi[i-1]][c]` for `i > 0`, or `0` for `i = 0` (copy the answer of the shorter border state; it is already built because it is smaller).
+4. State `m` has no forward letter, so for it every letter falls back: `go[m][c] = go[pi[m-1]][c]`. This allows overlapping matches.
+5. Search: `state = 0`; for each text letter `c`: `state = go[state][c]`; if `state == m` the pattern ends here, record the end index (the start is `i - m + 1`).
+6. Worked example `p = "aba"`. `pi = [0, 0, 1]`. `go[0]`: `a -> 1`, others 0. `go[1]`: `b -> 2`, `a -> go[0][a] = 1`, others 0. `go[2]`: `a -> 3`, `b -> go[pi[1]=0][b] = 0`. `go[3]` (match state): copy from `go[pi[2]=1]`: `b -> 2`, `a -> 1`. Text `ababa`: states 1, 2, 3 (match ends at index 2), 2, 3 (match ends at 4). Two matches, starts 0 and 2.
+Invariant: after reading a prefix of the text, the state is the length of the longest prefix of `p` that is a suffix of the text read so far.
+--think
+- Signal: "count strings that do not contain a pattern" (automaton plus counting DP), "match against several patterns at once" (Aho-Corasick is the multi-pattern automaton), "streaming text where you cannot go back".
+- Decide first the alphabet size, since the table has `m * alphabet` cells. For a huge alphabet use the prefix function directly (KMP).
+- Neighbours: KMP (same idea computed on demand), Aho-Corasick (the automaton for many words), regular expressions (compile to an automaton), digit DP with an automaton state.
+- Pitfalls: building row `i` before row `pi[i-1]` (rows must go in increasing order of state), forgetting the match state `m` has transitions, and an off-by-one in turning the match end into a start.
+--cost
+O(m * alphabet) to build, O(n) to search. Space O(m * alphabet).
+--uses
+u-prefixfn
+--java
+// go[state][letter] for states 0..m, alphabet a-z
+static int[][] buildAutomaton(String p) {
+    int m = p.length();
+    int[] pi = prefixFunction(p);
+    int[][] go = new int[m + 1][26];
+    for (int i = 0; i <= m; i++)
+        for (int c = 0; c < 26; c++) {
+            if (i < m && p.charAt(i) - 'a' == c) go[i][c] = i + 1;       // the match grows
+            else go[i][c] = i == 0 ? 0 : go[pi[i - 1]][c];              // fall back, already computed
+        }
+    return go;
+}
+
+// start positions of every occurrence of p in t
+static List<Integer> dfaSearch(String t, String p) {
+    int[][] go = buildAutomaton(p);
+    int m = p.length(), state = 0;
+    List<Integer> hits = new ArrayList<>();
+    for (int i = 0; i < t.length(); i++) {
+        state = go[state][t.charAt(i) - 'a'];
+        if (state == m) hits.add(i - m + 1);
+    }
+    return hits;
+}
+--py
+def build_automaton(p):
+    """go[state][letter] for states 0..m, alphabet a-z."""
+    m = len(p)
+    pi = prefix_function(p)
+    go = [[0] * 26 for _ in range(m + 1)]
+    for i in range(m + 1):
+        for c in range(26):
+            if i < m and ord(p[i]) - 97 == c:
+                go[i][c] = i + 1                                  # the match grows
+            else:
+                go[i][c] = 0 if i == 0 else go[pi[i - 1]][c]      # fall back, already computed
+    return go
+
+def dfa_search(t, p):
+    """Start positions of every occurrence of p in t."""
+    go = build_automaton(p)
+    m, state, hits = len(p), 0, []
+    for i, ch in enumerate(t):
+        state = go[state][ord(ch) - 97]
+        if state == m:
+            hits.append(i - m + 1)
+    return hits
+--cpp
+// go[state][letter] for states 0..m, alphabet a-z
+vector<array<int, 26>> buildAutomaton(const string& p) {
+    int m = p.size();
+    vector<int> pi = prefixFunction(p);
+    vector<array<int, 26>> go(m + 1);
+    for (int i = 0; i <= m; i++)
+        for (int c = 0; c < 26; c++) {
+            if (i < m && p[i] - 'a' == c) go[i][c] = i + 1;             // the match grows
+            else go[i][c] = i == 0 ? 0 : go[pi[i - 1]][c];             // fall back, already computed
+        }
+    return go;
+}
+
+// start positions of every occurrence of p in t
+vector<int> dfaSearch(const string& t, const string& p) {
+    auto go = buildAutomaton(p);
+    int m = p.size(), state = 0;
+    vector<int> hits;
+    for (int i = 0; i < (int)t.size(); i++) {
+        state = go[state][t[i] - 'a'];
+        if (state == m) hits.push_back(i - m + 1);
+    }
+    return hits;
+}
+
+### commonsub
+--idea
+The longest common substring of two strings is the longest piece of text that appears in both (contiguous, unlike a subsequence). The check "do the two strings share a piece of length `k`" has a useful property: if they share a piece of length `k`, they share a piece of length `k - 1` (just cut a letter off). So the answer can be found by binary search on the length `k`, as long as each check is fast.
+Each check uses substring hashes. Hash every window of length `k` in the first string and put the hashes in a set. Then hash every window of length `k` in the second string and look for one that is already in the set. A hit means (up to a rare collision) a shared piece of length `k`. That is `O(n)` per check and `O(log n)` checks.
+--build
+1. Join the strings as `c = a + "#" + b`, where `#` appears in neither. Build the prefix hashes of `c` with `buildHash` (the piece). The second string starts at offset `off = len(a) + 1`.
+2. A window of `a` starting at `i` with length `k` has hash `get(i, i + k)`; a window of `b` starting at `j` has hash `get(off + j, off + j + k)`. The piece `get` does these in `O(1)`.
+3. Binary search: `lo = 0` (works), `hi = min(len(a), len(b)) + 1` (does not work). While `hi - lo > 1`: `m = mid(lo, hi)` (the piece). Run the check for `m`.
+4. Check for `m`: store the hash of every window of `a` of length `m` in a map from hash to start. Then scan the windows of `b`; if one is in the map, the check passes and the map gives where the match starts in `a`.
+5. If the check passes set `lo = m` and remember the start; else `hi = m`.
+6. Worked example `a = "xabcy"`, `b = "zabcw"`. `lo = 0`, `hi = 6`. `m = 3`: windows of `a`: `xab, abc, bcy`; of `b`: `zab, abc, bcw`; `abc` is shared: `lo = 3`, start 1. `m = 4`: `xabc, abcy` against `zabc, abcw`: no match, `hi = 4`. Done: the answer is `a[1..4) = "abc"`.
+7. For an exact answer with no collision risk, confirm the final piece by comparing the letters, or build a suffix array of `a + "#" + b` and take the largest LCP between suffixes from different strings.
+--think
+- Signal: "longest common substring", "longest piece shared by two texts", "longest common substring of many strings" (binary search plus a check that each window appears in all strings).
+- Decide first: this is substring (contiguous). The longest common SUBSEQUENCE is a different problem solved with dynamic programming.
+- Alternatives: dynamic programming `O(n * m)` with a table (exact, simple, fine for lengths up to a few thousand), suffix automaton (exact, linear), suffix array with LCP (exact, `O(n log n)`).
+- The binary search needs the monotone property, which holds for common substrings.
+- Pitfalls: a separator that occurs in the strings, hash collisions (use a big modulus and verify), off-by-one in `hi`, and not returning the actual substring (remember the start when the check passes).
+--cost
+O((n + m) log(n + m)) expected time, O(n + m) space.
+--uses
+u-hashroll
+u-substrhash
+u-mid
+--java
+static long[] h, pw;                                  // prefix hashes and powers, read by get(l, r)
+
+// longest substring that occurs in both a and b ("" if none)
+static String longestCommonSubstring(String a, String b) {
+    long[][] r = buildHash(a + "#" + b);
+    h = r[0]; pw = r[1];
+    int off = a.length() + 1, lo = 0, hi = Math.min(a.length(), b.length()) + 1, start = 0;
+    while (hi - lo > 1) {
+        int m = mid(lo, hi);
+        Map<Long, Integer> seen = new HashMap<>();    // hash of a window of a -> its start
+        for (int i = 0; i + m <= a.length(); i++) seen.put(get(i, i + m), i);
+        int found = -1;
+        for (int j = 0; j + m <= b.length() && found < 0; j++) {
+            Integer i = seen.get(get(off + j, off + j + m));
+            if (i != null) found = i;
+        }
+        if (found >= 0) { lo = m; start = found; } else hi = m;
+    }
+    return a.substring(start, start + lo);
+}
+--py
+h, pw = [0], [1]                                      # prefix hashes and powers, read by get(l, r)
+
+def longest_common_substring(a, b):
+    """Longest substring that occurs in both a and b ('' if none)."""
+    global h, pw
+    h, pw = build_hash(a + "#" + b)
+    off = len(a) + 1
+    lo, hi, start = 0, min(len(a), len(b)) + 1, 0
+    while hi - lo > 1:
+        m = mid(lo, hi)
+        seen = {get(i, i + m): i for i in range(len(a) - m + 1)}   # hash of a window of a -> its start
+        found = -1
+        for j in range(len(b) - m + 1):
+            i = seen.get(get(off + j, off + j + m))
+            if i is not None:
+                found = i
+                break
+        if found >= 0:
+            lo, start = m, found
+        else:
+            hi = m
+    return a[start:start + lo]
+--cpp
+vector<long long> h, pw;                              // prefix hashes and powers, read by get(l, r)
+
+// longest substring that occurs in both a and b ("" if none)
+string longestCommonSubstring(const string& a, const string& b) {
+    auto r = buildHash(a + "#" + b);
+    h = r.first; pw = r.second;
+    int off = a.size() + 1, lo = 0, hi = min(a.size(), b.size()) + 1, start = 0;
+    while (hi - lo > 1) {
+        int m = mid(lo, hi);
+        map<long long, int> seen;                     // hash of a window of a -> its start
+        for (int i = 0; i + m <= (int)a.size(); i++) seen[get(i, i + m)] = i;
+        int found = -1;
+        for (int j = 0; j + m <= (int)b.size() && found < 0; j++) {
+            auto it = seen.find(get(off + j, off + j + m));
+            if (it != seen.end()) found = it->second;
+        }
+        if (found >= 0) { lo = m; start = found; } else hi = m;
+    }
+    return a.substr(start, lo);
+}
+
+### suffix
+--idea
+A suffix is the end part of a string from some position: `banana` has the suffixes `banana`, `anana`, `nana`, `ana`, `na`, `a`. The suffix array lists the starting positions of all suffixes in dictionary order of the suffixes. For `banana` that is `[5, 3, 1, 0, 4, 2]` (`a`, `ana`, `anana`, `banana`, `na`, `nana`). It is a compact index of the whole text: every substring is a prefix of some suffix, and in the sorted list all suffixes that start with the same piece sit next to each other.
+Building it by comparing suffixes directly is slow because comparisons are long. Prefix doubling fixes that. Sort suffixes first by their first letter, giving each a rank. Then sort by the first 2 letters: the key of suffix `i` is the pair (rank of its first letter, rank of the letter at `i + 1`), and the ranks already known make this one comparison of two numbers. Then sort by 4 letters using the ranks from the 2 letter round, then 8, and so on. After `log n` rounds all suffixes are distinguished.
+--build
+1. Let `n = len(s)`. Start `rank[i] = code of s[i]`. These ranks describe the order by the first `k = 1` letter.
+2. Round with length `k` (1, 2, 4, ...): for each `i` make the number `key[i] = rank[i] * base + second`, where `second = rank[i + k] + 1` if `i + k < n` and `0` otherwise (a suffix that has ended sorts before any longer one). `base` must exceed every possible `second`: use `max(n, 256) + 1`.
+3. Order the positions by `key`: `order = sortIndices(key)` (the piece returns positions sorted by value).
+4. New ranks: `newRank[order[0]] = 0`, and for `t = 1..n-1`: `newRank[order[t]] = newRank[order[t-1]]` plus 1 if `key[order[t]] != key[order[t-1]]`. Equal keys share a rank.
+5. If the largest new rank is `n - 1`, all ranks are distinct: `order` is the suffix array, stop. Otherwise double `k` and repeat from step 2.
+6. Worked example `"banana"`, first round (`k = 1`, key pairs of the first two letters): `ba, an, na, an, na, a` give the order `a`(5), `an`(1), `an`(3), `ba`(0), `na`(2), `na`(4) with ranks `a=0, an=1, ba=2, na=3`. Round `k = 2`: suffix 1 (`anana`) has second rank = rank of suffix 3 = 1, and suffix 3 (`ana`) has second rank = rank of suffix 5 = 0, so 3 sorts before 1; suffixes 2 and 4 split the same way. Final `[5, 3, 1, 0, 4, 2]`.
+7. Search with it: to test if `p` occurs, binary search the sorted suffixes. At the middle suffix compute `k = commonPrefix(suffix, p)` (the piece). If `k == len(p)` the pattern occurs. Otherwise the letter at `k` decides the direction (if the suffix is shorter than `k + 1`, it sorts before `p`). `contains` does this in `O(m log n)`.
+Invariant: after the round with length `k`, `rank[i]` is the position of suffix `i` in the order of the first `2k` letters (ties share a rank). Doubling is valid because the order by `2k` letters is the order by the pair (first `k`, next `k`).
+--think
+- Signal: many substring queries on one text, "how many times does this appear", "longest repeated substring", "lexicographically `k`-th substring", "number of distinct substrings", "longest common substring of two strings". If a problem asks about all substrings or suffixes together, think suffix array plus LCP.
+- Decide first between a suffix array (simple to use, `O(n log n)`), a suffix automaton (linear, graph shaped, great for counting), a suffix tree (the tree view), and hashing (short code, small error chance).
+- This version is `O(n log^2 n)` because each round uses a comparison sort. Radix sorting the pairs gives `O(n log n)`. Keys must fit in an `int`: with `n` up to about 40000 this is safe; for larger strings use 64-bit keys or radix sort.
+- Add the LCP array (next lesson) for counting and range questions.
+- Pitfalls: forgetting the "ended suffix is smaller" rule (use `+1` and 0), a `base` that is too small so keys collide, stopping when `k >= n` instead of checking ranks, and mixing positions with ranks (the array holds positions).
+--cost
+O(n log^2 n) time with comparison sorting, O(n) space. Search O(m log n).
+--uses
+u-sortidx
+u-lcp2
+--java
+// positions of all suffixes of s in sorted order (prefix doubling; n up to about 40000 for int keys)
+static int[] suffixArray(String s) {
+    int n = s.length();
+    if (n == 0) return new int[0];
+    int[] rank = new int[n], key = new int[n];
+    for (int i = 0; i < n; i++) rank[i] = s.charAt(i) & 255;
+    int base = Math.max(n, 256) + 1;
+    for (int k = 1; ; k <<= 1) {
+        for (int i = 0; i < n; i++) key[i] = rank[i] * base + (i + k < n ? rank[i + k] + 1 : 0);
+        Integer[] order = sortIndices(key);              // positions ordered by key
+        int[] next = new int[n];
+        for (int t = 1; t < n; t++)
+            next[order[t]] = next[order[t - 1]] + (key[order[t]] != key[order[t - 1]] ? 1 : 0);
+        rank = next;
+        if (rank[order[n - 1]] == n - 1) {               // all ranks distinct: done
+            int[] sa = new int[n];
+            for (int t = 0; t < n; t++) sa[t] = order[t];
+            return sa;
+        }
+    }
+}
+
+// does p occur in s? binary search over the sorted suffixes
+static boolean contains(String s, int[] sa, String p) {
+    int lo = 0, hi = sa.length;
+    while (lo < hi) {
+        int mid = (lo + hi) / 2;
+        String suf = s.substring(sa[mid]);
+        int k = commonPrefix(suf, p);                    // how much of p this suffix matches
+        if (k == p.length()) return true;
+        if (k == suf.length() || suf.charAt(k) < p.charAt(k)) lo = mid + 1; else hi = mid;
+    }
+    return false;
+}
+--py
+def suffix_array(s):
+    """Positions of all suffixes of s in sorted order (prefix doubling; n up to about 40000 for int keys)."""
+    n = len(s)
+    if n == 0:
+        return []
+    rank = [ord(ch) & 255 for ch in s]
+    base = max(n, 256) + 1
+    k = 1
+    while True:
+        key = [rank[i] * base + (rank[i + k] + 1 if i + k < n else 0) for i in range(n)]
+        order = sort_indices(key)                        # positions ordered by key
+        nxt = [0] * n
+        for t in range(1, n):
+            nxt[order[t]] = nxt[order[t - 1]] + (key[order[t]] != key[order[t - 1]])
+        rank = nxt
+        if rank[order[-1]] == n - 1:                     # all ranks distinct: done
+            return order
+        k <<= 1
+
+def contains(s, sa, p):
+    """Does p occur in s? Binary search over the sorted suffixes."""
+    lo, hi = 0, len(sa)
+    while lo < hi:
+        mid = (lo + hi) // 2
+        suf = s[sa[mid]:]
+        k = common_prefix(suf, p)                        # how much of p this suffix matches
+        if k == len(p):
+            return True
+        if k == len(suf) or suf[k] < p[k]:
+            lo = mid + 1
+        else:
+            hi = mid
+    return False
+--cpp
+// positions of all suffixes of s in sorted order (prefix doubling; n up to about 40000 for int keys)
+vector<int> suffixArray(const string& s) {
+    int n = s.size();
+    if (n == 0) return {};
+    vector<int> rank(n), key(n);
+    for (int i = 0; i < n; i++) rank[i] = (unsigned char)s[i];
+    int base = max(n, 256) + 1;
+    for (int k = 1; ; k <<= 1) {
+        for (int i = 0; i < n; i++) key[i] = rank[i] * base + (i + k < n ? rank[i + k] + 1 : 0);
+        vector<int> order = sortIndices(key);            // positions ordered by key
+        vector<int> next(n, 0);
+        for (int t = 1; t < n; t++)
+            next[order[t]] = next[order[t - 1]] + (key[order[t]] != key[order[t - 1]]);
+        rank = next;
+        if (rank[order[n - 1]] == n - 1) return order;   // all ranks distinct: done
+    }
+}
+
+// does p occur in s? binary search over the sorted suffixes
+bool contains(const string& s, const vector<int>& sa, const string& p) {
+    int lo = 0, hi = sa.size();
+    while (lo < hi) {
+        int mid = (lo + hi) / 2;
+        string suf = s.substr(sa[mid]);
+        int k = commonPrefix(suf, p);                    // how much of p this suffix matches
+        if (k == (int)p.size()) return true;
+        if (k == (int)suf.size() || suf[k] < p[k]) lo = mid + 1; else hi = mid;
+    }
+    return false;
+}
+
+### lcp
+--idea
+The LCP array stores, for each pair of neighbours in the suffix array, how many letters they share at the start. If `sa` is the sorted list of suffixes, then `lcp[i]` is the length of the longest common prefix of the suffixes `sa[i-1]` and `sa[i]` (with `lcp[0] = 0`). Because the suffixes are sorted, the common prefix of ANY two suffixes is the smallest LCP value between them in the array, so one array answers every "how long is the common start of these two suffixes" question.
+Computing each neighbour pair by comparing letters would be quadratic. Kasai's algorithm does it in linear time with one observation: if suffix `i` has LCP `h` with the suffix just before it in sorted order, then suffix `i + 1` has LCP at least `h - 1` with its own predecessor (drop the first letter from both). So walk the suffixes in text order, keep `h`, never let it fall by more than 1 per step, and the total growth is bounded by `2n`.
+--build
+1. Input: the string `s` and its suffix array `sa` (from the suffix array lesson: `suffixArray(s)`). `n = len(s)`.
+2. Inverse array: `rank[sa[i]] = i`, the position of suffix `j` in sorted order is `rank[j]`.
+3. Set `h = 0`. For `i = 0..n-1` in text order: if `rank[i] > 0`, let `j = sa[rank[i] - 1]`, the suffix just before suffix `i` in sorted order.
+4. Extend: while `i + h < n`, `j + h < n` and `s[i + h] == s[j + h]`, do `h += 1`. Store `lcp[rank[i]] = h`.
+5. Then `h -= 1` if `h > 0` (the next suffix loses at most the first letter). If `rank[i] == 0` set `h = 0` instead.
+6. Worked example `banana`, `sa = [5, 3, 1, 0, 4, 2]`: suffixes `a, ana, anana, banana, na, nana`. `lcp = [0, 1, 3, 0, 0, 2]` (`a|ana` share 1, `ana|anana` share 3, `anana|banana` 0, `banana|na` 0, `na|nana` 2).
+7. Use: the longest repeated substring is the maximum of `lcp`. The common prefix of two suffixes at sorted positions `x < y` is `min(lcp[x+1..y])`. `lcpNaive` below computes the array the slow way with the piece `commonPrefix`, to check the fast one.
+Invariant: when the loop reaches suffix `i`, `h` is a lower bound for its LCP with its predecessor (it equals the previous LCP minus 1), so the comparison loop starts from letters already known to match.
+--think
+- Signal: anything asking for common prefixes of suffixes, repeated substrings, distinct substring counts, the longest common substring of two strings (separator trick), or comparing suffixes quickly.
+- Decide first what you need: the maximum (repeated substring), a sum (counting distinct substrings), or a range minimum (compare two arbitrary suffixes, which needs a sparse table or segment tree over `lcp`).
+- Neighbours: the suffix array (the input), suffix automaton and suffix tree (the same facts in tree form), hashing plus binary search (a lighter way to get one LCP).
+- Pitfalls: `lcp` indexed by sorted position, not by text position (the usual mix-up), forgetting `h = 0` at `rank[i] == 0`, and treating `lcp[0]` as meaningful.
+--cost
+O(n) time after the suffix array, O(n) space.
+--uses
+u-lcp2
+--java
+// lcp[i] = common prefix length of the suffixes sa[i-1] and sa[i]; lcp[0] = 0 (Kasai)
+static int[] lcpArray(String s, int[] sa) {
+    int n = s.length(), h = 0;
+    int[] rank = new int[n], lcp = new int[n];
+    for (int i = 0; i < n; i++) rank[sa[i]] = i;
+    for (int i = 0; i < n; i++) {
+        if (rank[i] == 0) { h = 0; continue; }
+        int j = sa[rank[i] - 1];                         // the suffix just before suffix i
+        while (i + h < n && j + h < n && s.charAt(i + h) == s.charAt(j + h)) h++;
+        lcp[rank[i]] = h;
+        if (h > 0) h--;                                  // the next suffix loses at most one letter
+    }
+    return lcp;
+}
+
+// slow version used for checking: compare neighbours directly
+static int[] lcpNaive(String s, int[] sa) {
+    int[] lcp = new int[sa.length];
+    for (int i = 1; i < sa.length; i++) lcp[i] = commonPrefix(s.substring(sa[i - 1]), s.substring(sa[i]));
+    return lcp;
+}
+--py
+def lcp_array(s, sa):
+    """lcp[i] = common prefix length of the suffixes sa[i-1] and sa[i]; lcp[0] = 0 (Kasai)."""
+    n, h = len(s), 0
+    rank = [0] * n
+    for i, p in enumerate(sa):
+        rank[p] = i
+    lcp = [0] * n
+    for i in range(n):
+        if rank[i] == 0:
+            h = 0
+            continue
+        j = sa[rank[i] - 1]                              # the suffix just before suffix i
+        while i + h < n and j + h < n and s[i + h] == s[j + h]:
+            h += 1
+        lcp[rank[i]] = h
+        if h > 0:
+            h -= 1                                       # the next suffix loses at most one letter
+    return lcp
+
+def lcp_naive(s, sa):
+    """Slow version used for checking: compare neighbours directly."""
+    return [0] + [common_prefix(s[sa[i - 1]:], s[sa[i]:]) for i in range(1, len(sa))]
+--cpp
+// lcp[i] = common prefix length of the suffixes sa[i-1] and sa[i]; lcp[0] = 0 (Kasai)
+vector<int> lcpArray(const string& s, const vector<int>& sa) {
+    int n = s.size(), h = 0;
+    vector<int> rank(n), lcp(n, 0);
+    for (int i = 0; i < n; i++) rank[sa[i]] = i;
+    for (int i = 0; i < n; i++) {
+        if (rank[i] == 0) { h = 0; continue; }
+        int j = sa[rank[i] - 1];                         // the suffix just before suffix i
+        while (i + h < n && j + h < n && s[i + h] == s[j + h]) h++;
+        lcp[rank[i]] = h;
+        if (h > 0) h--;                                  // the next suffix loses at most one letter
+    }
+    return lcp;
+}
+
+// slow version used for checking: compare neighbours directly
+vector<int> lcpNaive(const string& s, const vector<int>& sa) {
+    vector<int> lcp(sa.size(), 0);
+    for (size_t i = 1; i < sa.size(); i++) lcp[i] = commonPrefix(s.substr(sa[i - 1]), s.substr(sa[i]));
+    return lcp;
+}
+
+### distinctsubstr
+--idea
+How many different substrings does a string have? A string of length `n` has `n(n+1)/2` substrings counted by position (a start and an end), but many are repeats, such as `a` appearing at several places in `banana`. Every substring is a prefix of some suffix. Walk the suffixes in sorted order: each suffix of length `L` contributes `L` prefixes, but its first `lcp` prefixes were already counted by the previous suffix in the sorted order (they are shared by both). So only `L - lcp` prefixes are new.
+That gives the formula: the number of distinct substrings is the sum over sorted suffixes of `(length of suffix - lcp with the previous suffix)`, which equals `n(n+1)/2 - sum(lcp)`. With the suffix array and LCP array this is a single pass.
+--build
+1. Build the suffix array: `sa = suffixArray(s)` (the standard form from the suffix array lesson).
+2. Build the LCP array: `lcp = lcpArray(s, sa)` (Kasai, from the LCP lesson).
+3. Start `total = n * (n + 1) / 2` (all substrings counted by position). Subtract every `lcp[i]`: `total -= sum(lcp)`.
+4. Worked example `"banana"`: `n = 6`, so 21 substrings by position. `lcp = [0, 1, 3, 0, 0, 2]`, sum 6. Distinct substrings: `21 - 6 = 15`. Check by listing: `a, b, n, an, ba, na, ana, ban, nan, anan, bana, nana, anana, banan, banana` is 15.
+5. For a slow check, `countDistinctSlow` sorts the suffixes itself and uses the piece `commonPrefix` to get the LCP of each neighbour pair, so you can compare the two answers on small strings.
+--think
+- Signal: "count distinct substrings", "how many different pieces", "number of distinct substrings after each appended letter" (use a suffix automaton, which updates online).
+- Decide first whether the string is fixed (suffix array plus LCP) or grows letter by letter (suffix automaton), and whether `n` fits the `O(n log^2 n)` suffix array or you need `O(n)`.
+- Alternatives: the suffix automaton sums `len[v] - len[link[v]]` over states, in linear time. Hashing can count distinct substrings of a single length `k`.
+- Use 64-bit integers: `n(n+1)/2` overflows 32 bits at about `n = 65000`.
+- Pitfalls: counting distinct substrings of the empty string (0), forgetting that `lcp[0]` is 0, and mixing "distinct substrings" with "distinct subsequences" (a different, dynamic programming, problem).
+--cost
+O(n log^2 n) with the lesson's suffix array (O(n) after it). Space O(n).
+--uses
+u-lcp2
+--java
+// number of distinct non-empty substrings of s (needs suffixArray and lcpArray from the earlier lessons)
+static long countDistinct(String s) {
+    int n = s.length();
+    int[] sa = suffixArray(s), lcp = lcpArray(s, sa);
+    long total = (long) n * (n + 1) / 2;
+    for (int v : lcp) total -= v;                         // shared prefixes were already counted
+    return total;
+}
+
+// slow check: sort the suffixes, count what each adds over its predecessor
+static long countDistinctSlow(String s) {
+    int n = s.length();
+    String[] suf = new String[n];
+    for (int i = 0; i < n; i++) suf[i] = s.substring(i);
+    Arrays.sort(suf);
+    long total = 0;
+    for (int i = 0; i < n; i++) total += suf[i].length() - (i == 0 ? 0 : commonPrefix(suf[i - 1], suf[i]));
+    return total;
+}
+--py
+def count_distinct(s):
+    """Number of distinct non-empty substrings of s (needs suffix_array and lcp_array from the earlier lessons)."""
+    n = len(s)
+    sa = suffix_array(s)
+    lcp = lcp_array(s, sa)
+    return n * (n + 1) // 2 - sum(lcp)                   # shared prefixes were already counted
+
+def count_distinct_slow(s):
+    """Slow check: sort the suffixes, count what each adds over its predecessor."""
+    suf = sorted(s[i:] for i in range(len(s)))
+    return sum(len(x) - (common_prefix(suf[i - 1], x) if i else 0) for i, x in enumerate(suf))
+--cpp
+// number of distinct non-empty substrings of s (needs suffixArray and lcpArray from the earlier lessons)
+long long countDistinct(const string& s) {
+    long long n = s.size();
+    vector<int> sa = suffixArray(s), lcp = lcpArray(s, sa);
+    long long total = n * (n + 1) / 2;
+    for (int v : lcp) total -= v;                         // shared prefixes were already counted
+    return total;
+}
+
+// slow check: sort the suffixes, count what each adds over its predecessor
+long long countDistinctSlow(const string& s) {
+    int n = s.size();
+    vector<string> suf;
+    for (int i = 0; i < n; i++) suf.push_back(s.substr(i));
+    sort(suf.begin(), suf.end());
+    long long total = 0;
+    for (int i = 0; i < n; i++) total += (long long)suf[i].size() - (i == 0 ? 0 : commonPrefix(suf[i - 1], suf[i]));
+    return total;
+}
+
+### bwt
+--idea
+The Burrows-Wheeler transform rearranges a text so that equal letters clump together, which makes it compress far better with simple tools (run-length encoding, move-to-front). Write all rotations of the text, sort them in dictionary order, and read off the last letter of each: that column is the transform. Because sorted rotations that start with similar letters end up next to each other, and the letter before a repeated word tends to be the same, the last column has long runs.
+Surprisingly it can be undone. Mark the end of the text with a special letter `$` that is smaller than every other letter and appears once. The last column `L` together with the first column `F` (which is just `L` sorted) is enough to walk the text back, using the rule that the `k`-th occurrence of a letter in `F` and the `k`-th occurrence of the same letter in `L` are the same letter of the text. The transform is closely tied to the suffix array: sorting the rotations of `s + "$"` is the same as sorting its suffixes.
+--build
+1. Append the sentinel: `t = s + "$"`. `$` must not occur in `s` and must sort before every letter.
+2. Sort the rotations. Because `$` is unique and smallest, sorting the rotations of `t` gives the same order as sorting the suffixes of `t`. So `sa = suffixArray(t)` (the standard form from the suffix array lesson) lists the start positions of the sorted rotations.
+3. The transform is `L[i] = t[(sa[i] - 1) mod n]` for each sorted position `i`, the letter just before the rotation's start (the rotation's last letter).
+4. Worked example `s = "banana"`, `t = "banana$"`. Sorted suffixes (rotations): `$banana`, `a$banan`, `ana$ban`, `anana$b`, `banana$`, `na$bana`, `nana$ba`. Last letters: `a n n b $ a a`. So `bwt = "annb$aa"`.
+5. Inverse. `F` is `L` sorted: `$aaabnn`. Match the `k`-th occurrence of each letter in `F` to the `k`-th in `L`: that is the stable order of positions of `L` by letter. Get it with `sortIndices` (the piece) on the keys `code(L[j]) * n + j`; this key breaks ties by position, which keeps equal letters in order. Call the result `order`: row `i` of `F` matches position `order[i]` of `L`.
+6. Start `r` at the position of `$` in `L` (that row is the original text `t`). Repeat `n - 1` times: emit `F[r]`, then set `r = order[r]`. The emitted letters are `s`.
+7. Check on `"annb$aa"`: `order` = stable positions by letter `$ a a a b n n`: `[4, 0, 5, 6, 3, 1, 2]`. `r = 4`: emit `F[4] = b`, `r = 3`; emit `F[3] = a`, `r = 6`; emit `F[6] = n`, `r = 2`; emit `a`, `r = 5`; emit `n`, `r = 1`; emit `a`. Result `banana`.
+--think
+- Signal: compression, "text index with small memory" (the FM-index used in genome search is built on this), "invert the transform", "sorted rotations". Also a conceptual tool for problems on cyclic rotations.
+- Decide first whether the sentinel exists. Without it you must also store which row is the original text. With `$` the original text is the row that ends in `$`.
+- Why the inverse works: rotating a row right by one letter keeps the relative order of rows that start with the same letter, so the `k`-th row starting with `c` is the rotation of the `k`-th row ending with `c`.
+- Neighbours: suffix array (the engine), run-length encoding (what the transform helps), Huffman coding (entropy coding after the transform), KMP and suffix structures for searching.
+- Pitfalls: a sentinel that occurs in the text, sorting rotations naively in `O(n^2 log n)` for big inputs (use the suffix array), and non-stable ordering in the inverse (the `* n + j` key fixes it).
+--cost
+Forward: the cost of the suffix array, O(n log^2 n) here. Inverse: O(n log n) with comparison sorting. Space O(n).
+--uses
+u-sortidx
+--java
+// Burrows-Wheeler transform of s; s must not contain '$'
+static String bwt(String s) {
+    String t = s + "$";
+    int n = t.length();
+    int[] sa = suffixArray(t);                            // sorted rotations, since $ is unique and smallest
+    StringBuilder sb = new StringBuilder();
+    for (int i = 0; i < n; i++) sb.append(t.charAt((sa[i] + n - 1) % n));
+    return sb.toString();
+}
+
+// undo the transform; returns the original s (without '$')
+static String inverseBwt(String last) {
+    int n = last.length();
+    int[] keys = new int[n];
+    for (int j = 0; j < n; j++) keys[j] = (last.charAt(j) & 255) * n + j;   // letter first, then position
+    Integer[] order = sortIndices(keys);                  // row i of F matches position order[i] of L
+    int r = last.indexOf('$');
+    StringBuilder sb = new StringBuilder();
+    for (int step = 0; step < n - 1; step++) {
+        sb.append(last.charAt(order[r]));                 // F[r] equals L[order[r]]
+        r = order[r];
+    }
+    return sb.toString();
+}
+--py
+def bwt(s):
+    """Burrows-Wheeler transform of s; s must not contain '$'."""
+    t = s + "$"
+    n = len(t)
+    sa = suffix_array(t)                                  # sorted rotations, since $ is unique and smallest
+    return "".join(t[(p - 1) % n] for p in sa)
+
+def inverse_bwt(last):
+    """Undo the transform; returns the original s (without '$')."""
+    n = len(last)
+    keys = [(ord(ch) & 255) * n + j for j, ch in enumerate(last)]   # letter first, then position
+    order = sort_indices(keys)                            # row i of F matches position order[i] of L
+    r = last.index("$")
+    out = []
+    for _ in range(n - 1):
+        out.append(last[order[r]])                        # F[r] equals L[order[r]]
+        r = order[r]
+    return "".join(out)
+--cpp
+// Burrows-Wheeler transform of s; s must not contain '$'
+string bwt(const string& s) {
+    string t = s + "$";
+    int n = t.size();
+    vector<int> sa = suffixArray(t);                      // sorted rotations, since $ is unique and smallest
+    string res;
+    for (int i = 0; i < n; i++) res += t[(sa[i] + n - 1) % n];
+    return res;
+}
+
+// undo the transform; returns the original s (without '$')
+string inverseBwt(const string& last) {
+    int n = last.size();
+    vector<int> keys(n);
+    for (int j = 0; j < n; j++) keys[j] = ((unsigned char)last[j]) * n + j;   // letter first, then position
+    vector<int> order = sortIndices(keys);                // row i of F matches position order[i] of L
+    int r = last.find('$');
+    string out;
+    for (int step = 0; step < n - 1; step++) {
+        out += last[order[r]];                            // F[r] equals L[order[r]]
+        r = order[r];
+    }
+    return out;
+}
+
+### aho
+--idea
+Aho-Corasick searches for many words at once in one pass over the text. Searching each word separately costs one pass per word. Instead, put all the words in a trie (a tree where each path from the root spells a prefix of some word) and run the text through it like a pointer. The new idea is the failure link: when the next text letter does not continue the current path, you do not restart from the root; you jump to the longest proper suffix of what you have matched that is also a path in the trie, and carry on from there. This is exactly what KMP does for one word, now for a whole trie.
+Picture a word list as a tree, and a marker walking down it as the text is read. If the marker is at the node for `she` and the next letter does not extend `she`, the failure link of `she` points to the node for `he` (the longest suffix of `she` that is a prefix of some word). Any word that is a suffix of the current path also ends here, so each node also carries the number of words that end at it or at any node on its failure chain. Then one lookup per letter counts all matches ending there.
+--build
+1. Build the trie of all words with the piece `Trie` (its `insert`). Node 0 is the root; each node has children by letter, and `end[v]` marks where a word ends. Remember `hits[v] = 1` if a word ends at `v`, else 0.
+2. Failure links: `fail[v]` is the node of the longest proper suffix of the path to `v` that is also a path in the trie. For the root and its children `fail = 0`.
+3. Process the nodes in breadth first order (level by level) using a queue (the pieces `enqueue` and `dequeue`). Put the root's children in the queue first.
+4. When you take node `v` out of the queue: add the matches of its failure target: `hits[v] += hits[fail[v]]`. (`fail[v]` is shallower, so it was already finished.) Then for each child `u` of `v` by letter `c`: start at `f = fail[v]`; while `f` is not the root and `f` has no child `c`, set `f = fail[f]`; then `fail[u]` is the child `c` of `f` if it exists, else the root. Put `u` in the queue.
+5. Search: `state = 0`. For each text letter `c`: while `state` is not the root and has no child `c`, `state = fail[state]`; then if `state` has a child `c` go to it, else stay at the root. Add `hits[state]` to the answer.
+6. Worked example: words `he`, `she`, `his`, `hers`, text `ushers`. Trie paths: `h-e`, `s-h-e`, `h-i-s`, `h-e-r-s`. `fail[she] = he` (the suffix `he` is a path). `hits[she] = 1 + hits[he] = 2`. Reading `u` stays at root; `s`, `h`, `e` walks `s-h-e` (2 words end here: `she` and `he`); `r`: `she` has no child `r`, fall to `he`, which has child `r`: go to `her`; `s`: go to `hers` (1 word). Total 3 matches.
+Invariant: after reading a prefix of the text, `state` is the longest suffix of that prefix which is a path in the trie, and `hits[state]` counts every word that is a suffix of that prefix.
+--think
+- Signal: "find all occurrences of any of these words", "does the text contain a forbidden word", "count the words appearing in each document", "strings that avoid a set of patterns" (count with dynamic programming on the automaton state).
+- Decide first how many total letters the words have (`L`) and the alphabet size, since the trie has up to `L` nodes. Also decide whether you need counts, positions (store the word ids per node and follow the failure chain, or a dictionary suffix link), or just yes or no.
+- Compared with other approaches: Rabin-Karp handles many words only if they share a length, KMP handles one word, a suffix array handles one text with many queries. Aho-Corasick is the tool for many words and a text you scan once.
+- The version here walks failure links at run time (amortised linear). Filling in all missing transitions in advance (the full automaton) makes each letter a single lookup and is needed for counting strings by dynamic programming.
+- Pitfalls: failure links computed in the wrong order (must be by depth), forgetting to add the hits of the failure target (words that are suffixes of other words), counting duplicate words once (the trie marks only that a word ends here), and the piece `Trie` has a fixed capacity (about 100000 nodes in Java), so very large word lists need a bigger array.
+--cost
+O(L * alphabet) to build with array children (O(L) with maps), O(n + matches) to scan a text of length `n`. Space O(L * alphabet).
+--uses
+u-trieins
+u-queueop
+--java
+// total number of occurrences of the (distinct) words in text; letters a-z only
+static long countMatches(String text, String[] words) {
+    Trie t = new Trie();
+    for (String w : words) t.insert(w);
+    int n = t.cnt;
+    int[] fail = new int[n], hits = new int[n];
+    for (int v = 0; v < n; v++) hits[v] = t.end[v] ? 1 : 0;
+    Deque<Integer> q = new ArrayDeque<>();
+    for (int c = 0; c < 26; c++) if (t.nxt[0][c] != 0) enqueue(q, t.nxt[0][c]);   // depth 1: fail = root
+    while (!q.isEmpty()) {
+        int v = dequeue(q);
+        hits[v] += hits[fail[v]];                          // words that are suffixes of this path
+        for (int c = 0; c < 26; c++) {
+            int u = t.nxt[v][c];
+            if (u == 0) continue;
+            int f = fail[v];
+            while (f != 0 && t.nxt[f][c] == 0) f = fail[f];
+            fail[u] = t.nxt[f][c];                         // 0 (root) if there is none
+            enqueue(q, u);
+        }
+    }
+    long total = 0;
+    int state = 0;
+    for (char ch : text.toCharArray()) {
+        int c = ch - 'a';
+        while (state != 0 && t.nxt[state][c] == 0) state = fail[state];
+        state = t.nxt[state][c];
+        total += hits[state];
+    }
+    return total;
+}
+--py
+def count_matches(text, words):
+    """Total number of occurrences of the (distinct) words in text."""
+    t = Trie()
+    for w in words:
+        t.insert(w)
+    nodes = t.nodes
+    fail = [0] * len(nodes)
+    hits = [1 if e else 0 for e in t.end]
+    q = deque()
+    for u in nodes[0].values():
+        enqueue(q, u)                                   # depth 1: fail = root
+    while q:
+        v = dequeue(q)
+        hits[v] += hits[fail[v]]                        # words that are suffixes of this path
+        for ch, u in nodes[v].items():
+            f = fail[v]
+            while f and ch not in nodes[f]:
+                f = fail[f]
+            fail[u] = nodes[f].get(ch, 0)               # 0 (root) if there is none
+            enqueue(q, u)
+    total = state = 0
+    for ch in text:
+        while state and ch not in nodes[state]:
+            state = fail[state]
+        state = nodes[state].get(ch, 0)
+        total += hits[state]
+    return total
+--cpp
+// total number of occurrences of the (distinct) words in text; letters a-z only
+long long countMatches(const string& text, const vector<string>& words) {
+    Trie t;
+    for (auto& w : words) t.insert(w);
+    int n = t.nxt.size();
+    vector<int> fail(n, 0), hits(n, 0);
+    for (int v = 0; v < n; v++) hits[v] = t.end[v] ? 1 : 0;
+    queue<int> q;
+    for (int c = 0; c < 26; c++) if (t.nxt[0][c]) enqueue(q, t.nxt[0][c]);     // depth 1: fail = root
+    while (!q.empty()) {
+        int v = dequeue(q);
+        hits[v] += hits[fail[v]];                          // words that are suffixes of this path
+        for (int c = 0; c < 26; c++) {
+            int u = t.nxt[v][c];
+            if (!u) continue;
+            int f = fail[v];
+            while (f && !t.nxt[f][c]) f = fail[f];
+            fail[u] = t.nxt[f][c];                         // 0 (root) if there is none
+            enqueue(q, u);
+        }
+    }
+    long long total = 0;
+    int state = 0;
+    for (char ch : text) {
+        int c = ch - 'a';
+        while (state && !t.nxt[state][c]) state = fail[state];
+        state = t.nxt[state][c];
+        total += hits[state];
+    }
+    return total;
+}
+
+### sam
+--idea
+The suffix automaton of a string is the smallest machine that accepts exactly the substrings of that string. It is a graph of states with letter-labelled arrows: start at the first state, follow arrows spelling any substring and you always land somewhere; spell a non-substring and you fall off. Remarkably it needs at most `2n - 1` states for a string of length `n`, and it is built online in linear time, one letter at a time.
+A state stands for a group of substrings that end at exactly the same set of positions in the text (they are called to have the same end-set). All the substrings in one state are suffixes of the longest one in it, and they have consecutive lengths from `len[link[v]] + 1` up to `len[v]`. The suffix link `link[v]` points to the state holding the next shorter suffixes (the ones with a bigger end-set). So each state contributes `len[v] - len[link[v]]` distinct substrings, and summing over all states counts the distinct substrings of the whole string.
+--build
+1. States are numbered from 0. State 0 is the start (empty string). Arrays: `len[v]` (length of the longest substring in `v`), `link[v]` (suffix link, `-1` for the start), `next[v][c]` (the arrow for letter `c`, `-1` if none). Letters are turned into `0..25` with the piece `charIdx`. Keep `last`, the state of the whole string so far.
+2. Add a letter `c`. Make a new state `cur` with `len[cur] = len[last] + 1`. Set `p = last`.
+3. Walk back along suffix links while `p != -1` and `p` has no arrow `c`: set `next[p][c] = cur`, then `p = link[p]`.
+4. If `p == -1`, no earlier state had `c`: `link[cur] = 0` (the start). Done.
+5. Otherwise let `q = next[p][c]`. If `len[p] + 1 == len[q]`, then `q` already contains exactly the right strings: `link[cur] = q`. Done.
+6. Otherwise `q` holds longer strings too, so split it: make a clone state with `len[clone] = len[p] + 1`, the same arrows and link as `q`. While `p != -1` and `next[p][c] == q`, redirect `next[p][c] = clone` and `p = link[p]`. Finally `link[q] = link[cur] = clone`.
+7. Set `last = cur`.
+8. Worked example, build `ab`: start state 0. Add `a`: state 1 (`len` 1); walking back from 0: no arrow `a`, set `0 -a-> 1`, `p = -1`, so `link[1] = 0`. Add `b`: state 2 (`len` 2); `p = 1` has no `b`: set `1 -b-> 2`; `p = 0` has no `b`: set `0 -b-> 2`; `p = -1`, so `link[2] = 0`. Substrings: `a`, `b`, `ab`. Distinct count: state 1 gives `1 - 0 = 1`, state 2 gives `2 - 0 = 2`. Total 3.
+9. Uses: count distinct substrings (`sum of len[v] - len[link[v]]` for `v >= 1`); test if `p` is a substring (follow arrows); longest common substring with another string `t` (walk `t` through the automaton of `s`, falling back along suffix links on a missing arrow).
+Invariant: after each `extend`, the automaton accepts exactly the substrings of the text so far, and every state's strings share one end-set; `last` is the state of the entire text.
+--think
+- Signal: "number of distinct substrings", "longest common substring of two or more strings", "does `p` occur", "how many times does each substring occur" (propagate counts up the suffix links), "k-th substring in order".
+- Decide first the alphabet size (the `next` table costs `2n * alphabet`; use a map per state for big alphabets) and whether the text arrives online (the automaton supports appending a letter at a time).
+- Alternatives: suffix array plus LCP does the same counting with arrays and no graph; a suffix tree is the automaton of the reversed string in disguise; hashing is shorter but can fail.
+- Why it is linear: the loop in step 3 and step 6 only walks suffix links and each step shortens a chain whose total length is bounded; the number of states is at most `2n - 1` and transitions at most `3n - 4`.
+- Pitfalls: forgetting to copy the arrows when cloning, not redirecting arrows to the clone in step 6, sizing arrays by `n` instead of `2n`, and mixing states with substrings (a state holds many substrings).
+--cost
+O(n * alphabet) time with arrays (O(n log alphabet) with maps), O(n * alphabet) space, for a string of length `n`.
+--uses
+u-charidx
+--java
+// suffix automaton of a string over a-z; build it with extend(ch) for each letter
+static class Sam {
+    int[][] next; int[] link, len; int size = 1, last = 0;
+    Sam(int maxLen) {
+        int m = 2 * maxLen + 2;
+        next = new int[m][26];
+        for (int[] row : next) Arrays.fill(row, -1);
+        link = new int[m]; len = new int[m]; link[0] = -1;
+    }
+    void extend(char ch) {
+        int c = charIdx(ch), cur = size++, p = last;
+        len[cur] = len[last] + 1;
+        while (p != -1 && next[p][c] == -1) { next[p][c] = cur; p = link[p]; }
+        if (p == -1) link[cur] = 0;
+        else {
+            int q = next[p][c];
+            if (len[p] + 1 == len[q]) link[cur] = q;
+            else {                                       // split q: clone keeps the shorter strings
+                int clone = size++;
+                len[clone] = len[p] + 1; next[clone] = next[q].clone(); link[clone] = link[q];
+                while (p != -1 && next[p][c] == q) { next[p][c] = clone; p = link[p]; }
+                link[q] = link[cur] = clone;
+            }
+        }
+        last = cur;
+    }
+}
+
+static long countDistinctSubstrings(String s) {
+    Sam m = new Sam(s.length());
+    for (char ch : s.toCharArray()) m.extend(ch);
+    long total = 0;
+    for (int v = 1; v < m.size; v++) total += m.len[v] - m.len[m.link[v]];
+    return total;
+}
+
+static int longestCommonSubstringLen(String s, String t) {
+    Sam m = new Sam(s.length());
+    for (char ch : s.toCharArray()) m.extend(ch);
+    int v = 0, l = 0, best = 0;
+    for (char ch : t.toCharArray()) {
+        int c = charIdx(ch);
+        while (v != 0 && m.next[v][c] == -1) { v = m.link[v]; l = m.len[v]; }   // shorten the match
+        if (m.next[v][c] != -1) { v = m.next[v][c]; l++; } else { v = 0; l = 0; }
+        best = Math.max(best, l);
+    }
+    return best;
+}
+--py
+class Sam:
+    """Suffix automaton of a string over a-z; call extend(ch) for each letter."""
+    def __init__(self):
+        self.next, self.link, self.len = [[-1] * 26], [-1], [0]
+        self.last = 0
+
+    def extend(self, ch):
+        c = char_idx(ch)
+        cur = len(self.len)
+        self.len.append(self.len[self.last] + 1)
+        self.next.append([-1] * 26)
+        self.link.append(0)
+        p = self.last
+        while p != -1 and self.next[p][c] == -1:
+            self.next[p][c] = cur
+            p = self.link[p]
+        if p != -1:
+            q = self.next[p][c]
+            if self.len[p] + 1 == self.len[q]:
+                self.link[cur] = q
+            else:                                        # split q: clone keeps the shorter strings
+                clone = len(self.len)
+                self.len.append(self.len[p] + 1)
+                self.next.append(self.next[q][:])
+                self.link.append(self.link[q])
+                while p != -1 and self.next[p][c] == q:
+                    self.next[p][c] = clone
+                    p = self.link[p]
+                self.link[q] = self.link[cur] = clone
+        self.last = cur
+
+def count_distinct_substrings(s):
+    m = Sam()
+    for ch in s:
+        m.extend(ch)
+    return sum(m.len[v] - m.len[m.link[v]] for v in range(1, len(m.len)))
+
+def longest_common_substring_len(s, t):
+    m = Sam()
+    for ch in s:
+        m.extend(ch)
+    v = l = best = 0
+    for ch in t:
+        c = char_idx(ch)
+        while v != 0 and m.next[v][c] == -1:
+            v = m.link[v]                                # shorten the match
+            l = m.len[v]
+        if m.next[v][c] != -1:
+            v = m.next[v][c]
+            l += 1
+        else:
+            v = l = 0
+        best = max(best, l)
+    return best
+--cpp
+// suffix automaton of a string over a-z; build it with extend(ch) for each letter
+struct Sam {
+    vector<array<int, 26>> next{array<int, 26>{}};
+    vector<int> link{-1}, len{0};
+    int last = 0;
+    Sam() { next[0].fill(-1); }
+    void extend(char ch) {
+        int c = charIdx(ch), cur = len.size(), p = last;
+        len.push_back(len[last] + 1);
+        next.push_back({}); next[cur].fill(-1);
+        link.push_back(0);
+        while (p != -1 && next[p][c] == -1) { next[p][c] = cur; p = link[p]; }
+        if (p != -1) {
+            int q = next[p][c];
+            if (len[p] + 1 == len[q]) link[cur] = q;
+            else {                                       // split q: clone keeps the shorter strings
+                int clone = len.size();
+                len.push_back(len[p] + 1); next.push_back(next[q]); link.push_back(link[q]);
+                while (p != -1 && next[p][c] == q) { next[p][c] = clone; p = link[p]; }
+                link[q] = link[cur] = clone;
+            }
+        }
+        last = cur;
+    }
+};
+
+long long countDistinctSubstrings(const string& s) {
+    Sam m;
+    for (char ch : s) m.extend(ch);
+    long long total = 0;
+    for (size_t v = 1; v < m.len.size(); v++) total += m.len[v] - m.len[m.link[v]];
+    return total;
+}
+
+int longestCommonSubstringLen(const string& s, const string& t) {
+    Sam m;
+    for (char ch : s) m.extend(ch);
+    int v = 0, l = 0, best = 0;
+    for (char ch : t) {
+        int c = charIdx(ch);
+        while (v != 0 && m.next[v][c] == -1) { v = m.link[v]; l = m.len[v]; }   // shorten the match
+        if (m.next[v][c] != -1) { v = m.next[v][c]; l++; } else { v = 0; l = 0; }
+        best = max(best, l);
+    }
+    return best;
+}
+
+### suftree
+--idea
+A suffix tree is a tree whose root-to-leaf paths spell all the suffixes of a string. Every substring is a prefix of some suffix, so every substring is a path that starts at the root and stops somewhere (maybe in the middle of an edge). To keep the tree small, a chain of nodes with one child is squeezed into a single edge labelled by a piece of text. A string of length `n` then has at most `2n` nodes.
+Add a sentinel `$` (smaller than all letters, used once) at the end of the text, so that no suffix is a prefix of another and every suffix ends at its own leaf. The tree has a strong link to the suffix array: the leaves, read left to right, are the suffixes in sorted order, and the depth (string length from the root) of the branching point between two neighbouring leaves is exactly their LCP. So you can build the tree from the suffix array and LCP array with a stack, which is shorter than the classic Ukkonen construction.
+--build
+1. Let `t = s + "$"` with length `N`. Get `sa = suffixArray(t)` (suffix array lesson) and `lcp = lcpArray(t, sa)` (LCP lesson).
+2. Nodes: `parent[v]` and `depth[v]` (the string length from the root to `v`), and a flag for leaves. The root is node 0 with depth 0. Keep a stack of nodes on the current root-to-leaf path, from shallow to deep, starting with the root.
+3. For each sorted position `i`, let `l = lcp[i]` (use 0 for `i = 0`). Pop nodes while the top has `depth > l`. Each popped node gets its parent set to the node under it, if that node's depth is at least `l`.
+4. If the node under the popped one has depth below `l`, the path must branch at depth exactly `l`: create an internal node `m` with `depth = l`, set it as the popped node's parent, and push `m`.
+5. Create the leaf for suffix `sa[i]` with `depth = N - sa[i]` and push it.
+6. After the last leaf, pop everything, giving each node the node under it as its parent.
+7. Worked example `banana$` (`N = 7`): `sa = [6, 5, 3, 1, 0, 4, 2]`, `lcp = [0, 0, 1, 3, 0, 0, 2]`. Leaves in order: `$`, `a$`, `ana$`, `anana$`, `banana$`, `na$`, `nana$`. Branching nodes appear at depths 1 (`a`), 3 (`ana`) and 2 (`na`). The edges from the root: `$`, `a`, `banana$`, `na`.
+8. Use it: the number of distinct substrings of `s` is the sum of edge lengths `depth[v] - depth[parent[v]]` over all nodes, minus `N` (the substrings that contain `$`). The longest repeated substring is the deepest internal node. The depth of the lowest common ancestor of two leaves equals the common prefix length of their suffixes; `lcaDepth` computes that with the piece `commonPrefix`.
+Invariant: the stack always holds the nodes on the path from the root to the most recent leaf, with strictly increasing depths, so a new leaf only has to find where its path leaves this one, and that is at depth `lcp`.
+--think
+- Signal: many different questions about substrings of one text: occurrences, longest repeated or common substring, shortest unique substring, counting distinct substrings, "all suffixes that start with `p`" (all the leaves under the node where `p` ends).
+- Decide first whether you need the tree itself or whether the suffix array with LCP is enough. Most contest problems are solved by the array plus a range minimum query, which is easier to write. A tree is natural for tree style questions (lowest common ancestor, subtree sums).
+- A suffix tree of `s` is also the suffix link tree of the suffix automaton of the reversed `s`. The automaton is usually shorter to code.
+- Pitfalls: forgetting the sentinel (suffixes that are prefixes of others get no leaf), counting substrings that contain `$`, edge lengths versus node depths, and building the tree on a string whose letters can equal `$`.
+--cost
+O(n) after the suffix array and LCP array (those cost O(n log^2 n) here). Space O(n).
+--uses
+u-lcp2
+--java
+// suffix tree of s + "$" built from the suffix and LCP arrays; returns {parent, depth, isLeaf} (root is node 0)
+static int[][] buildSuffixTree(String s) {
+    String t = s + "$";
+    int N = t.length();
+    int[] sa = suffixArray(t), lcp = lcpArray(t, sa);
+    int[] parent = new int[2 * N + 1], depth = new int[2 * N + 1], leaf = new int[2 * N + 1];
+    int cnt = 1;
+    parent[0] = -1;
+    int[] stack = new int[N + 2];
+    int top = 0;                                           // stack[0] is the root
+    for (int i = 0; i < N; i++) {
+        int l = i == 0 ? 0 : lcp[i];
+        while (depth[stack[top]] > l) {
+            int last = stack[top--];
+            if (depth[stack[top]] >= l) parent[last] = stack[top];
+            else {                                         // the path branches at depth l: new internal node
+                int m = cnt++;
+                depth[m] = l; parent[last] = m; stack[++top] = m;
+            }
+        }
+        int v = cnt++;
+        depth[v] = N - sa[i]; leaf[v] = 1;
+        stack[++top] = v;
+    }
+    while (top > 0) { int x = stack[top--]; parent[x] = stack[top]; }
+    return new int[][]{Arrays.copyOf(parent, cnt), Arrays.copyOf(depth, cnt), Arrays.copyOf(leaf, cnt)};
+}
+
+// number of distinct non-empty substrings of s, from the tree's edge lengths
+static long distinctFromTree(String s) {
+    int[][] tr = buildSuffixTree(s);
+    long total = 0;
+    for (int v = 1; v < tr[0].length; v++) total += tr[1][v] - tr[1][tr[0][v]];
+    return total - (s.length() + 1);                       // drop substrings that contain $
+}
+
+// depth of the lowest common ancestor of two leaves = common prefix of their suffixes
+static int lcaDepth(String t, int[] sa, int i, int j) {
+    return commonPrefix(t.substring(sa[i]), t.substring(sa[j]));
+}
+--py
+def build_suffix_tree(s):
+    """Suffix tree of s + '$' built from the suffix and LCP arrays; returns (parent, depth, is_leaf), root is node 0."""
+    t = s + "$"
+    N = len(t)
+    sa = suffix_array(t)
+    lcp = lcp_array(t, sa)
+    parent, depth, leaf = [-1], [0], [False]
+    stack = [0]                                            # nodes on the current root-to-leaf path
+
+    def new(d, is_leaf):
+        parent.append(-1); depth.append(d); leaf.append(is_leaf)
+        return len(depth) - 1
+
+    for i in range(N):
+        l = lcp[i] if i else 0
+        while depth[stack[-1]] > l:
+            last = stack.pop()
+            if depth[stack[-1]] >= l:
+                parent[last] = stack[-1]
+            else:                                          # the path branches at depth l: new internal node
+                m = new(l, False)
+                parent[last] = m
+                stack.append(m)
+        stack.append(new(N - sa[i], True))
+    while len(stack) > 1:
+        x = stack.pop()
+        parent[x] = stack[-1]
+    return parent, depth, leaf
+
+def distinct_from_tree(s):
+    """Number of distinct non-empty substrings of s, from the tree's edge lengths."""
+    parent, depth, _ = build_suffix_tree(s)
+    total = sum(depth[v] - depth[parent[v]] for v in range(1, len(depth)))
+    return total - (len(s) + 1)                            # drop substrings that contain $
+
+def lca_depth(t, sa, i, j):
+    """Depth of the lowest common ancestor of two leaves = common prefix of their suffixes."""
+    return common_prefix(t[sa[i]:], t[sa[j]:])
+--cpp
+// suffix tree of s + "$" built from the suffix and LCP arrays; root is node 0
+struct SufTree { vector<int> parent, depth; vector<bool> leaf; };
+
+SufTree buildSuffixTree(const string& s) {
+    string t = s + "$";
+    int N = t.size();
+    vector<int> sa = suffixArray(t), lcp = lcpArray(t, sa);
+    SufTree T;
+    T.parent = {-1}; T.depth = {0}; T.leaf = {false};
+    auto make = [&](int d, bool isLeaf) {
+        T.parent.push_back(-1); T.depth.push_back(d); T.leaf.push_back(isLeaf);
+        return (int)T.depth.size() - 1;
+    };
+    vector<int> st = {0};                                  // nodes on the current root-to-leaf path
+    for (int i = 0; i < N; i++) {
+        int l = i ? lcp[i] : 0;
+        while (T.depth[st.back()] > l) {
+            int last = st.back(); st.pop_back();
+            if (T.depth[st.back()] >= l) T.parent[last] = st.back();
+            else {                                         // the path branches at depth l: new internal node
+                int m = make(l, false);
+                T.parent[last] = m;
+                st.push_back(m);
+            }
+        }
+        st.push_back(make(N - sa[i], true));
+    }
+    while (st.size() > 1) { int x = st.back(); st.pop_back(); T.parent[x] = st.back(); }
+    return T;
+}
+
+// number of distinct non-empty substrings of s, from the tree's edge lengths
+long long distinctFromTree(const string& s) {
+    SufTree T = buildSuffixTree(s);
+    long long total = 0;
+    for (size_t v = 1; v < T.depth.size(); v++) total += T.depth[v] - T.depth[T.parent[v]];
+    return total - (long long)(s.size() + 1);              // drop substrings that contain $
+}
+
+// depth of the lowest common ancestor of two leaves = common prefix of their suffixes
+int lcaDepth(const string& t, const vector<int>& sa, int i, int j) {
+    return commonPrefix(t.substr(sa[i]), t.substr(sa[j]));
+}
+
+### eertree
+--idea
+The palindromic tree (also called the eertree) stores every distinct palindromic substring of a string, one node per palindrome, and it is built letter by letter in linear time. A string of length `n` has at most `n` different palindromic substrings, which is a surprising fact that the tree exploits: each new letter creates at most one new palindrome, so the tree has at most `n + 2` nodes.
+Each node is a palindrome. A letter-labelled edge from node `P` with letter `c` goes to the palindrome `c P c`, the one made by wrapping `P` with `c` on both sides. Two roots start things off: an imaginary node of length `-1` (wrapping it with `c` gives the single letter `c`, length 1) and the empty palindrome of length `0` (wrapping it gives `cc`, length 2). Each node also has a suffix link to its longest proper palindromic suffix, which is what lets you find where the next letter extends a palindrome.
+--build
+1. Nodes: `len[v]` (palindrome length), `link[v]` (suffix link), `next[v][c]` (the node for `c + P + c`). Node 0 is the imaginary root with `len = -1` and node 1 is the empty string with `len = 0`; `link[1] = 0` and `link[0] = 0`. Keep `last`, the node of the longest palindromic suffix of the text so far; start `last = 1`.
+2. Add letter `s[i]`. Find the longest palindromic suffix `cur` of the text so far that can be extended by `s[i]`: starting with `cur = last`, repeat `cur = link[cur]` until `i - 1 - len[cur] >= 0` and `s[i - 1 - len[cur]] == s[i]`. (The imaginary root has length `-1`, so for it the test compares `s[i]` with itself and always succeeds, so the loop ends.)
+3. If `cur` already has an edge `s[i]`, the palindrome `s[i] cur s[i]` already exists: set `last` to that node and stop.
+4. Otherwise create a node `v` with `len[v] = len[cur] + 2`.
+5. Its suffix link: if `len[v] == 1`, `link[v] = 1` (the empty palindrome). Otherwise walk `p = link[cur]` and repeat `p = link[p]` until the same test succeeds; then `link[v] = next[p][s[i]]`.
+6. Only now store the edge `next[cur][s[i]] = v` (after the link is found, so the search above cannot see the new node), and set `last = v`.
+7. Worked example `"aba"`. Letter `a` (i=0): `cur = 1` (empty), test `i-1-0 = -1 < 0` fails; `cur = link[1] = 0`: success. No edge: create `a` (len 1, link to empty). `last = a`. Letter `b` (i=1): `cur = a`: `s[1-1-1] = s[-1]` out of range fails; `cur = link[a] = empty`: `s[0] = a != b` fails; `cur = imaginary`: success. Create `b` (len 1, link empty). Letter `a` (i=2): `cur = b`: `s[0] = a == a` success. Create `aba` (len 3); its link: `p = link[b] = empty`, test `s[1] = b != a` fails, `p = imaginary` ok, so `link = next[imaginary][a] = a`. Distinct palindromes: `a`, `b`, `aba`: 3 nodes besides the two roots.
+8. Counts: the number of distinct palindromic substrings is `nodes - 2`. To count occurrences, add 1 to `occ[last]` after each letter, then go through the nodes from newest to oldest and add `occ[v]` to `occ[link[v]]`. The total number of palindromic substrings (by position) is the sum of `occ` over all real nodes.
+Invariant: `last` is the longest palindromic suffix of the text read so far; every palindromic substring seen so far has a node; and each node's suffix link is its longest proper palindromic suffix.
+--think
+- Signal: "number of distinct palindromic substrings", "count palindromic substrings with multiplicity", "longest palindromic suffix of every prefix", "partition a string into the fewest palindromes" (the series link version of the tree gives `O(n log n)`).
+- Decide first whether Manacher already answers the question. Manacher gives the longest palindrome around each centre and counts all palindromic substrings by position. The eertree is needed for DISTINCT palindromes and for palindromic suffix structure of every prefix.
+- The `O(n)` bound comes from amortising the suffix link walks, the same argument as for KMP and for the suffix automaton.
+- Neighbours: Manacher (centres), suffix automaton (all substrings), hashing with a reversed string (checking one palindrome), KMP (borders, which a palindromic suffix resembles).
+- Pitfalls: inserting the new edge before computing its suffix link (then the link can point to the node itself), mixing the two roots (imaginary has length `-1`), indexing `s[i - 1 - len[cur]]` out of range, and forgetting to propagate occurrence counts from longer palindromes to their suffix links.
+--cost
+O(n) time with array children (O(n log alphabet) with maps), O(n * alphabet) space.
+--uses
+u-ispalin
+--java
+// {number of distinct palindromic substrings, total palindromic substrings counted by position}; letters a-z
+static long[] eertree(String s) {
+    int n = s.length();
+    int[] len = new int[n + 2], link = new int[n + 2];
+    int[][] next = new int[n + 2][26];
+    len[0] = -1;                                           // node 0: imaginary root, node 1: empty string
+    int size = 2, last = 1;
+    long[] occ = new long[n + 2];
+    for (int i = 0; i < n; i++) {
+        int c = s.charAt(i) - 'a', cur = last;
+        while (i - 1 - len[cur] < 0 || s.charAt(i - 1 - len[cur]) - 'a' != c) cur = link[cur];
+        if (next[cur][c] == 0) {
+            int v = size++;
+            len[v] = len[cur] + 2;
+            if (len[v] == 1) link[v] = 1;
+            else {
+                int p = link[cur];
+                while (i - 1 - len[p] < 0 || s.charAt(i - 1 - len[p]) - 'a' != c) p = link[p];
+                link[v] = next[p][c];
+            }
+            next[cur][c] = v;                              // set after the link is known
+        }
+        last = next[cur][c];
+        occ[last]++;
+    }
+    long total = 0;
+    for (int v = size - 1; v >= 2; v--) { total += occ[v]; occ[link[v]] += occ[v]; }
+    return new long[]{size - 2, total};
+}
+
+// slow check for testing: every substring tested with the isPalindrome piece
+static int distinctPalindromesSlow(String s) {
+    Set<String> set = new HashSet<>();
+    for (int i = 0; i < s.length(); i++)
+        for (int j = i + 1; j <= s.length(); j++)
+            if (isPalindrome(s.substring(i, j))) set.add(s.substring(i, j));
+    return set.size();
+}
+--py
+def eertree(s):
+    """(number of distinct palindromic substrings, total palindromic substrings counted by position)."""
+    n = len(s)
+    ln, link, nxt = [-1, 0], [0, 0], [{}, {}]              # node 0: imaginary root, node 1: empty string
+    last = 1
+    occ = [0, 0]
+    for i, ch in enumerate(s):
+        cur = last
+        while i - 1 - ln[cur] < 0 or s[i - 1 - ln[cur]] != ch:
+            cur = link[cur]
+        if ch not in nxt[cur]:
+            v = len(ln)
+            ln.append(ln[cur] + 2)
+            if ln[v] == 1:
+                link.append(1)
+            else:
+                p = link[cur]
+                while i - 1 - ln[p] < 0 or s[i - 1 - ln[p]] != ch:
+                    p = link[p]
+                link.append(nxt[p][ch])
+            nxt.append({})
+            occ.append(0)
+            nxt[cur][ch] = v                               # set after the link is known
+        last = nxt[cur][ch]
+        occ[last] += 1
+    total = 0
+    for v in range(len(ln) - 1, 1, -1):
+        total += occ[v]
+        occ[link[v]] += occ[v]
+    return len(ln) - 2, total
+
+def distinct_palindromes_slow(s):
+    """Slow check for testing: every substring tested with the is_palindrome piece."""
+    return len({s[i:j] for i in range(len(s)) for j in range(i + 1, len(s) + 1) if is_palindrome(s[i:j])})
+--cpp
+// {number of distinct palindromic substrings, total palindromic substrings counted by position}; letters a-z
+pair<long long, long long> eertree(const string& s) {
+    int n = s.size();
+    vector<int> len(n + 2, 0), link(n + 2, 0);
+    vector<array<int, 26>> next(n + 2);
+    for (auto& row : next) row.fill(0);
+    len[0] = -1;                                           // node 0: imaginary root, node 1: empty string
+    int size = 2, last = 1;
+    vector<long long> occ(n + 2, 0);
+    for (int i = 0; i < n; i++) {
+        int c = s[i] - 'a', cur = last;
+        while (i - 1 - len[cur] < 0 || s[i - 1 - len[cur]] - 'a' != c) cur = link[cur];
+        if (next[cur][c] == 0) {
+            int v = size++;
+            len[v] = len[cur] + 2;
+            if (len[v] == 1) link[v] = 1;
+            else {
+                int p = link[cur];
+                while (i - 1 - len[p] < 0 || s[i - 1 - len[p]] - 'a' != c) p = link[p];
+                link[v] = next[p][c];
+            }
+            next[cur][c] = v;                              // set after the link is known
+        }
+        last = next[cur][c];
+        occ[last]++;
+    }
+    long long total = 0;
+    for (int v = size - 1; v >= 2; v--) { total += occ[v]; occ[link[v]] += occ[v]; }
+    return {size - 2, total};
+}
+
+// slow check for testing: every substring tested with the isPalindrome piece
+int distinctPalindromesSlow(const string& s) {
+    set<string> st;
+    for (size_t i = 0; i < s.size(); i++)
+        for (size_t j = i + 1; j <= s.size(); j++)
+            if (isPalindrome(s.substr(i, j - i))) st.insert(s.substr(i, j - i));
+    return st.size();
+}
+
+### duval
+--idea
+A Lyndon word is a string that is strictly smaller than all of its own rotations (and so smaller than every proper suffix). `a`, `ab`, `aab`, `abb` are Lyndon words; `ba` (its rotation `ab` is smaller) and `abab` (a repeat) are not. The remarkable fact: every string can be split in exactly one way into a sequence of Lyndon words that never increases (each word is at least as large as the next). That split is the Lyndon factorisation.
+Duval's algorithm finds it in a single left to right pass. It keeps a prefix that looks like several copies of one Lyndon word followed by a partial copy of it, and extends it letter by letter. As long as the new letter is equal to the letter in the same place of the previous copy, the pattern continues; if the new letter is bigger, the whole thing so far merges into one bigger Lyndon word; if it is smaller, the finished copies are cut off and output, and the scan restarts after them.
+--build
+1. Set `i = 0`. While `i < n`: set `j = i + 1` and `k = i`. Here `s[i..j)` is the block being examined and `s[k]` is the letter it expects next (the letter aligned with `s[j]` in the previous copy).
+2. Extend: while `j < n`, compare `c = compare(s[k], s[j])` (the piece `compare` on the two letters). If `c > 0`, stop (the new letter is smaller than expected).
+3. If `c < 0` (the new letter is bigger), the whole block becomes one Lyndon word: set `k = i`. If `c == 0` (equal), the copy continues: `k += 1`. In both cases `j += 1`.
+4. Cut: the repeated word has length `p = j - k`. While `i <= k`, output `s[i..i+p)` and set `i += p`. Then go back to step 1.
+5. Worked example `"abab"`: `i = 0`, `j = 1`, `k = 0`. `s[0] = a` against `s[1] = b`: `a < b`, so `k = 0`, `j = 2`. `s[0] = a` against `s[2] = a`: equal, `k = 1`, `j = 3`. `s[1] = b` against `s[3] = b`: equal, `k = 2`, `j = 4` (end). `p = j - k = 2`. Output `ab` from `i = 0`, `i = 2`; output `ab` again, `i = 4`: `4 <= 2` is false, stop. Factors `ab`, `ab`.
+6. Smallest rotation: factor `s + s`; the minimal rotation starts at the start of the last factor that begins before position `n`. `minRotationDuval` does this and returns that start.
+Invariant: before the cut, `s[i..j)` equals a Lyndon word repeated and a prefix of one more copy; every factor already output is at least as large as the next.
+--think
+- Signal: "Lyndon", "smallest rotation", "necklace", "lexicographically smallest suffix", "split into non-increasing pieces", "lexicographically largest string by cutting and reordering" and some suffix array shortcuts.
+- Decide first whether you need the factorisation itself or just one number (like the minimal rotation start). Both come from the same loop.
+- Neighbours: minimal string rotation (a two pointer method for the same rotation question), suffix arrays (sorting suffixes; the Lyndon factorisation relates to the order of suffixes), KMP (borders and periods appear inside the algorithm).
+- Pitfalls: mixing the roles of `k` and `j` (`k` points into the previous copy, `j` is the scan position), the cut length `j - k` (not `j - i`), and the `while i <= k` loop (it outputs the full repeats only, the leftover partial copy is rescanned).
+--cost
+O(n) time, at most about `4n` letter comparisons, O(1) extra space besides the output.
+--uses
+u-cmp
+--java
+// Lyndon factorisation: s = w1 w2 ... wk with w1 >= w2 >= ... >= wk, each a Lyndon word
+static List<String> duval(String s) {
+    List<String> out = new ArrayList<>();
+    int n = s.length(), i = 0;
+    while (i < n) {
+        int j = i + 1, k = i;
+        while (j < n) {
+            int c = compare(s.charAt(k), s.charAt(j));       // expected letter against the new one
+            if (c > 0) break;                                // new letter smaller: cut here
+            k = c < 0 ? i : k + 1;                           // bigger: one word; equal: copy continues
+            j++;
+        }
+        int p = j - k;                                       // length of the repeated word
+        while (i <= k) { out.add(s.substring(i, i + p)); i += p; }
+    }
+    return out;
+}
+
+// start index of the smallest rotation of s, found from the factorisation of s + s
+static int minRotationDuval(String s) {
+    String t = s + s;
+    int n = s.length(), i = 0, ans = 0;
+    while (i < n) {
+        ans = i;                                             // this factor group starts before n
+        int j = i + 1, k = i;
+        while (j < t.length()) {
+            int c = compare(t.charAt(k), t.charAt(j));
+            if (c > 0) break;
+            k = c < 0 ? i : k + 1;
+            j++;
+        }
+        while (i <= k) i += j - k;
+    }
+    return ans;
+}
+--py
+def duval(s):
+    """Lyndon factorisation: s = w1 w2 ... wk with w1 >= w2 >= ... >= wk, each a Lyndon word."""
+    out, n, i = [], len(s), 0
+    while i < n:
+        j, k = i + 1, i
+        while j < n:
+            c = compare(ord(s[k]), ord(s[j]))                # expected letter against the new one
+            if c > 0:
+                break                                        # new letter smaller: cut here
+            k = i if c < 0 else k + 1                        # bigger: one word; equal: copy continues
+            j += 1
+        p = j - k                                            # length of the repeated word
+        while i <= k:
+            out.append(s[i:i + p])
+            i += p
+    return out
+
+def min_rotation_duval(s):
+    """Start index of the smallest rotation of s, found from the factorisation of s + s."""
+    t, n, i, ans = s + s, len(s), 0, 0
+    while i < n:
+        ans = i                                              # this factor group starts before n
+        j, k = i + 1, i
+        while j < len(t):
+            c = compare(ord(t[k]), ord(t[j]))
+            if c > 0:
+                break
+            k = i if c < 0 else k + 1
+            j += 1
+        while i <= k:
+            i += j - k
+    return ans
+--cpp
+// Lyndon factorisation: s = w1 w2 ... wk with w1 >= w2 >= ... >= wk, each a Lyndon word
+vector<string> duval(const string& s) {
+    vector<string> out;
+    int n = s.size(), i = 0;
+    while (i < n) {
+        int j = i + 1, k = i;
+        while (j < n) {
+            int c = compare(s[k], s[j]);                     // expected letter against the new one
+            if (c > 0) break;                                // new letter smaller: cut here
+            k = c < 0 ? i : k + 1;                           // bigger: one word; equal: copy continues
+            j++;
+        }
+        int p = j - k;                                       // length of the repeated word
+        while (i <= k) { out.push_back(s.substr(i, p)); i += p; }
+    }
+    return out;
+}
+
+// start index of the smallest rotation of s, found from the factorisation of s + s
+int minRotationDuval(const string& s) {
+    string t = s + s;
+    int n = s.size(), i = 0, ans = 0;
+    while (i < n) {
+        ans = i;                                             // this factor group starts before n
+        int j = i + 1, k = i;
+        while (j < (int)t.size()) {
+            int c = compare(t[k], t[j]);
+            if (c > 0) break;
+            k = c < 0 ? i : k + 1;
+            j++;
+        }
+        while (i <= k) i += j - k;
+    }
+    return ans;
+}
+
+### bitap
+--idea
+The bitap algorithm (also called shift-and or shift-or) searches for a pattern using the bits of a machine word as many tiny state machines running in parallel. Keep one bit per pattern position: bit `i` is 1 if the last `i + 1` letters read from the text match the first `i + 1` letters of the pattern. When a new text letter arrives, every partial match either grows by one or dies, and a new match may start. All of that happens at once with one shift and one AND on the whole word.
+Because the whole state is one number, the same trick extends to approximate search. Keep one such number per allowed error count and combine them with a few more bit operations, and you can find where the pattern appears with up to `k` mistakes (a wrong letter, a missing letter, or an extra letter). For short patterns (up to the word size, 31 or 63 letters) it is extremely fast and needs only a few lines.
+--build
+1. Pattern `p` of length `m` (at most 31 for 32-bit ints). For each letter `c` build a mask `mask[c]` whose bit `i` is set when `p[i] == c`. Setting bits uses the piece `setBit`.
+2. Exact search. Keep the state `D`, starting at 0. For each text letter `c`: `D = ((D << 1) | 1) & mask[c]`. The shift grows every partial match by one letter, the `| 1` lets a new match start here, and `& mask[c]` keeps only matches whose next pattern letter equals `c`.
+3. If bit `m - 1` of `D` is set (test with the piece `getBit`), the whole pattern matched and ends at this text position, so it starts at `i - m + 1`.
+4. Worked example `p = "aba"`: `mask[a] = 101` (bits 0 and 2), `mask[b] = 010`. Text `ababa`: `D` after `a`: `(0<<1|1) & 101 = 001`. After `b`: `(001<<1|1) & 010 = 011 & 010 = 010`. After `a`: `(010<<1|1) & 101 = 101 & 101 = 101`: bit 2 set, a match ends at index 2. After `b`: `(101<<1|1) & 010 = 1011 & 010 = 010`. After `a`: `101`: match ends at index 4. Matches start at 0 and 2.
+5. Approximate search with up to `k` edits (insertions, deletions, substitutions). Keep states `R[0..k]`. Start `R[d] = (1 << d) - 1` (the first `d` pattern letters may be deleted). For each text letter `c`, with `old = R` and new values `R'`: `R'[0] = ((old[0] << 1) | 1) & mask[c]`. For `d >= 1`: `R'[d] = (((old[d] << 1) | 1) & mask[c])` OR `old[d-1]` (an extra text letter) OR `((old[d-1] << 1) | 1)` (a wrong letter) OR `((R'[d-1] << 1) | 1)` (a missing pattern letter).
+6. A match with at most `k` edits ends at this position if bit `m - 1` of `R'[k]` is set.
+Invariant: bit `i` of `D` is set exactly when the pattern prefix `p[0..i]` equals a suffix of the text read so far (for the approximate version, when it is within `d` edits of one).
+--think
+- Signal: short pattern, simple match or "at most `k` mistakes", spelling-tolerant search, grep-like search, DNA reads with errors.
+- Decide first whether the pattern fits one machine word. If it is longer, use several words (slower) or switch to KMP for exact search or dynamic programming for approximate search.
+- Compare: KMP is better for long patterns and strict worst-case guarantees; Rabin-Karp for many patterns of one length; the edit-distance table (Sellers' algorithm) is the plain `O(n m)` approach that bitap speeds up by a factor of the word size.
+- The bit directions can be flipped (shift-or uses 0 for match and inverts the logic). Pick one convention and stay with it.
+- Pitfalls: `m` above the word size (bits fall off), using `1 << i` with a 32-bit literal when `i` can reach 32, forgetting the `| 1` that starts a new match, and the order of the `R'` updates in the approximate version (`R'[d]` uses the already computed `R'[d-1]`).
+--cost
+O(n) word operations for exact search, O(n * k) for up to `k` errors, for patterns that fit in one word. Space O(alphabet) for the masks.
+--uses
+u-bit
+--java
+// start positions of exact matches of p (length at most 31) in t; letters a-z
+static List<Integer> bitapExact(String t, String p) {
+    int m = p.length();
+    int[] mask = new int[26];
+    for (int i = 0; i < m; i++) mask[p.charAt(i) - 'a'] = setBit(mask[p.charAt(i) - 'a'], i);
+    List<Integer> hits = new ArrayList<>();
+    int d = 0;
+    for (int i = 0; i < t.length(); i++) {
+        d = ((d << 1) | 1) & mask[t.charAt(i) - 'a'];       // grow, start new, keep letter matches
+        if (getBit(d, m - 1)) hits.add(i - m + 1);
+    }
+    return hits;
+}
+
+// end positions of matches of p with at most k edits; p has at most 31 letters
+static List<Integer> bitapApprox(String t, String p, int k) {
+    int m = p.length();
+    int[] mask = new int[26];
+    for (int i = 0; i < m; i++) mask[p.charAt(i) - 'a'] = setBit(mask[p.charAt(i) - 'a'], i);
+    int[] r = new int[k + 1];
+    for (int d = 0; d <= k; d++) r[d] = (1 << d) - 1;
+    List<Integer> ends = new ArrayList<>();
+    for (int i = 0; i < t.length(); i++) {
+        int c = mask[t.charAt(i) - 'a'], prevOld = r[0], prevNew;
+        r[0] = ((r[0] << 1) | 1) & c;
+        prevNew = r[0];
+        for (int d = 1; d <= k; d++) {
+            int old = r[d];
+            r[d] = (((old << 1) | 1) & c) | prevOld | ((prevOld << 1) | 1) | ((prevNew << 1) | 1);
+            prevOld = old; prevNew = r[d];
+        }
+        if (getBit(r[k], m - 1)) ends.add(i);
+    }
+    return ends;
+}
+--py
+def bitap_exact(t, p):
+    """Start positions of exact matches of p in t (letters a-z)."""
+    m = len(p)
+    mask = [0] * 26
+    for i, ch in enumerate(p):
+        mask[ord(ch) - 97] = set_bit(mask[ord(ch) - 97], i)
+    hits, d = [], 0
+    for i, ch in enumerate(t):
+        d = ((d << 1) | 1) & mask[ord(ch) - 97]            # grow, start new, keep letter matches
+        if get_bit(d, m - 1):
+            hits.append(i - m + 1)
+    return hits
+
+def bitap_approx(t, p, k):
+    """End positions of matches of p with at most k edits (insert, delete, substitute)."""
+    m = len(p)
+    mask = [0] * 26
+    for i, ch in enumerate(p):
+        mask[ord(ch) - 97] = set_bit(mask[ord(ch) - 97], i)
+    r = [(1 << d) - 1 for d in range(k + 1)]
+    ends = []
+    for i, ch in enumerate(t):
+        c = mask[ord(ch) - 97]
+        prev_old, r0 = r[0], ((r[0] << 1) | 1) & c
+        r[0] = prev_new = r0
+        for d in range(1, k + 1):
+            old = r[d]
+            r[d] = (((old << 1) | 1) & c) | prev_old | ((prev_old << 1) | 1) | ((prev_new << 1) | 1)
+            prev_old, prev_new = old, r[d]
+        if get_bit(r[k], m - 1):
+            ends.append(i)
+    return ends
+--cpp
+// start positions of exact matches of p (length at most 31) in t; letters a-z
+vector<int> bitapExact(const string& t, const string& p) {
+    int m = p.size();
+    int mask[26] = {};
+    for (int i = 0; i < m; i++) mask[p[i] - 'a'] = setBit(mask[p[i] - 'a'], i);
+    vector<int> hits;
+    int d = 0;
+    for (int i = 0; i < (int)t.size(); i++) {
+        d = ((d << 1) | 1) & mask[t[i] - 'a'];               // grow, start new, keep letter matches
+        if (getBit(d, m - 1)) hits.push_back(i - m + 1);
+    }
+    return hits;
+}
+
+// end positions of matches of p with at most k edits; p has at most 31 letters
+vector<int> bitapApprox(const string& t, const string& p, int k) {
+    int m = p.size();
+    int mask[26] = {};
+    for (int i = 0; i < m; i++) mask[p[i] - 'a'] = setBit(mask[p[i] - 'a'], i);
+    vector<int> r(k + 1), ends;
+    for (int d = 0; d <= k; d++) r[d] = (1 << d) - 1;
+    for (int i = 0; i < (int)t.size(); i++) {
+        int c = mask[t[i] - 'a'], prevOld = r[0];
+        r[0] = ((r[0] << 1) | 1) & c;
+        int prevNew = r[0];
+        for (int d = 1; d <= k; d++) {
+            int old = r[d];
+            r[d] = (((old << 1) | 1) & c) | prevOld | ((prevOld << 1) | 1) | ((prevNew << 1) | 1);
+            prevOld = old; prevNew = r[d];
+        }
+        if (getBit(r[k], m - 1)) ends.push_back(i);
+    }
+    return ends;
+}
+

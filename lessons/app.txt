@@ -1,0 +1,1209 @@
+### minimax
+--idea
+Minimax chooses a move in a two-player game where players take turns and one wins what the other loses. Picture the game as a tree: the current position is the root, each legal move is a branch, and each branch leads to the position after that move. At the leaves the game is over and has a score, say +1 if you win, 0 for a draw, -1 if you lose.
+The key idea is that the two players want opposite things. On your turn you pick the child with the highest score (you are the "maximiser"). On the opponent's turn they pick the child with the lowest score (the "minimiser"), because that is best for them. So the value of any position is found by working up from the leaves: take the max on your levels and the min on theirs. The value at the root tells you how well you can do against a perfect opponent.
+--build
+1. Define the game by four things: the state, a test `isOver(state)`, a list of legal moves, and a way to apply a move to get a new state.
+2. Define a score for finished games from one fixed player's view (Max). Here the game is "a pile of stones, take 1 to 3, whoever takes the last stone wins", so a finished game is +1 if Max took the last stone and -1 otherwise.
+3. Write `value(state, maximizing)`. If the game is over, return the score. Otherwise try every legal move, call `value` on the result with `maximizing` flipped, and return the largest result if `maximizing` is true, else the smallest.
+4. To choose a move at the root, do the same loop but remember which move gave the best value (`bestMove`).
+5. Because the recursion stops only at finished games, the search is exact. Its cost grows fast, so real programs stop at a depth limit and use a guess (an evaluation function) for unfinished positions.
+--think
+- Signal: two players, alternating turns, perfect information (no hidden cards, no dice), and "best play against a smart opponent" is the question. Tic-tac-toe, Nim, Connect Four, chess.
+- Decide first who the score belongs to. Keep one fixed viewpoint (Max) and flip max/min by level, or use the negamax trick: always return the score for the player to move and negate it when you return from a child. Both are the same idea.
+- It is recursion over a game tree, so the base case (game over) must be checked before generating moves. In Nim a pile of 0 means the previous player took the last stone, so that previous player won.
+- For games with draws or points, the score is a number and not just win/lose. Minimax still works unchanged.
+- When the tree is too big, add a depth limit plus an evaluation function, then add Alpha-beta pruning (same answer, far fewer positions). When the game has chance or is huge, look at Monte Carlo tree search.
+- Common mistakes: not flipping the player between levels, scoring the leaf from the wrong player's view, and forgetting that the same position can be reached by many move orders (a memo table keyed by the state saves work).
+--cost
+Time O(b^d) for branching factor b (moves per position) and depth d, space O(d) for the recursion. A memo table can cut this when positions repeat.
+--java
+static int value(int pile, boolean maximizing) {
+    if (pile == 0) return maximizing ? -1 : 1;      // the player who just moved took the last stone and won
+    int best = maximizing ? -2 : 2;
+    for (int take = 1; take <= 3 && take <= pile; take++) {
+        int v = value(pile - take, !maximizing);     // opponent moves next, so flip the level
+        best = maximizing ? Math.max(best, v) : Math.min(best, v);
+    }
+    return best;
+}
+
+static int bestMove(int pile) {                      // Max to move: pick the move with the highest value
+    int bestMove = 1, bestVal = -2;
+    for (int take = 1; take <= 3 && take <= pile; take++) {
+        int v = value(pile - take, false);
+        if (v > bestVal) { bestVal = v; bestMove = take; }
+    }
+    return bestMove;
+}
+--py
+def value(pile, maximizing):
+    if pile == 0:
+        return -1 if maximizing else 1       # the player who just moved took the last stone and won
+    results = (value(pile - take, not maximizing)   # opponent moves next, so flip the level
+               for take in (1, 2, 3) if take <= pile)
+    return max(results) if maximizing else min(results)
+
+def best_move(pile):                          # Max to move: pick the move with the highest value
+    moves = [t for t in (1, 2, 3) if t <= pile]
+    return max(moves, key=lambda t: value(pile - t, False))
+--cpp
+int value(int pile, bool maximizing) {
+    if (pile == 0) return maximizing ? -1 : 1;       // the player who just moved took the last stone and won
+    int best = maximizing ? -2 : 2;
+    for (int take = 1; take <= 3 && take <= pile; take++) {
+        int v = value(pile - take, !maximizing);      // opponent moves next, so flip the level
+        best = maximizing ? max(best, v) : min(best, v);
+    }
+    return best;
+}
+
+int bestMove(int pile) {                              // Max to move: pick the move with the highest value
+    int move = 1, bestVal = -2;
+    for (int take = 1; take <= 3 && take <= pile; take++) {
+        int v = value(pile - take, false);
+        if (v > bestVal) { bestVal = v; move = take; }
+    }
+    return move;
+}
+
+### alphabeta
+--idea
+Alpha-beta pruning gives exactly the same answer as Minimax but skips branches that cannot matter. Imagine you are choosing between two doors. Behind the first you already know you can get at least 5. While checking the second door you find the opponent can force you down to 3. You stop looking at the rest of that door: you will never choose it, so its exact value is irrelevant.
+To do this the search carries two numbers down the tree. `alpha` is the best score Max is already guaranteed somewhere else. `beta` is the best (lowest) score Min is already guaranteed somewhere else. When `alpha >= beta` at a position, the player above would never let the game reach it, so the remaining moves there are skipped (a "cutoff").
+--build
+1. Start from the Minimax code for the same game.
+2. Add two parameters, `alpha` (start at minus infinity) and `beta` (start at plus infinity). They bound the range of values that still matter.
+3. At a Max position, after getting a child value `v`, raise `best` and then raise `alpha = max(alpha, best)`. At a Min position, lower `best` and then `beta = min(beta, best)`.
+4. After each update, if `alpha >= beta`, stop the loop and return `best` at once. The rest of the moves cannot change the answer above.
+5. Pass the current `alpha` and `beta` down to each child call. The child uses them to decide when it may cut off.
+6. Try the most promising moves first (captures in chess, the move that was best in a shallower search). Good ordering makes cutoffs happen early.
+--think
+- Signal: you already have Minimax and it is too slow, or you need deeper search in the same time. Alpha-beta is almost never a different algorithm, it is Minimax with a stop condition.
+- The answer is identical to Minimax. If your pruned and unpruned versions disagree, there is a bug. Test them against each other on small inputs.
+- With perfect move ordering the cost is about O(b^(d/2)), so you can search about twice as deep. With the worst ordering there is no gain at all. So the order you try moves in is the main tuning knob.
+- Mistakes: updating `alpha` at a Min position (or `beta` at a Max one), pruning with `>` instead of `>=` (both are correct for the root value, but `>=` prunes more), and reusing the window for a stored value that was cut off (a pruned value is only a bound, not the exact value).
+- Related: iterative deepening (search depth 1, then 2, then 3 and use the earlier results for ordering) and transposition tables (memo of positions).
+--cost
+Best case O(b^(d/2)) when moves are tried best first, worst case O(b^d) like plain Minimax. Space O(d).
+--java
+static int alphaBeta(int pile, boolean maximizing, int alpha, int beta) {
+    if (pile == 0) return maximizing ? -1 : 1;           // previous mover took the last stone
+    int best = maximizing ? -2 : 2;
+    for (int take = 1; take <= 3 && take <= pile; take++) {
+        int v = alphaBeta(pile - take, !maximizing, alpha, beta);
+        if (maximizing) { best = Math.max(best, v); alpha = Math.max(alpha, best); }
+        else            { best = Math.min(best, v); beta = Math.min(beta, best); }
+        if (alpha >= beta) break;                        // cutoff: the player above will never allow this position
+    }
+    return best;
+}
+// call: alphaBeta(pile, true, -2, 2)
+--py
+def alpha_beta(pile, maximizing, alpha=-2, beta=2):
+    if pile == 0:
+        return -1 if maximizing else 1       # previous mover took the last stone
+    best = -2 if maximizing else 2
+    for take in (1, 2, 3):
+        if take > pile:
+            break
+        v = alpha_beta(pile - take, not maximizing, alpha, beta)
+        if maximizing:
+            best = max(best, v); alpha = max(alpha, best)
+        else:
+            best = min(best, v); beta = min(beta, best)
+        if alpha >= beta:                    # cutoff: the player above will never allow this position
+            break
+    return best
+--cpp
+int alphaBeta(int pile, bool maximizing, int alpha = -2, int beta = 2) {
+    if (pile == 0) return maximizing ? -1 : 1;           // previous mover took the last stone
+    int best = maximizing ? -2 : 2;
+    for (int take = 1; take <= 3 && take <= pile; take++) {
+        int v = alphaBeta(pile - take, !maximizing, alpha, beta);
+        if (maximizing) { best = max(best, v); alpha = max(alpha, best); }
+        else            { best = min(best, v); beta = min(beta, best); }
+        if (alpha >= beta) break;                        // cutoff: the player above will never allow this position
+    }
+    return best;
+}
+
+### mcts
+--uses
+u-rand
+--idea
+Monte Carlo tree search (MCTS) judges a position by playing many random games from it and counting how often each side wins. It needs no scoring formula for unfinished positions, only the rules, which is why it works for games like Go where hand-written evaluations are weak.
+It does not play randomly everywhere. It grows a search tree and keeps statistics on each node: how many times it was visited and how many of those games the player who moved into it won. Each round walks down the tree toward moves that look good (but still tries rarely visited ones), adds one new node, plays a random game to the end, and updates the statistics back up the path. After many rounds the most visited move at the root is the answer.
+--build
+1. (Random choices below call the piece `randInt` / `rand_int`.) Make a `Node` that stores: the game state (`pile`), who just moved into it (`mover`), its parent, the move that led to it, its children, the list of moves not yet tried (`untried`), the visit count `n` and the win count `w` (wins for `mover`).
+2. Selection: starting at the root, while the node has no untried moves and has children, go to the child with the best UCT score: `w/n + c * sqrt(ln(parentVisits) / n)`. The first term favours winners, the second favours rarely tried children. A common `c` is about 1.4.
+3. Expansion: if the node has an untried move, pick one at random, create the child node for it and move to that child.
+4. Simulation (rollout): from that state play random legal moves until the game ends and see who won.
+5. Backpropagation: walk up from the new node to the root. Add 1 to each `n`, and add 1 to `w` when that node's `mover` is the winner.
+6. Repeat steps 2 to 5 for a fixed number of iterations or time, then play the root child with the most visits (the most visited is more stable than the highest win rate).
+--think
+- Signal: a game or planning problem where the branching factor is huge, a good evaluation function is hard to write, but you can simulate the rules quickly. Also fine when there is randomness or hidden information (with care).
+- The win count must be from the viewpoint of the player who moved into the node, because the parent chooses among its children for itself. Getting this backwards makes the search choose moves for the opponent.
+- UCT is a rule for the explore versus exploit trade-off: sampling the apparent best move more gives accuracy, sampling others avoids missing a good one.
+- Compared with Minimax: Minimax is exact but explodes, MCTS is approximate but anytime (you can stop whenever and use the stats). Use Minimax with Alpha-beta pruning if you have a decent evaluation function and moderate branching.
+- Mistakes: choosing the final move by win rate when a node has a few visits (a 1 for 1 child looks perfect), dividing by zero for unvisited children (expand every child once before using UCT, as this code does), and rollouts that are too slow.
+--cost
+Each iteration costs about the tree depth plus the rollout length. Quality improves with the number of iterations, roughly the more rounds the better the choice, with no hard guarantee for a fixed budget.
+--java
+static class Node {
+    int pile, mover, move, n; double w;
+    Node parent; List<Node> kids = new ArrayList<>(); List<Integer> untried = new ArrayList<>();
+    Node(int pile, int mover, Node parent, int move) {
+        this.pile = pile; this.mover = mover; this.parent = parent; this.move = move;
+        for (int t = 1; t <= 3 && t <= pile; t++) untried.add(t);
+    }
+}
+
+static int mcts(int pile, int iters) {     // pile >= 1, player 0 to move
+    Node root = new Node(pile, 1, null, 0);
+    for (int it = 0; it < iters; it++) {
+        Node node = root;
+        while (node.untried.isEmpty() && !node.kids.isEmpty()) {          // selection by UCT
+            Node pick = null; double bestScore = -1e18;
+            for (Node c : node.kids) {
+                double s = c.w / c.n + 1.4 * Math.sqrt(Math.log(node.n) / c.n);
+                if (s > bestScore) { bestScore = s; pick = c; }
+            }
+            node = pick;
+        }
+        if (!node.untried.isEmpty()) {                                     // expansion
+            int m = node.untried.remove(randInt(0, node.untried.size() - 1));
+            Node child = new Node(node.pile - m, 1 - node.mover, node, m);
+            node.kids.add(child); node = child;
+        }
+        int p = node.pile, turn = 1 - node.mover;                          // simulation
+        while (p > 0) { p -= randInt(1, Math.min(3, p)); turn = 1 - turn; }
+        int winner = 1 - turn;                                             // the one who took the last stone
+        for (Node x = node; x != null; x = x.parent) { x.n++; if (x.mover == winner) x.w++; }   // backpropagation
+    }
+    Node best = root.kids.get(0);
+    for (Node c : root.kids) if (c.n > best.n) best = c;                   // most visited child
+    return best.move;
+}
+--py
+import math
+
+class Node:
+    def __init__(self, pile, mover, parent=None, move=0):
+        self.pile, self.mover, self.parent, self.move = pile, mover, parent, move
+        self.kids = []
+        self.untried = [t for t in (1, 2, 3) if t <= pile]
+        self.n, self.w = 0, 0.0          # visits, wins for `mover`
+
+def mcts(pile, iters=4000):              # pile >= 1, player 0 to move
+    root = Node(pile, 1)
+    for _ in range(iters):
+        node = root
+        while not node.untried and node.kids:                      # selection by UCT
+            node = max(node.kids, key=lambda c: c.w / c.n + 1.4 * math.sqrt(math.log(node.n) / c.n))
+        if node.untried:                                           # expansion
+            m = node.untried.pop(rand_int(0, len(node.untried) - 1))
+            child = Node(node.pile - m, 1 - node.mover, node, m)
+            node.kids.append(child)
+            node = child
+        p, turn = node.pile, 1 - node.mover                        # simulation
+        while p > 0:
+            p -= rand_int(1, min(3, p))
+            turn = 1 - turn
+        winner = 1 - turn                                          # the one who took the last stone
+        while node:                                                # backpropagation
+            node.n += 1
+            node.w += node.mover == winner
+            node = node.parent
+    return max(root.kids, key=lambda c: c.n).move
+--cpp
+struct Node {
+    int pile, mover, move, n = 0;
+    double w = 0;
+    Node* parent;
+    vector<Node*> kids;
+    vector<int> untried;
+    Node(int pile, int mover, Node* parent, int move) : pile(pile), mover(mover), move(move), parent(parent) {
+        for (int t = 1; t <= 3 && t <= pile; t++) untried.push_back(t);
+    }
+};
+
+int mcts(int pile, int iters) {            // pile >= 1, player 0 to move
+    Node* root = new Node(pile, 1, nullptr, 0);           // nodes are leaked for brevity; free them in real code
+    for (int it = 0; it < iters; it++) {
+        Node* node = root;
+        while (node->untried.empty() && !node->kids.empty()) {        // selection by UCT
+            Node* pick = nullptr; double bestScore = -1e18;
+            for (Node* c : node->kids) {
+                double s = c->w / c->n + 1.4 * sqrt(log((double)node->n) / c->n);
+                if (s > bestScore) { bestScore = s; pick = c; }
+            }
+            node = pick;
+        }
+        if (!node->untried.empty()) {                                  // expansion
+            int i = randInt(0, node->untried.size() - 1);
+            int m = node->untried[i];
+            node->untried.erase(node->untried.begin() + i);
+            Node* child = new Node(node->pile - m, 1 - node->mover, node, m);
+            node->kids.push_back(child); node = child;
+        }
+        int p = node->pile, turn = 1 - node->mover;                    // simulation
+        while (p > 0) { p -= randInt(1, min(3, p)); turn = 1 - turn; }
+        int winner = 1 - turn;                                         // the one who took the last stone
+        for (Node* x = node; x; x = x->parent) { x->n++; if (x->mover == winner) x->w++; }   // backpropagation
+    }
+    Node* best = root->kids[0];
+    for (Node* c : root->kids) if (c->n > best->n) best = c;           // most visited child
+    return best->move;
+}
+### pagerank
+--idea
+PageRank scores pages by who links to them, with the twist that a link from an important page counts for more. Imagine a person who browses at random: on each page they click one of its links at random, and now and then (with probability 0.15) they get bored and jump to a random page. After a very long time, the share of the time they spend on each page is its PageRank.
+That share can be found without simulating anyone. Start by giving every page an equal score. Then repeat: every page splits its current score equally among the pages it links to, and each page's new score is the sum of what it receives (mixed with the random jump). The scores settle down to a fixed point after a few dozen rounds. This repeated multiplication is called power iteration.
+--build
+1. Store the graph as out-lists: `adj[u]` holds the pages `u` links to (see Graph representation). Let `n` be the number of pages.
+2. Start with `rank[v] = 1/n` for every page.
+3. Pick a damping factor `d = 0.85`: the chance the surfer follows a link instead of jumping.
+4. One round: make `next[v] = (1 - d) / n` for all `v`. Then for each page `u` with out-links, add `d * rank[u] / len(adj[u])` to each target. This is a matrix-vector product written as loops (see Matrices and 2D arrays).
+5. Pages with no out-links ("dangling") would leak score. Treat them as linking to everyone: add `d * rank[u] / n` to every page.
+6. Set `rank = next`. Repeat for a fixed number of rounds or until the total change is tiny.
+--think
+- Signal: you need an importance or centrality score on a graph, where importance flows along edges. Web pages, citations, who to follow, key functions in a call graph.
+- It is the principal eigenvector of the link matrix (the vector that does not change when multiplied by it). Power iteration finds it because repeated multiplication pulls any starting vector toward it. The jump term guarantees it converges and that the answer is unique.
+- The scores always sum to 1. If your total drifts away from 1 you lost the dangling mass.
+- Choices: personalised PageRank jumps back to a chosen page instead of a random one (used for recommendations). Direction matters: a link gives score to its target.
+- Mistakes: updating scores in place instead of using a separate `next` array, dividing by zero for pages with no out-links, and using adjacency matrices for a web-size graph (store lists, the graph is sparse).
+--cost
+Each round is O(V + E), so the total is O(rounds * (V + E)). About 50 rounds reaches good accuracy for d = 0.85. Space O(V + E).
+--java
+static double[] pageRank(List<List<Integer>> adj, double d, int rounds) {
+    int n = adj.size();
+    double[] rank = new double[n];
+    Arrays.fill(rank, 1.0 / n);                          // start equal
+    for (int r = 0; r < rounds; r++) {
+        double[] next = new double[n];
+        Arrays.fill(next, (1 - d) / n);                  // the random-jump share
+        for (int u = 0; u < n; u++) {
+            List<Integer> out = adj.get(u);
+            if (out.isEmpty()) {                         // dangling page: spread its score over everyone
+                for (int v = 0; v < n; v++) next[v] += d * rank[u] / n;
+            } else {
+                for (int v : out) next[v] += d * rank[u] / out.size();   // split score over out-links
+            }
+        }
+        rank = next;
+    }
+    return rank;
+}
+--py
+def page_rank(adj, d=0.85, rounds=100):
+    n = len(adj)
+    rank = [1.0 / n] * n                                  # start equal
+    for _ in range(rounds):
+        nxt = [(1 - d) / n] * n                           # the random-jump share
+        for u, out in enumerate(adj):
+            if not out:                                   # dangling page: spread its score over everyone
+                for v in range(n):
+                    nxt[v] += d * rank[u] / n
+            else:
+                for v in out:
+                    nxt[v] += d * rank[u] / len(out)      # split score over out-links
+        rank = nxt
+    return rank
+--cpp
+vector<double> pageRank(const vector<vector<int>>& adj, double d = 0.85, int rounds = 100) {
+    int n = adj.size();
+    vector<double> rank(n, 1.0 / n);                      // start equal
+    for (int r = 0; r < rounds; r++) {
+        vector<double> next(n, (1 - d) / n);              // the random-jump share
+        for (int u = 0; u < n; u++) {
+            if (adj[u].empty()) {                         // dangling page: spread its score over everyone
+                for (int v = 0; v < n; v++) next[v] += d * rank[u] / n;
+            } else {
+                for (int v : adj[u]) next[v] += d * rank[u] / adj[u].size();   // split score over out-links
+            }
+        }
+        rank = next;
+    }
+    return rank;
+}
+
+### kmeans
+--idea
+k-means groups points into `k` clusters so that each point is close to the centre of its own cluster. Picture k pins on a map and every point attached to its nearest pin. If you then move each pin to the average position of the points attached to it, some points are now nearer to a different pin. Re-attach, re-average, and repeat until nothing changes.
+Each of the two steps can only lower (or keep) the total squared distance from points to their pins: attaching a point to its nearest pin cannot increase its distance, and the mean is the position that minimises the sum of squared distances. A number that never goes up and cannot go below zero must stop changing, so the loop ends. It stops at a local minimum, not always the best grouping.
+--build
+1. Choose `k` and pick starting centres. Simple choice: `k` random points (or the first `k`). Better: k-means++, which picks each next centre far from the ones already chosen.
+2. Assignment step: for every point find the nearest centre by squared Euclidean distance (the sum of squared coordinate differences, no square root needed) and record it in `label[i]`.
+3. Update step: for each cluster add up its points' coordinates and divide by its count. That mean becomes the new centre. If a cluster is empty, keep its old centre.
+4. If no label changed in this round, stop. Otherwise go to step 2. Also cap the number of rounds.
+5. Return the centres and the labels.
+--think
+- Signal: "group similar things" with no labels given, and the number of groups is roughly known. Customer segments, colour quantisation, preprocessing before search (see Vector search and clustering).
+- The result depends on the start. Run it several times with different starts and keep the run with the smallest total squared distance.
+- It assumes round, similar-sized clusters. For odd shapes, other methods fit better. It also needs numeric coordinates where the mean makes sense.
+- Choosing `k`: try several and look for the point where more clusters stop helping much (the elbow).
+- Mistakes: forgetting empty clusters (division by zero), updating centres while still assigning (do all assignments first), scaling features unevenly (a column in thousands swamps one in decimals), and using plain starts that put two centres in one blob.
+--cost
+Each round O(n * k * dim) for n points. Rounds are usually few but not bounded by a small constant in the worst case.
+--java
+static double[][] kmeans(double[][] pts, int k, int maxRounds, int[] label) {
+    int n = pts.length, dim = pts[0].length;
+    double[][] c = new double[k][];
+    for (int j = 0; j < k; j++) c[j] = pts[j].clone();          // start: the first k points
+    for (int round = 0; round < maxRounds; round++) {
+        boolean changed = false;
+        for (int i = 0; i < n; i++) {                           // assignment: nearest centre
+            int best = 0; double bd = Double.MAX_VALUE;
+            for (int j = 0; j < k; j++) {
+                double d = 0;
+                for (int x = 0; x < dim; x++) d += (pts[i][x] - c[j][x]) * (pts[i][x] - c[j][x]);
+                if (d < bd) { bd = d; best = j; }
+            }
+            if (label[i] != best) { label[i] = best; changed = true; }
+        }
+        if (!changed && round > 0) break;
+        double[][] sum = new double[k][dim]; int[] cnt = new int[k];
+        for (int i = 0; i < n; i++) {                           // update: move each centre to the mean
+            cnt[label[i]]++;
+            for (int x = 0; x < dim; x++) sum[label[i]][x] += pts[i][x];
+        }
+        for (int j = 0; j < k; j++)
+            if (cnt[j] > 0) for (int x = 0; x < dim; x++) c[j][x] = sum[j][x] / cnt[j];
+    }
+    return c;
+}
+// label must be filled with -1 before the first call
+--py
+def kmeans(pts, k, max_rounds=100):
+    dim = len(pts[0])
+    centres = [list(p) for p in pts[:k]]                     # start: the first k points
+    label = [-1] * len(pts)
+    for rnd in range(max_rounds):
+        changed = False
+        for i, p in enumerate(pts):                          # assignment: nearest centre
+            best = min(range(k), key=lambda j: sum((p[x] - centres[j][x]) ** 2 for x in range(dim)))
+            if label[i] != best:
+                label[i] = best
+                changed = True
+        if not changed:
+            break
+        for j in range(k):                                   # update: move each centre to the mean
+            members = [p for p, l in zip(pts, label) if l == j]
+            if members:
+                centres[j] = [sum(m[x] for m in members) / len(members) for x in range(dim)]
+    return centres, label
+--cpp
+pair<vector<vector<double>>, vector<int>> kmeans(const vector<vector<double>>& pts, int k, int maxRounds = 100) {
+    int n = pts.size(), dim = pts[0].size();
+    vector<vector<double>> c(pts.begin(), pts.begin() + k);     // start: the first k points
+    vector<int> label(n, -1);
+    for (int round = 0; round < maxRounds; round++) {
+        bool changed = false;
+        for (int i = 0; i < n; i++) {                           // assignment: nearest centre
+            int best = 0; double bd = 1e300;
+            for (int j = 0; j < k; j++) {
+                double d = 0;
+                for (int x = 0; x < dim; x++) d += (pts[i][x] - c[j][x]) * (pts[i][x] - c[j][x]);
+                if (d < bd) { bd = d; best = j; }
+            }
+            if (label[i] != best) { label[i] = best; changed = true; }
+        }
+        if (!changed) break;
+        vector<vector<double>> sum(k, vector<double>(dim, 0));
+        vector<int> cnt(k, 0);
+        for (int i = 0; i < n; i++) {                           // update: move each centre to the mean
+            cnt[label[i]]++;
+            for (int x = 0; x < dim; x++) sum[label[i]][x] += pts[i][x];
+        }
+        for (int j = 0; j < k; j++)
+            if (cnt[j] > 0) for (int x = 0; x < dim; x++) c[j][x] = sum[j][x] / cnt[j];
+    }
+    return {c, label};
+}
+
+### knn
+--uses
+u-dist2
+u-sortidx
+--idea
+k-nearest neighbours (k-NN) classifies a new item by looking at the `k` known items most like it and letting them vote. If you want to guess whether a new fruit is an apple or a pear, find the three fruits you already know that are closest in weight and width, and go with the majority label. There is no training step: the examples themselves are the model.
+It works when similar inputs tend to have similar answers. The only real design choices are how to measure "close" (a distance function) and how many neighbours `k` to ask. A small `k` follows the data closely and is easily fooled by noise. A large `k` smooths out noise but blurs real boundaries. The same idea also predicts numbers: average the neighbours' values.
+--build
+1. Store the training points `pts` and their labels `labels`.
+2. Choose a distance. For numeric features use squared Euclidean distance (sum of squared differences), which skips the square root and keeps the same order. The code works on 2D integer points and calls the piece `dist2`. Scale features first so none dominates.
+3. For a query point, compute its distance to every training point with `dist2` and keep them in an array `d`.
+4. Call the piece `sortIndices` (`sort_indices` in Python) on `d` to get the training positions ordered nearest first (see Sorting), and take the first `k`.
+5. Count the labels among those `k` and return the most common. Break ties by choosing the label of the nearest neighbour, or use an odd `k` for two classes.
+6. For large data, replace the full scan with a k-d tree or other index, or use a partial selection (a heap of size `k`) instead of sorting everything.
+--think
+- Signal: "predict from examples", you have labelled data, nothing needs to be learned in advance, and queries are not too frequent. A quick baseline before anything fancier.
+- Everything depends on the distance. If one feature is in thousands and another in decimals, only the first matters. Normalise.
+- In many dimensions all points become almost equally far apart (the curse of dimensionality), and neighbours stop meaning much.
+- Alternatives: k-d tree or Vector search when queries are many, k-means clustering when there are no labels, and models like trees when you need speed at query time.
+- Mistakes: including the query itself among the training points when testing (it will be its own nearest neighbour), sorting when a heap of size `k` is enough, and not scaling features.
+--cost
+Query O(n * dim + n log n) with a full sort, or O(n * dim + n log k) with a heap. No training cost, memory O(n * dim).
+--java
+static int classify(int[] xs, int[] ys, int[] labels, int qx, int qy, int k) {
+    int[] d = new int[xs.length];
+    for (int i = 0; i < xs.length; i++) d[i] = (int) dist2(xs[i], ys[i], qx, qy);   // squared distance
+    Integer[] order = sortIndices(d);                       // nearest first
+    Map<Integer, Integer> votes = new HashMap<>();
+    int bestLabel = labels[order[0]], bestCount = 0;
+    for (int j = 0; j < k && j < order.length; j++) {
+        int lab = labels[order[j]];
+        int c = votes.merge(lab, 1, Integer::sum);
+        if (c > bestCount) { bestCount = c; bestLabel = lab; }
+    }
+    return bestLabel;
+}
+--py
+from collections import Counter
+
+def classify(xs, ys, labels, qx, qy, k):
+    d = [dist2(x, y, qx, qy) for x, y in zip(xs, ys)]      # squared distance to every example
+    order = sort_indices(d)                                 # nearest first
+    votes = Counter(labels[i] for i in order[:k])
+    top = max(votes.values())
+    for i in order[:k]:                                     # ties go to the nearest neighbour's label
+        if votes[labels[i]] == top:
+            return labels[i]
+--cpp
+int classify(const vector<int>& xs, const vector<int>& ys, const vector<int>& labels, int qx, int qy, int k) {
+    vector<int> d(xs.size());
+    for (size_t i = 0; i < xs.size(); i++) d[i] = (int)dist2(xs[i], ys[i], qx, qy);   // squared distance
+    vector<int> order = sortIndices(d);                     // nearest first
+    map<int, int> votes;
+    for (int j = 0; j < k && j < (int)order.size(); j++) votes[labels[order[j]]]++;
+    int top = 0;
+    for (auto& kv : votes) top = max(top, kv.second);
+    for (int j = 0; j < k && j < (int)order.size(); j++)    // ties go to the nearest neighbour's label
+        if (votes[labels[order[j]]] == top) return labels[order[j]];
+    return -1;
+}
+
+### anneal
+--uses
+u-rand
+--idea
+Simulated annealing searches for a low value of some function when plain "always step downhill" would get stuck in a small dip (a local minimum). Think of a ball rolling on a bumpy landscape that you shake. If you shake hard, the ball bounces out of shallow dips and wanders widely. As you slowly shake less, it settles into a deep dip.
+In code: from the current answer, propose a small random change. If it is better, accept it. If it is worse by an amount `delta`, still accept it with probability `exp(-delta / T)`, where `T` is the "temperature". At high `T` almost everything is accepted, so the search explores. As `T` is lowered towards zero, worse moves are accepted less and less, and it behaves like pure downhill search. The name comes from annealing metal: cooling slowly lets atoms settle into a low-energy arrangement.
+--build
+1. Write `cost(x)`, the value to minimise, and `neighbour(x)`, a function that returns a small random change of `x`.
+2. Start from any `x`, set `T` to a starting temperature (about the size of typical cost differences between neighbours) and remember the best answer seen, `best`.
+3. In each step: propose `y = neighbour(x)` and compute `delta = cost(y) - cost(x)`.
+4. Accept `y` if `delta <= 0`, or otherwise with probability `exp(-delta / T)` (draw a random number in [0, 1) with `randInt` and compare).
+5. If the accepted `x` beats `best`, update `best`.
+6. Multiply `T` by a cooling factor slightly less than 1 (for example 0.999). Repeat until `T` is tiny or the step budget is used. Return `best`.
+--think
+- Signal: a huge search space with no useful structure for exact methods, you only need a good answer not a proven optimum, and you can cheaply score a candidate and nudge it. Scheduling, layouts, travelling salesman tours, puzzle solvers.
+- Design the neighbour move so that one move changes the cost only a little (swap two cities, move one item). Moves that scramble everything make it random search.
+- The cooling schedule is the tuning knob: slower cooling gives better answers for more time. Start too cold and it is just downhill search. Keep `best` separately, since the current `x` may have wandered upwards.
+- Neighbours: genetic algorithms (a population instead of one answer), hill climbing with random restarts (simpler, often enough), and exact methods such as DP when the structure allows it.
+- Mistakes: accepting worse moves with the wrong sign in the exponent (it must be negative), using a fixed seed in tests but never varying it in real runs, and forgetting to return the best seen.
+--cost
+Each step costs one cost evaluation, so time is steps * cost-per-step. There is no guarantee of finding the optimum, only that slow enough cooling approaches it in theory.
+--java
+static double anneal(java.util.function.DoubleUnaryOperator f, double start, int steps) {
+    Random rnd = new Random();
+    double x = start, fx = f.applyAsDouble(x), best = x, fbest = fx;
+    double T = 10.0;
+    for (int i = 0; i < steps; i++) {
+        double y = x + rnd.nextGaussian() * 0.5;           // neighbour: a small random nudge
+        double fy = f.applyAsDouble(y), delta = fy - fx;
+        if (delta <= 0 || randInt(0, 999999) / 1e6 < Math.exp(-delta / T)) {   // accept worse moves while T is high
+            x = y; fx = fy;
+            if (fx < fbest) { best = x; fbest = fx; }
+        }
+        T *= 0.999;                                         // cool down
+    }
+    return best;
+}
+--py
+import math, random
+
+def anneal(f, start, steps=20000):
+    x, fx = start, f(start)
+    best, fbest = x, fx
+    T = 10.0
+    for _ in range(steps):
+        y = x + random.gauss(0, 0.5)                       # neighbour: a small random nudge
+        fy = f(y)
+        delta = fy - fx
+        if delta <= 0 or rand_int(0, 999999) / 1e6 < math.exp(-delta / T):   # accept worse moves while T is high
+            x, fx = y, fy
+            if fx < fbest:
+                best, fbest = x, fx
+        T *= 0.999                                          # cool down
+    return best
+--cpp
+double anneal(function<double(double)> f, double start, int steps) {
+    normal_distribution<double> nudge(0.0, 0.5);
+    double x = start, fx = f(x), best = x, fbest = fx, T = 10.0;
+    for (int i = 0; i < steps; i++) {
+        double y = x + nudge(rng);                          // neighbour: a small random nudge
+        double fy = f(y), delta = fy - fx;
+        if (delta <= 0 || randInt(0, 999999) / 1e6 < exp(-delta / T)) {    // accept worse moves while T is high
+            x = y; fx = fy;
+            if (fx < fbest) { best = x; fbest = fx; }
+        }
+        T *= 0.999;                                         // cool down
+    }
+    return best;
+}
+### genetic
+--uses
+u-rand
+--idea
+A genetic algorithm searches for a good answer by imitating evolution. Keep a population of candidate answers, each written as a string of "genes" (here bits). Score each one with a fitness function. Let the fitter candidates have children by mixing parts of two parents (crossover), flip a few genes at random (mutation), and repeat for many generations. Good partial answers spread through the population and combine.
+It is useful when you cannot solve the problem directly but can score any candidate: a schedule, a design, a set of settings. It trades a guarantee for generality. The example here evolves a bit string until it matches a hidden target, where fitness is the number of matching bits. Real uses plug in another encoding and fitness, but the loop is the same.
+--build
+1. (All random choices below use the piece `randInt`.) Choose an encoding: each candidate is a list of `n` genes. Write `fitness(g)`, higher is better.
+2. Create the starting population of `popSize` random candidates.
+3. Each generation, find the fittest candidate and copy it unchanged into the next generation (elitism, so the best answer is never lost).
+4. To make each remaining child: pick two parents by tournament selection (draw 3 random candidates and keep the fittest of the three). This favours good parents without always choosing the single best.
+5. Crossover: choose a random cut point `cut` between 1 and `n - 1`, and take the first `cut` genes from parent A and the rest from parent B.
+6. Mutation: flip each gene independently with a small probability such as 0.02. This keeps variety alive.
+7. Replace the population with the children. Stop when fitness is perfect or after a fixed number of generations, and return the best candidate.
+--think
+- Signal: a huge search space, a cheap way to score a full candidate, and pieces of good answers that can be combined (a good half of one plan with a good half of another). Timetables, parameter tuning, design search.
+- The design work is in the encoding and the fitness, not the loop. If crossover usually produces broken candidates (for example a tour that visits a city twice), the encoding or the crossover is wrong for the problem.
+- Mutation rate and population size trade exploration against speed. Too much mutation is random search, too little makes the population collapse into copies.
+- Compare with Simulated annealing (a single answer wandering, simpler to tune) and with exact methods like DP or search when the structure allows. Try annealing first, use a genetic algorithm when crossover is natural.
+- Mistakes: no elitism (the best answer gets lost), picking parents by raw fitness only (the population converges too early), and crossover cut at 0 or `n` (which just copies a parent).
+--cost
+Each generation evaluates `popSize` candidates, so time is generations * popSize * (cost of fitness + n). No guarantee of reaching the optimum.
+--java
+static int[] genetic(int[] target, int popSize, int gens, double mut) {
+    int n = target.length;
+    java.util.function.ToIntFunction<int[]> fit = g -> { int s = 0; for (int i = 0; i < n; i++) if (g[i] == target[i]) s++; return s; };
+    int[][] pop = new int[popSize][n];
+    for (int[] g : pop) for (int i = 0; i < n; i++) g[i] = randInt(0, 1);
+    for (int gen = 0; gen < gens; gen++) {
+        int[] best = pop[0];
+        for (int[] g : pop) if (fit.applyAsInt(g) > fit.applyAsInt(best)) best = g;
+        if (fit.applyAsInt(best) == n) return best;
+        int[][] next = new int[popSize][];
+        next[0] = best.clone();                                  // elitism
+        for (int c = 1; c < popSize; c++) {
+            int[] a = tournament(pop, fit), b = tournament(pop, fit);
+            int cut = randInt(1, n - 1);                    // crossover point
+            int[] child = new int[n];
+            for (int i = 0; i < n; i++) {
+                child[i] = i < cut ? a[i] : b[i];
+                if (randInt(0, 9999) < mut * 10000) child[i] ^= 1;       // mutation
+            }
+            next[c] = child;
+        }
+        pop = next;
+    }
+    int[] best = pop[0];
+    for (int[] g : pop) if (fit.applyAsInt(g) > fit.applyAsInt(best)) best = g;
+    return best;
+}
+
+static int[] tournament(int[][] pop, java.util.function.ToIntFunction<int[]> fit) {
+    int[] best = pop[randInt(0, pop.length - 1)];                   // the fittest of 3 random candidates
+    for (int t = 0; t < 2; t++) { int[] c = pop[randInt(0, pop.length - 1)]; if (fit.applyAsInt(c) > fit.applyAsInt(best)) best = c; }
+    return best;
+}
+--py
+def genetic(target, pop_size=60, gens=300, mut=0.02):
+    n = len(target)                                           # n >= 2
+    fit = lambda g: sum(a == b for a, b in zip(g, target))    # fitness: matching genes
+    pop = [[rand_int(0, 1) for _ in range(n)] for _ in range(pop_size)]
+    pick = lambda: max((pop[rand_int(0, pop_size - 1)] for _ in range(3)), key=fit)        # tournament selection
+    for _ in range(gens):
+        best = max(pop, key=fit)
+        if fit(best) == n:
+            return best
+        nxt = [best[:]]                                       # elitism
+        while len(nxt) < pop_size:
+            a, b = pick(), pick()
+            cut = rand_int(1, n - 1)                      # crossover point
+            child = a[:cut] + b[cut:]
+            child = [1 - g if rand_int(0, 9999) < mut * 10000 else g for g in child]   # mutation
+            nxt.append(child)
+        pop = nxt
+    return max(pop, key=fit)
+--cpp
+vector<int> genetic(const vector<int>& target, int popSize, int gens, double mut) {
+    int n = target.size();                                   // n >= 2
+    auto fit = [&](const vector<int>& g) { int s = 0; for (int i = 0; i < n; i++) s += g[i] == target[i]; return s; };
+    vector<vector<int>> pop(popSize, vector<int>(n));
+    for (auto& g : pop) for (int& x : g) x = randInt(0, 1);
+    auto fittest = [&]() { int b = 0; for (int i = 1; i < popSize; i++) if (fit(pop[i]) > fit(pop[b])) b = i; return b; };
+    auto pick = [&]() {                                      // tournament selection: fittest of 3
+        int b = randInt(0, popSize - 1);
+        for (int t = 0; t < 2; t++) { int c = randInt(0, popSize - 1); if (fit(pop[c]) > fit(pop[b])) b = c; }
+        return b;
+    };
+    for (int gen = 0; gen < gens; gen++) {
+        int best = fittest();
+        if (fit(pop[best]) == n) return pop[best];
+        vector<vector<int>> next = {pop[best]};              // elitism
+        while ((int)next.size() < popSize) {
+            const vector<int>&a = pop[pick()], &b = pop[pick()];
+            int cut = randInt(1, n - 1);                   // crossover point
+            vector<int> child(n);
+            for (int i = 0; i < n; i++) {
+                child[i] = i < cut ? a[i] : b[i];
+                if (randInt(0, 9999) < mut * 10000) child[i] ^= 1;   // mutation
+            }
+            next.push_back(child);
+        }
+        pop = next;
+    }
+    return pop[fittest()];
+}
+
+### lz
+--uses
+u-hashroll
+--idea
+LZ77 compresses data by noticing that it repeats itself. Instead of writing a repeated stretch again, write a small pointer: "go back 7 characters and copy 5". The text "abcabcabc" becomes `a`, `b`, `c`, then one pointer "back 3, copy 6". Because the pointer may copy characters that it is itself still producing, a run like "aaaaaa" becomes one `a` plus "back 1, copy 5".
+The decoder is simple: it keeps the output so far and, for each pointer, copies from earlier in that output one character at a time. All the work is on the encoder side, which must find the longest earlier match quickly. That is where hashing helps: remember where each 3-character piece occurred, so only places that already match the first three characters need checking. LZ77 and its descendants are the repeat-removing half of tools like zip and gzip.
+--build
+1. Treat the data as a string `s`. Call the piece `buildHash` once on `s` to get the prefix hashes `h` and powers `pw`. The hash of the 3 characters starting at `i` is `(h[i+3] - h[i]*pw[3]) mod M`. Keep `table`, a hash map from that value to the list of positions where such a piece started (a hash collision only adds a wasted candidate, because step 4 compares real characters).
+2. Keep a `window` size (for example 4096): a pointer may only reach back that far.
+3. At position `i`, look up the hash of `s[i..i+3]` in `table` and walk its positions from the most recent backwards. Stop when a position is farther than `window`.
+4. For each candidate position `j`, count how many characters match: while `s[j+l] == s[i+l]`, increase `l`. Keep the longest as `(bestOff = i - j, bestLen = l)`.
+5. If `bestLen >= 3`, output the token `(bestOff, bestLen)` and advance `i` by `bestLen`. A pointer costs more than one character, so very short matches are not worth it. Otherwise output a literal token for `s[i]` and advance by 1.
+6. After every advance, insert the 3-character pieces at the positions you just skipped into `table`.
+7. To decode, keep an output list. A literal appends its character. A pointer `(off, len)` appends `len` characters, each copied from `off` positions back in the output (one at a time, so overlap works).
+--think
+- Signal: data with repeated stretches, and you can afford a one-pass encoder. Compressing text, logs, code, images before entropy coding.
+- Why hash: checking every earlier position costs O(n) per step. Looking up positions that share a 3-piece prefix skips nearly all non-matches. Real compressors use hash chains with a cap on how many candidates they check.
+- The format is what limits the ratio: token cost versus the bytes saved. A better encoder (longest match, or sometimes a shorter one that leads to a better next match) gives smaller output, but the decoder stays the same.
+- Often followed by Huffman coding, which gives short bit codes to common tokens. That pair is what Deflate (zip, gzip) does.
+- Mistakes: copying a whole block at once in the decoder (breaks overlapping matches, copy one character at a time), forgetting to insert skipped positions into the table, and an off-by-one in the window.
+--cost
+Decoding is O(output). Encoding is O(n * candidates checked per position), which is near O(n) with a cap on candidates and O(n^2) in the worst case without one.
+--java
+// token = {offset, length, char}; length 0 means a literal character
+static List<int[]> lzEncode(String s, int window) {
+    List<int[]> out = new ArrayList<>();
+    Map<Long, List<Integer>> table = new HashMap<>();        // hash of a 3-char piece -> earlier positions
+    long[][] hp = buildHash(s);                              // piece: prefix hashes {h, pw}
+    int i = 0, n = s.length();
+    while (i < n) {
+        int bestLen = 0, bestOff = 0;
+        if (i + 3 <= n) {
+            List<Integer> cand = table.getOrDefault(piece(hp, i), Collections.emptyList());
+            for (int c = cand.size() - 1; c >= 0; c--) {         // most recent first
+                int j = cand.get(c);
+                if (i - j > window) break;
+                int l = 0;
+                while (i + l < n && s.charAt(j + l) == s.charAt(i + l)) l++;   // may overlap position i
+                if (l > bestLen) { bestLen = l; bestOff = i - j; }
+            }
+        }
+        int step;
+        if (bestLen >= 3) { out.add(new int[]{bestOff, bestLen, 0}); step = bestLen; }
+        else { out.add(new int[]{0, 0, s.charAt(i)}); step = 1; }
+        for (int k = i; k < i + step; k++)
+            if (k + 3 <= n) table.computeIfAbsent(piece(hp, k), x -> new ArrayList<>()).add(k);
+        i += step;
+    }
+    return out;
+}
+
+static long piece(long[][] hp, int p) {                      // hash of s[p..p+3]
+    return ((hp[0][p + 3] - hp[0][p] * hp[1][3]) % M + M) % M;
+}
+
+static String lzDecode(List<int[]> tokens) {
+    StringBuilder sb = new StringBuilder();
+    for (int[] t : tokens) {
+        if (t[1] == 0) sb.append((char) t[2]);
+        else for (int k = 0; k < t[1]; k++) sb.append(sb.charAt(sb.length() - t[0]));   // one char at a time
+    }
+    return sb.toString();
+}
+--py
+# token = (offset, length, char); length 0 means a literal character
+def lz_encode(s, window=4096):
+    out, table, i = [], {}, 0           # table: hash of a 3-char piece -> earlier positions
+    h, pw = build_hash(s)               # piece: prefix hashes
+    piece = lambda p: (h[p + 3] - h[p] * pw[3]) % M
+    while i < len(s):
+        best_len = best_off = 0
+        for j in reversed((table.get(piece(i), []) if i + 3 <= len(s) else [])):        # most recent first
+            if i - j > window:
+                break
+            l = 0
+            while i + l < len(s) and s[j + l] == s[i + l]:   # may overlap position i
+                l += 1
+            if l > best_len:
+                best_len, best_off = l, i - j
+        if best_len >= 3:
+            out.append((best_off, best_len, '')); step = best_len
+        else:
+            out.append((0, 0, s[i])); step = 1
+        for k in range(i, i + step):                         # index the positions we skipped
+            if k + 3 <= len(s):
+                table.setdefault(piece(k), []).append(k)
+        i += step
+    return out
+
+def lz_decode(tokens):
+    out = []
+    for off, length, ch in tokens:
+        if length == 0:
+            out.append(ch)
+        else:
+            for _ in range(length):
+                out.append(out[-off])                        # one char at a time, so overlap works
+    return ''.join(out)
+--cpp
+// token = {offset, length, char}; length 0 means a literal character
+vector<array<int, 3>> lzEncode(const string& s, int window = 4096) {
+    vector<array<int, 3>> out;
+    unordered_map<long long, vector<int>> table;             // hash of a 3-char piece -> earlier positions
+    auto hp = buildHash(s);                                  // piece: prefix hashes {h, pw}
+    auto piece = [&](int p) { return ((hp.first[p + 3] - hp.first[p] * hp.second[3]) % M + M) % M; };
+    int i = 0, n = s.size();
+    while (i < n) {
+        int bestLen = 0, bestOff = 0;
+        if (i + 3 <= n) {
+            auto it = table.find(piece(i));
+            if (it != table.end())
+                for (int c = (int)it->second.size() - 1; c >= 0; c--) {   // most recent first
+                    int j = it->second[c];
+                    if (i - j > window) break;
+                    int l = 0;
+                    while (i + l < n && s[j + l] == s[i + l]) l++;         // may overlap position i
+                    if (l > bestLen) { bestLen = l; bestOff = i - j; }
+                }
+        }
+        int step;
+        if (bestLen >= 3) { out.push_back({bestOff, bestLen, 0}); step = bestLen; }
+        else { out.push_back({0, 0, (unsigned char)s[i]}); step = 1; }
+        for (int k = i; k < i + step; k++)
+            if (k + 3 <= n) table[piece(k)].push_back(k);
+        i += step;
+    }
+    return out;
+}
+
+string lzDecode(const vector<array<int, 3>>& tokens) {
+    string out;
+    for (auto& t : tokens) {
+        if (t[1] == 0) out += (char)t[2];
+        else for (int k = 0; k < t[1]; k++) out += out[out.size() - t[0]];   // one char at a time
+    }
+    return out;
+}
+
+### reservoir
+--uses
+u-rand
+--idea
+Reservoir sampling picks `k` items uniformly at random from a stream whose length you do not know and cannot store. "Uniformly" means every item ends up in the sample with the same probability. Think of a reservoir of `k` slots: you fill it with the first `k` items, and after that each new item may kick out a random one, with a probability that shrinks as the stream grows.
+The rule for item number `i` (counting from 1) after the first `k`: keep it with probability `k / i`, and if kept, it replaces a uniformly chosen slot. Why is that fair? After seeing `i` items, any given earlier item is in the sample with probability `k / i`. Going to `i + 1`, it survives if the new item is rejected (probability `1 - k/(i+1)`) or is accepted but replaces another slot (`k/(i+1) * (k-1)/k`). Multiplying `k/i` by the survival chance `i/(i+1)` gives exactly `k/(i+1)`, so fairness is kept at every step.
+--build
+1. Create `res`, an empty list that holds at most `k` items, and a counter `seen = 0`.
+2. For each incoming item `x`: add 1 to `seen`.
+3. If `res` has fewer than `k` items, append `x` and continue.
+4. Otherwise draw `j` (with the piece `randInt`) uniformly from `0 .. seen - 1`. If `j < k`, set `res[j] = x`. (That is the same as keeping `x` with probability `k / seen` and picking a uniform slot.)
+5. When the stream ends, `res` is a uniform random sample of size `k` (or of size `seen` if the stream had fewer than `k` items).
+--think
+- Signal: "random sample", "stream", "do not know the length", "cannot store everything", "one pass". Also sampling from a large file or a database cursor.
+- If the length is known in advance, you can instead pick indices directly or do a partial Fisher-Yates shuffle. The point here is the unknown length.
+- Weighted versions exist (items with weights, using a random key per item and keeping the top `k` with a heap). Reservoir sampling is used in analytics systems to keep a representative sample (see Streaming analytics).
+- Mistakes: drawing `j` from `0 .. seen` inclusive of `seen` (off by one, the range must have exactly `seen` values), using a pseudo-random generator with a poor range reduction, and thinking the early items get a higher chance (they do not, they are just kicked out more often).
+--cost
+O(1) work per item and O(k) memory, for a stream of any length.
+--java
+static int[] sample(Iterator<Integer> stream, int k) {
+    int[] res = new int[k];
+    int seen = 0;
+    while (stream.hasNext()) {
+        int x = stream.next();
+        seen++;
+        if (seen <= k) res[seen - 1] = x;                 // fill the reservoir first
+        else {
+            int j = randInt(0, seen - 1);                    // uniform in 0 .. seen-1
+            if (j < k) res[j] = x;                        // kept with probability k/seen
+        }
+    }
+    return seen < k ? Arrays.copyOf(res, seen) : res;
+}
+--py
+def sample(stream, k):
+    res = []
+    for seen, x in enumerate(stream, 1):       # seen = how many items so far, including x
+        if seen <= k:
+            res.append(x)                      # fill the reservoir first
+        else:
+            j = rand_int(0, seen - 1)         # uniform in 0 .. seen-1
+            if j < k:
+                res[j] = x                     # kept with probability k/seen
+    return res
+--cpp
+template <class It>
+vector<typename iterator_traits<It>::value_type> sample(It first, It last, int k) {
+    vector<typename iterator_traits<It>::value_type> res;
+    long long seen = 0;
+    for (; first != last; ++first) {
+        seen++;
+        if (seen <= k) res.push_back(*first);                    // fill the reservoir first
+        else {
+            long long j = randInt(0, seen - 1);                   // uniform in 0 .. seen-1
+            if (j < k) res[j] = *first;                          // kept with probability k/seen
+        }
+    }
+    return res;
+}
+
+### shuffle
+--uses
+u-shuffle
+--idea
+The Fisher-Yates shuffle puts a list in a uniformly random order: each of the n! orderings is equally likely. Picture a deck of cards. Pick a random card from the whole deck and put it at the end. Then pick a random card from the rest and put it just before that. Continue until one card is left. In code this is done in place by swapping.
+The obvious "swap each element with a random one" loop looks similar but is biased: it produces n^n equally likely swap sequences, and n^n is not divisible by n!, so some orderings must be more likely than others. Fisher-Yates instead makes n choices of sizes n, n-1, ..., 1, which multiply to exactly n!, one sequence per ordering.
+--build
+The loop below is the code piece `shuffle` (`shuffleArray` in C++). The lesson code calls it to deal a hand.
+1. Start with the array `a` of length `n`.
+2. Let `i` go from `n - 1` down to `1`.
+3. Pick `j` uniformly from `0 .. i` (including `i` itself, since an element may stay in place).
+4. Swap `a[i]` and `a[j]`. Position `i` is now final.
+5. After the loop the whole array is a uniformly random permutation.
+--think
+- Signal: "random order", shuffle a deck, random sample without replacement (take the first `k` after shuffling, or stop the loop after `k` steps), random test data.
+- The invariant: after handling index `i`, the suffix `a[i..]` holds a uniformly random choice of elements in a uniformly random order, and is never touched again.
+- The classic bug is picking `j` from `0 .. n - 1` every time, or from `0 .. i - 1` (which cannot produce a permutation where something stays put, so it makes only cyclic permutations). Both are wrong.
+- Sorting by a random key also gives an unbiased shuffle (if keys are distinct) but costs O(n log n). For a stream of unknown length use Reservoir sampling.
+- A 32-bit seed can only produce 2^32 different shuffles, so a seeded generator cannot reach every ordering of a deck of 52 cards (52! is about 2^226). For games with money, use a proper random source.
+--cost
+O(n) time, O(1) extra space.
+--java
+static int[] deal(int[] deck, int k, Random rnd) {      // a random hand of k cards
+    int[] hand = deck.clone();
+    shuffle(hand, rnd);                                 // the piece: Fisher-Yates, i from n-1 down to 1, j in 0..i
+    return Arrays.copyOf(hand, k);                      // the first k are a uniform sample without replacement
+}
+--py
+def deal(deck, k):                                       # a random hand of k cards
+    hand = list(deck)
+    shuffle(hand)                                        # the piece: Fisher-Yates, i from n-1 down to 1, j in 0..i
+    return hand[:k]                                      # the first k are a uniform sample without replacement
+--cpp
+vector<int> deal(vector<int> deck, int k, mt19937& rng) {   // a random hand of k cards
+    shuffleArray(deck, rng);                                // the piece: Fisher-Yates, i from n-1 down to 1, j in 0..i
+    deck.resize(k);                                         // the first k are a uniform sample without replacement
+    return deck;
+}
+
+### crc
+--uses
+u-bit
+--idea
+A checksum is a small number computed from data, stored or sent along with it. The receiver recomputes it. If the numbers differ, the data was damaged. A plain sum would miss many errors (swapping two bytes keeps the sum), so common systems use a cyclic redundancy check (CRC), which treats the data as one huge binary number and keeps the remainder after dividing by a fixed "polynomial".
+The division is done in a special arithmetic where there are no carries (addition is XOR). In that arithmetic, a single wrong bit, any two wrong bits within a long distance, any burst of errors shorter than the checksum length, and every odd number of wrong bits (with the right polynomial) change the remainder. CRC is used in Ethernet, zip, PNG and disk formats. It detects accidental damage. It is not secure against someone who changes data on purpose.
+--build
+1. Pick the polynomial. CRC-32 uses the constant `0xEDB88320` in its bit-reversed ("reflected") form, which lets us shift right.
+2. Build a table of 256 entries: for each byte value `n`, set `c = n` and repeat 8 times: if the lowest bit of `c` is 1 (this test calls the piece `getBit`), `c = (c >> 1) ^ POLY`, else `c = c >> 1`. Store `table[n] = c`. Each entry is the effect of one byte on the remainder.
+3. Start the running value `crc` as all ones, `0xFFFFFFFF`. (This makes leading zero bytes matter.)
+4. For each data byte `b`: `crc = table[(crc ^ b) & 0xFF] ^ (crc >> 8)`. One table lookup handles 8 bits at once.
+5. When all bytes are done, return `crc ^ 0xFFFFFFFF`.
+--think
+- Signal: detect accidental corruption cheaply while storing or sending data. Compare with a Cryptographic hash when an attacker is a worry, and with Error correction codes when you want to repair, not only detect.
+- It is bit manipulation: shifts, masks and XOR on a 32-bit value. Use an unsigned 32-bit type, or mask with `0xFFFFFFFF` in languages without one.
+- The table is a speed-up, not new math. The slow version processes one bit at a time with the same shifts and XORs.
+- Different protocols use different polynomials, initial values, and bit orders, so "CRC-32" results only match when all of these match. The check value for the ASCII string `123456789` is `0xCBF43926` for the common zip and Ethernet CRC-32.
+- Mistakes: signed shift in Java (use `>>>`), forgetting the final XOR, building the table on every call, and mixing reflected and non-reflected versions.
+--cost
+O(n) for n bytes, with a 256-entry table of memory.
+--java
+static final int[] TABLE = new int[256];
+static {
+    for (int n = 0; n < 256; n++) {
+        int c = n;
+        for (int k = 0; k < 8; k++) c = getBit(c, 0) ? (c >>> 1) ^ 0xEDB88320 : c >>> 1;   // one bit of division
+        TABLE[n] = c;
+    }
+}
+
+static long crc32(byte[] data) {
+    int crc = 0xFFFFFFFF;                                         // start as all ones
+    for (byte b : data) crc = TABLE[(crc ^ b) & 0xFF] ^ (crc >>> 8);   // one byte per lookup
+    return (crc ^ 0xFFFFFFFF) & 0xFFFFFFFFL;                      // final flip, shown as unsigned
+}
+--py
+TABLE = []
+for n in range(256):
+    c = n
+    for _ in range(8):
+        c = (c >> 1) ^ 0xEDB88320 if get_bit(c, 0) else c >> 1           # one bit of division
+    TABLE.append(c)
+
+def crc32(data):
+    crc = 0xFFFFFFFF                                              # start as all ones
+    for b in data:
+        crc = TABLE[(crc ^ b) & 0xFF] ^ (crc >> 8)                # one byte per lookup
+    return crc ^ 0xFFFFFFFF                                       # final flip
+--cpp
+uint32_t crcTable[256];
+void buildCrcTable() {
+    for (uint32_t n = 0; n < 256; n++) {
+        uint32_t c = n;
+        for (int k = 0; k < 8; k++) c = getBit((int)c, 0) ? (c >> 1) ^ 0xEDB88320u : c >> 1;   // one bit of division
+        crcTable[n] = c;
+    }
+}
+
+uint32_t crc32(const string& data) {                              // call buildCrcTable() once first
+    uint32_t crc = 0xFFFFFFFFu;                                   // start as all ones
+    for (unsigned char b : data) crc = crcTable[(crc ^ b) & 0xFF] ^ (crc >> 8);   // one byte per lookup
+    return crc ^ 0xFFFFFFFFu;                                     // final flip
+}
+
+### gradient
+--idea
+Gradient descent finds a low point of a smooth function by walking downhill. The gradient at a point is the direction in which the function rises fastest, so stepping the opposite way lowers it. Imagine standing on a foggy hillside and feeling which way the ground slopes: take a step down the slope, feel again, repeat until the ground is flat.
+For a function of several variables the gradient is a list of slopes, one per variable (its partial derivatives). One update is `x = x - lr * grad(x)` where `lr` is the learning rate, the step size. It finds a point where the gradient is zero. For a bowl-shaped (convex) function that is the global minimum. For bumpy functions it may be a local one. It is the engine that trains neural networks and many other models (see Neural network training).
+--build
+1. Write the function to minimise and its gradient `grad(x)`, which returns a vector of the same length as `x`. (Derive by hand, or use automatic differentiation.)
+2. Choose a starting point `x`, a learning rate `lr` and a step limit.
+3. Repeat: compute `g = grad(x)`. If the length of `g` is below a small tolerance, stop: the ground is flat.
+4. Update every coordinate: `x[i] -= lr * g[i]`.
+5. Return `x`.
+6. If it diverges (values grow), lower `lr`. If it crawls, raise `lr`, or add momentum (keep a fraction of the previous step) or use a method such as Adam.
+--think
+- Signal: minimise or fit something continuous (error of a model, a cost with parameters) where you can compute slopes. Many machine learning problems fit this.
+- The learning rate is the main decision. Too large overshoots and bounces or explodes. Too small takes forever. For a quadratic `a * x^2` the step is stable only when `lr * 2a < 2`, that is `lr < 1/a`.
+- Local minima and flat spots: on bumpy functions try several starts, or use random jumps such as Simulated annealing. For huge data, compute the gradient on a small random batch of the data each step (stochastic gradient descent).
+- If you can solve for the zero of the gradient exactly (linear least squares), do that instead. If the function is not smooth, gradient descent does not apply.
+- Mistakes: a wrong gradient (check it against `(f(x+h) - f(x-h)) / (2h)`), updating coordinates one at a time with an already updated gradient (compute the full gradient first), and no stopping rule.
+--cost
+Each step costs one gradient evaluation, about O(dimension) for simple functions. The number of steps depends on the learning rate and on how stretched the function is.
+--java
+static double[] gradientDescent(java.util.function.Function<double[], double[]> grad, double[] x0, double lr, int steps) {
+    double[] x = x0.clone();
+    for (int s = 0; s < steps; s++) {
+        double[] g = grad.apply(x);                    // slopes at the current point
+        double norm = 0;
+        for (double v : g) norm += v * v;
+        if (norm < 1e-18) break;                       // flat ground: stop
+        for (int i = 0; i < x.length; i++) x[i] -= lr * g[i];   // step downhill
+    }
+    return x;
+}
+--py
+def gradient_descent(grad, x0, lr=0.1, steps=1000):
+    x = list(x0)
+    for _ in range(steps):
+        g = grad(x)                                    # slopes at the current point
+        if sum(v * v for v in g) < 1e-18:              # flat ground: stop
+            break
+        x = [xi - lr * gi for xi, gi in zip(x, g)]     # step downhill
+    return x
+--cpp
+vector<double> gradientDescent(function<vector<double>(const vector<double>&)> grad,
+                               vector<double> x, double lr = 0.1, int steps = 1000) {
+    for (int s = 0; s < steps; s++) {
+        vector<double> g = grad(x);                    // slopes at the current point
+        double norm = 0;
+        for (double v : g) norm += v * v;
+        if (norm < 1e-18) break;                       // flat ground: stop
+        for (size_t i = 0; i < x.size(); i++) x[i] -= lr * g[i];   // step downhill
+    }
+    return x;
+}
+
+### lfu
+--uses
+u-hget
+--idea
+An LFU (least frequently used) cache holds a fixed number of items and, when full, throws out the one that has been used the fewest times. If several items tie, it throws out the one used longest ago. It suits data where popularity is stable: a few items are asked for again and again and should stay, even if a burst of one-off requests arrives.
+To make both `get` and `put` run in constant time it keeps three tables. One maps key to value, one maps key to its use count, and one maps each count to the keys with that count, in the order they reached it (a LRU cache order, oldest first). A variable `minFreq` remembers the smallest count present, so the eviction candidate is the oldest key in the bucket for `minFreq`.
+--build
+1. Keep `val` (key to value), `freq` (key to use count), `buckets` (count to an ordered set of keys, oldest first) and `minFreq`.
+2. `touch(k)`: read the count `f` of `k` (with the piece `getOrDefault`), then take `k` out of its bucket `f`. If that bucket is now empty, delete it, and if `minFreq == f`, set `minFreq = f + 1`. Put `k` at the end of bucket `f + 1` and set `freq[k] = f + 1`.
+3. `get(k)`: if `k` is missing return -1. Otherwise call `touch(k)` and return `val[k]`.
+4. `put(k, v)` when `k` exists: update `val[k]` and call `touch(k)`.
+5. `put(k, v)` for a new key when the cache is full: take the first key of `buckets[minFreq]` (the oldest among the least used), remove it from all three tables.
+6. Then insert `k` with count 1: `val[k] = v`, `freq[k] = 1`, append to `buckets[1]`, and set `minFreq = 1`.
+--think
+- Signal: a cache or "keep the popular items" problem with a capacity, where recency alone (LRU cache) would let a one-time scan flush the hot items.
+- The trick for O(1) is the bucket per count plus `minFreq`. A heap ordered by count also works and is simpler to write, at O(log n) per operation.
+- The weakness of LFU: an item that was popular long ago keeps a high count and may never leave. Real caches age the counts (halve them over time) or combine recency with frequency.
+- New items start at count 1, so they are the first to be evicted, which can make it hard for a new popular item to get established.
+- Mistakes: forgetting to update `minFreq` when a bucket empties, evicting before checking whether the key already exists (a hit must not evict), and a capacity of 0.
+--cost
+O(1) per operation on average, O(capacity) space.
+--java
+static class LFUCache {
+    int cap, minFreq = 0;
+    Map<Integer, Integer> val = new HashMap<>(), freq = new HashMap<>();
+    Map<Integer, LinkedHashSet<Integer>> buckets = new HashMap<>();   // count -> keys, oldest first
+
+    LFUCache(int cap) { this.cap = cap; }
+
+    private void touch(int k) {
+        int f = getOrDefault(freq, k, 0);
+        LinkedHashSet<Integer> b = buckets.get(f);
+        b.remove(k);
+        if (b.isEmpty()) { buckets.remove(f); if (minFreq == f) minFreq = f + 1; }
+        freq.put(k, f + 1);
+        buckets.computeIfAbsent(f + 1, x -> new LinkedHashSet<>()).add(k);
+    }
+
+    int get(int k) {
+        if (!val.containsKey(k)) return -1;
+        touch(k);
+        return val.get(k);
+    }
+
+    void put(int k, int v) {
+        if (cap == 0) return;
+        if (val.containsKey(k)) { val.put(k, v); touch(k); return; }
+        if (val.size() >= cap) {                              // evict: oldest key among the least used
+            LinkedHashSet<Integer> b = buckets.get(minFreq);
+            int old = b.iterator().next();
+            b.remove(old);
+            if (b.isEmpty()) buckets.remove(minFreq);
+            val.remove(old); freq.remove(old);
+        }
+        val.put(k, v); freq.put(k, 1);
+        buckets.computeIfAbsent(1, x -> new LinkedHashSet<>()).add(k);
+        minFreq = 1;
+    }
+}
+--py
+from collections import OrderedDict, defaultdict
+
+class LFUCache:
+    def __init__(self, cap):
+        self.cap, self.min_freq = cap, 0
+        self.val, self.freq = {}, {}
+        self.buckets = defaultdict(OrderedDict)       # count -> keys, oldest first
+
+    def _touch(self, k):
+        f = get_or_default(self.freq, k)
+        del self.buckets[f][k]
+        if not self.buckets[f]:
+            del self.buckets[f]
+            if self.min_freq == f:
+                self.min_freq = f + 1
+        self.freq[k] = f + 1
+        self.buckets[f + 1][k] = None
+
+    def get(self, k):
+        if k not in self.val:
+            return -1
+        self._touch(k)
+        return self.val[k]
+
+    def put(self, k, v):
+        if self.cap == 0:
+            return
+        if k in self.val:
+            self.val[k] = v
+            self._touch(k)
+            return
+        if len(self.val) >= self.cap:                 # evict: oldest key among the least used
+            old, _ = self.buckets[self.min_freq].popitem(last=False)
+            if not self.buckets[self.min_freq]:
+                del self.buckets[self.min_freq]
+            del self.val[old], self.freq[old]
+        self.val[k], self.freq[k] = v, 1
+        self.buckets[1][k] = None
+        self.min_freq = 1
+--cpp
+struct LFUCache {
+    int cap, minFreq = 0;
+    unordered_map<int, int> val;                            // key -> value
+    map<int, int> freq;                                     // key -> use count
+    unordered_map<int, list<int>::iterator> pos;            // key -> place inside its bucket
+    unordered_map<int, list<int>> bucket;                   // count -> keys, oldest first
+    LFUCache(int cap) : cap(cap) {}
+
+    void touch(int k) {
+        int f = getOrDefault(freq, k, 0);
+        bucket[f].erase(pos[k]);
+        if (bucket[f].empty()) { bucket.erase(f); if (minFreq == f) minFreq = f + 1; }
+        freq[k] = f + 1;
+        bucket[f + 1].push_back(k);
+        pos[k] = prev(bucket[f + 1].end());
+    }
+    int get(int k) {
+        if (!val.count(k)) return -1;
+        touch(k);
+        return val[k];
+    }
+    void put(int k, int v) {
+        if (cap == 0) return;
+        if (val.count(k)) { val[k] = v; touch(k); return; }
+        if ((int)val.size() >= cap) {                        // evict: oldest key among the least used
+            int old = bucket[minFreq].front();
+            bucket[minFreq].pop_front();
+            if (bucket[minFreq].empty()) bucket.erase(minFreq);
+            val.erase(old); freq.erase(old); pos.erase(old);
+        }
+        val[k] = v; freq[k] = 1;
+        bucket[1].push_back(k);
+        pos[k] = prev(bucket[1].end());
+        minFreq = 1;
+    }
+};
+
+### ratelimit
+--idea
+A token bucket limits how often something may happen while still allowing short bursts. Picture a bucket that holds at most `capacity` tokens. Tokens drip in at a steady `rate` per second, and any extra falls out once the bucket is full. Each request must take a token to go through. If the bucket is empty, the request is refused or has to wait.
+So a client that has been quiet builds up to `capacity` tokens and can burst that many requests at once, but over a long time it cannot average more than `rate` per second. You do not need a timer that adds tokens: when a request arrives, compute how many tokens would have dripped in since the last one, add them (capped at `capacity`), then decide.
+--build
+1. Store `capacity`, `rate` (tokens per second), the current `tokens` (start full) and `last`, the time of the last update.
+2. On a request at time `now`: add `(now - last) * rate` tokens, cap the total at `capacity`, and set `last = now`. This is the "lazy refill".
+3. If `tokens >= cost` (usually cost 1), subtract the cost and allow the request. Otherwise refuse it (or report how long to wait: `(cost - tokens) / rate`).
+4. Keep one bucket per client key (user, IP address) in a hash map when limits are per client.
+5. Pass the time in as a parameter instead of reading the clock inside, so the code can be tested. Use a monotonic clock in real systems.
+--think
+- Signal: "at most N per second", throttle API calls, smooth a flood of events, but bursts are acceptable. Use it for traffic shaping, API gateways, login attempts.
+- Alternatives: a fixed window counter is simplest but allows a double burst at a window edge. A sliding window log or counter is stricter and costs more memory (see Rate limiting). A leaky bucket (a queue drained at a constant rate) makes output perfectly smooth instead of allowing bursts.
+- The two settings answer two questions: `rate` is the long-run average, `capacity` is the largest burst.
+- Mistakes: using wall-clock time that can jump backwards, forgetting to cap tokens (an idle client would bank an unlimited burst), and integer division that loses fractional tokens (keep tokens as a floating-point number or count in finer units).
+--cost
+O(1) time and O(1) space per bucket, with no timers.
+--java
+static class TokenBucket {
+    final double capacity, rate;         // rate: tokens added per second
+    double tokens, last = 0;
+
+    TokenBucket(double capacity, double rate) { this.capacity = capacity; this.rate = rate; this.tokens = capacity; }
+
+    boolean allow(double now, double cost) {
+        tokens = Math.min(capacity, tokens + (now - last) * rate);   // lazy refill, capped
+        last = now;
+        if (tokens >= cost) { tokens -= cost; return true; }
+        return false;
+    }
+}
+--py
+class TokenBucket:
+    def __init__(self, capacity, rate):
+        self.capacity, self.rate = capacity, rate     # rate: tokens added per second
+        self.tokens, self.last = capacity, 0.0
+
+    def allow(self, now, cost=1):
+        self.tokens = min(self.capacity, self.tokens + (now - self.last) * self.rate)   # lazy refill, capped
+        self.last = now
+        if self.tokens >= cost:
+            self.tokens -= cost
+            return True
+        return False
+--cpp
+struct TokenBucket {
+    double capacity, rate;               // rate: tokens added per second
+    double tokens, last = 0;
+    TokenBucket(double capacity, double rate) : capacity(capacity), rate(rate), tokens(capacity) {}
+
+    bool allow(double now, double cost = 1) {
+        tokens = min(capacity, tokens + (now - last) * rate);   // lazy refill, capped
+        last = now;
+        if (tokens >= cost) { tokens -= cost; return true; }
+        return false;
+    }
+};

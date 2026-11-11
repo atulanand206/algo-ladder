@@ -1,0 +1,2824 @@
+### sorting
+--idea
+Sorting puts items in order (smallest to largest, alphabetical, newest first). It looks like a chore but it is one of the most useful steps in all of problem solving: once items are in order, neighbours are the closest items, duplicates sit side by side, you can binary search, you can sweep from left to right and decide things greedily, and ranges become easy to reason about. Many hard problems become easy after the words "first, sort the input".
+There is no single best sorting method. Simple ones (bubble, selection, insertion) are short and fine for tiny inputs. The fast general ones (merge sort, quicksort, heapsort) all take about `n log n` steps, and a famous argument shows no method that works by comparing two items at a time can beat that. Methods that do not compare (counting sort, radix sort) can be faster, but only when the values are small integers or have a known shape.
+--build
+1. Decide what "in order" means and write it as a comparison of two items: `a` comes before `b` when some key of `a` is smaller than the key of `b`. For items with several fields, compare the first field, and use the second only when the first ties. This is a comparator (see the topic on stable sorting).
+2. Pick the method by size and shape. Fewer than about 20 items: insertion sort. General case: the language's built-in sort (merge-sort-based and stable in Java objects and Python, introsort in C++ `std::sort`). Small integer values: counting sort. Big fixed-length integers or strings: radix sort. Data that does not fit in memory: external merge sort.
+3. The two ideas behind the fast comparison sorts. Divide and merge: cut the list in two, sort each half, merge the two sorted halves. The merging is the code piece `merge` (`u-merge`), and it takes one step per item. Divide by a pivot: pick one item (the pivot), move smaller items to its left and larger to its right, then sort each side. The splitting is the code piece `partition` (`u-part`).
+4. When you want the order but must not disturb the original list, sort the positions instead of the values. The code piece `sortIndices` (`u-sortidx`) returns the positions in order of their values. From it you can read the rank of every item (its place in sorted order).
+5. In the code below, `rankOf` calls `sortIndices`, `mergeSort` calls `merge`, and `quickSort` calls `partition`. Each of those is a complete lesson of its own, listed after this one.
+6. Check a result with `isSorted`: every adjacent pair is in order. It is a cheap test to put after any sorting code you write.
+--think
+- Signal: "find the closest pair", "any duplicates?", "minimum number of ...", "merge overlapping intervals", "k-th largest", "arrange to maximise or minimise ...". Whenever the answer depends on neighbours or on a sweep, sort first. Whenever you would compare every pair, ask if sorting makes only neighbours matter.
+- Decide first: what is the key, ascending or descending, and do ties matter? If equal keys must keep their original relative order, you need a stable sort. Then ask: do I need all items in order, or only the smallest `k`, or only the middle one? Needing only the `k`-th item is quickselect (O(n)), needing the top `k` is a heap.
+- Neighbouring techniques: a heap gives the smallest item repeatedly without a full sort. A balanced tree keeps items sorted while they change. A hash table groups equal items without ordering them. Binary search needs sorted input.
+- Why `n log n` is the floor for comparison sorts: `n` items can be arranged in `n!` orders, each comparison has two answers, so you need at least `log2(n!)` which is about `n log2 n` comparisons to tell them apart.
+- Pitfalls: a comparator that is not consistent (for example subtracting two ints, which can overflow), sorting an array of objects by identity instead of by key, assuming `std::sort` is stable (it is not, use `stable_sort`), and calling a quadratic sort on a million items.
+--cost
+Merge sort, heapsort: O(n log n) always. Quicksort: O(n log n) on average, O(n^2) worst case. Insertion, selection, bubble: O(n^2). Counting and radix sort: O(n + range). Comparison sorts cannot beat O(n log n).
+--java
+// the position every value takes in sorted order (a is left untouched); uses sortIndices (piece u-sortidx)
+static int[] rankOf(int[] a) {
+    Integer[] id = sortIndices(a);
+    int[] rank = new int[a.length];
+    for (int r = 0; r < id.length; r++) rank[id[r]] = r;
+    return rank;
+}
+
+// sort by merging: split, sort both halves, merge (piece u-merge)
+static int[] mergeSort(int[] a) {
+    if (a.length <= 1) return a;
+    int mid = a.length / 2;
+    return merge(mergeSort(java.util.Arrays.copyOfRange(a, 0, mid)),
+                 mergeSort(java.util.Arrays.copyOfRange(a, mid, a.length)));
+}
+
+// sort in place by a pivot: partition (piece u-part) puts the pivot in its final place
+static void quickSort(int[] a, int lo, int hi) {
+    if (lo >= hi) return;
+    int p = partition(a, lo, hi);
+    quickSort(a, lo, p - 1);
+    quickSort(a, p + 1, hi);
+}
+
+static boolean isSorted(int[] a) {
+    for (int i = 1; i < a.length; i++) if (a[i - 1] > a[i]) return false;
+    return true;
+}
+--py
+def rank_of(a):
+    """The position every value takes in sorted order (a is left untouched).
+    Uses sort_indices (piece u-sortidx)."""
+    rank = [0] * len(a)
+    for r, i in enumerate(sort_indices(a)):
+        rank[i] = r
+    return rank
+
+def merge_sort(a):
+    """Sort by merging: split, sort both halves, merge (piece u-merge)."""
+    if len(a) <= 1: return a
+    mid = len(a) // 2
+    return merge(merge_sort(a[:mid]), merge_sort(a[mid:]))
+
+def quick_sort(a, lo, hi):
+    """Sort in place by a pivot: partition (piece u-part) puts the pivot in its final place."""
+    if lo >= hi: return
+    p = partition(a, lo, hi)
+    quick_sort(a, lo, p - 1)
+    quick_sort(a, p + 1, hi)
+
+def is_sorted(a):
+    return all(a[i - 1] <= a[i] for i in range(1, len(a)))
+--cpp
+// the position every value takes in sorted order (a is left untouched); uses sortIndices (piece u-sortidx)
+vector<int> rankOf(const vector<int>& a) {
+    vector<int> id = sortIndices(a), rank(a.size());
+    for (int r = 0; r < (int)id.size(); r++) rank[id[r]] = r;
+    return rank;
+}
+
+// sort by merging: split, sort both halves, merge (piece u-merge)
+vector<int> mergeSort(const vector<int>& a) {
+    if (a.size() <= 1) return a;
+    int mid = a.size() / 2;
+    return mergeSorted(mergeSort(vector<int>(a.begin(), a.begin() + mid)),
+                       mergeSort(vector<int>(a.begin() + mid, a.end())));
+}
+
+// sort in place by a pivot: partition (piece u-part) puts the pivot in its final place
+void quickSort(vector<int>& a, int lo, int hi) {
+    if (lo >= hi) return;
+    int p = partitionRange(a, lo, hi);
+    quickSort(a, lo, p - 1);
+    quickSort(a, p + 1, hi);
+}
+
+bool isSorted(const vector<int>& a) {
+    for (size_t i = 1; i < a.size(); i++) if (a[i - 1] > a[i]) return false;
+    return true;
+}
+--uses
+u-part
+u-merge
+u-sortidx
+
+### bubble
+--idea
+Bubble sort walks along the list comparing each pair of neighbours and swapping them if they are in the wrong order. After one full walk the largest item has "bubbled" to the end, like a bubble rising to the surface. Repeat the walk for the shorter list that remains, and after `n - 1` walks everything is in place.
+It is slow (about `n^2 / 2` comparisons) and almost never the right choice in practice. It is taught because it is the simplest sorting idea to see and to prove: each walk fixes one more item at the end. It also has one real virtue: if a whole walk makes no swap, the list is already sorted and you can stop, so an already-sorted list costs only one walk.
+--build
+1. Let `n` be the length. The unsorted part is `a[0 .. end]`, with `end` starting at `n - 1`.
+2. Walk `i` from 0 to `end - 1`. If `a[i] > a[i + 1]`, exchange them with `swap(a, i, i + 1)` (code piece `u-swap`) and remember `swapped = true`.
+3. After the walk, the largest item of the unsorted part sits at `a[end]`, its final place. Decrease `end` by one.
+4. If the walk made no swap (`swapped` is false), stop: every neighbour pair is in order, so the whole list is sorted.
+5. Otherwise repeat from step 2 while `end > 0`.
+6. Invariant: after `k` walks, the last `k` positions hold the `k` largest items in their final order. Each walk extends this by one.
+--think
+- Signal: you rarely need it. It appears in "count the swaps needed to sort by adjacent swaps" questions, because bubble sort does exactly one swap per inversion (an out-of-order pair), so the number of swaps equals the number of inversions. Counting inversions quickly is a merge sort job.
+- Decide first whether the input is tiny or nearly sorted. If so, insertion sort is as simple and faster. Otherwise use a real `n log n` sort.
+- Neighbouring techniques: insertion sort also costs one step per inversion, but its inner step is cheaper. Selection sort makes at most `n - 1` swaps, which matters when writing is costly. Cocktail shaker sort is bubble sort walking in both directions.
+- It is stable: equal neighbours are never swapped, so equal items keep their order, because the swap test is strict (`>`).
+- Pitfalls: using `>=` in the swap test (breaks stability and can loop longer), forgetting to shrink `end` (still correct, just slower), and going to `i + 1 == n` (index out of range).
+--cost
+Time O(n^2) worst and average, O(n) if the list is already sorted (with the early stop). Space O(1). Stable.
+--java
+static void bubbleSort(int[] a) {
+    for (int end = a.length - 1; end > 0; end--) {
+        boolean swapped = false;
+        for (int i = 0; i < end; i++)
+            if (a[i] > a[i + 1]) { swap(a, i, i + 1); swapped = true; }   // piece u-swap
+        if (!swapped) break;                       // a clean walk means sorted
+    }
+}
+--py
+def bubble_sort(a):
+    for end in range(len(a) - 1, 0, -1):
+        swapped = False
+        for i in range(end):
+            if a[i] > a[i + 1]:
+                swap(a, i, i + 1)                  # piece u-swap
+                swapped = True
+        if not swapped:
+            break                                  # a clean walk means sorted
+--cpp
+void bubbleSort(vector<int>& a) {
+    for (int end = (int)a.size() - 1; end > 0; end--) {
+        bool swapped = false;
+        for (int i = 0; i < end; i++)
+            if (a[i] > a[i + 1]) { swapAt(a, i, i + 1); swapped = true; }   // piece u-swap
+        if (!swapped) break;                       // a clean walk means sorted
+    }
+}
+--uses
+u-swap
+
+### selection
+--idea
+Selection sort builds the sorted list from the front. Look through all the items that are not yet placed, find the smallest, and put it in the next free position at the front. Then look through the rest for the next smallest, and so on. It is how many people sort a hand of cards: pick out the lowest, then the next lowest.
+It always does about `n^2 / 2` comparisons, even on sorted input, so it is slow. Its one special property is that it makes very few moves: at most `n - 1` swaps in total, one per position. That matters only when writing an item is much more expensive than comparing two items.
+--build
+1. The sorted part is `a[0 .. i - 1]`, empty at first. The unsorted part is `a[i .. n - 1]`.
+2. For each `i` from 0 to `n - 2`: set `best = i`. Scan `j` from `i + 1` to `n - 1`, and whenever `a[j] < a[best]` set `best = j`.
+3. After the scan, `best` is the position of the smallest unsorted item. If `best != i`, exchange them with `swap(a, i, best)` (code piece `u-swap`).
+4. Now `a[0 .. i]` holds the `i + 1` smallest items in order. Move on to the next `i`.
+5. Invariant: at the start of each round, the first `i` positions hold the `i` smallest items, in final order. Since the rest only contains items at least as large, picking the minimum of the rest extends this.
+6. The last item needs no round: when `i = n - 1` it is the largest and already in place.
+--think
+- Signal: the problem charges for writes or swaps ("minimum number of swaps to sort", with each item moved at most once), or a tiny list where simplicity wins.
+- Decide first whether stability matters: selection sort in its swap form is not stable, because the long-distance swap can jump an item over an equal one. To make it stable, shift the items instead of swapping (as insertion does).
+- Neighbouring techniques: for few writes there is also cycle sort (fewest possible writes). Insertion sort is faster on nearly sorted data. Heapsort is selection sort made fast: it finds the largest item with a heap in `log n` instead of scanning for it in `n`.
+- The scan can also track the maximum and place it at the back, or find both ends in the same pass.
+- Pitfalls: swapping every round even when `best == i` (harmless but wasteful), starting `best` at `0` instead of `i`, and losing stability without noticing.
+--cost
+Time O(n^2) always, comparisons about `n^2 / 2`. Swaps at most `n - 1`. Space O(1). Not stable (in the swap form).
+--java
+static void selectionSort(int[] a) {
+    for (int i = 0; i < a.length - 1; i++) {
+        int best = i;                              // position of the smallest unsorted item
+        for (int j = i + 1; j < a.length; j++)
+            if (a[j] < a[best]) best = j;
+        if (best != i) swap(a, i, best);           // piece u-swap: one swap per round
+    }
+}
+--py
+def selection_sort(a):
+    for i in range(len(a) - 1):
+        best = i                                   # position of the smallest unsorted item
+        for j in range(i + 1, len(a)):
+            if a[j] < a[best]:
+                best = j
+        if best != i:
+            swap(a, i, best)                       # piece u-swap: one swap per round
+--cpp
+void selectionSort(vector<int>& a) {
+    for (int i = 0; i + 1 < (int)a.size(); i++) {
+        int best = i;                              // position of the smallest unsorted item
+        for (int j = i + 1; j < (int)a.size(); j++)
+            if (a[j] < a[best]) best = j;
+        if (best != i) swapAt(a, i, best);         // piece u-swap: one swap per round
+    }
+}
+--uses
+u-swap
+
+### insertion
+--idea
+Insertion sort grows a sorted prefix one item at a time, like sorting playing cards in your hand. Take the next card from the table and slide it left past every card that is bigger than it, until it sits where it belongs among the cards you already hold. Then take the next card.
+It is quadratic in the worst case, but it is the best simple sort in practice. On a list that is nearly sorted it is almost linear (an item that is already close to its place barely moves), and its inner loop is tiny. That is why real sorting libraries use it for small blocks (around 10 to 30 items) inside faster algorithms such as Timsort and introsort.
+--build
+1. The sorted part is `a[0 .. i - 1]`. A one-item prefix is trivially sorted, so start at `i = 1`.
+2. For each `i`: let `j = i`. While `j > 0` and `a[j - 1] > a[j]`, exchange the two with `swap(a, j - 1, j)` (code piece `u-swap`) and decrease `j`. The item that started at `i` slides left until its left neighbour is not bigger.
+3. Now `a[0 .. i]` is sorted. Go to the next `i`.
+4. Strict `>` makes it stable: an item never passes an equal one.
+5. A faster form avoids swapping: copy the item to `key`, shift every bigger item one place right, and write `key` into the gap. It does about a third of the memory writes. Binary insertion sort finds the gap with a binary search (fewer comparisons, the same number of shifts).
+6. Invariant: before each round, `a[0 .. i - 1]` holds the first `i` items in sorted order. The round inserts the next item into that order, so the prefix grows by one.
+--think
+- Signal: a small list, a list that is nearly sorted ("each item is at most `k` places from its final position", then it costs O(n k)), or items that arrive one at a time and must be kept sorted (an online sorted list).
+- Decide first how large and how disordered the input is. For anything big and random, use an `n log n` sort. Use insertion sort as the base case of a divide-and-conquer sort, below about 16 items.
+- Neighbouring techniques: shell sort is insertion sort with big gaps first, which fixes its weakness (items far from home move one step at a time). Merge sort with insertion sort on small runs is Timsort's skeleton.
+- The number of swaps equals the number of inversions (pairs in the wrong order), so the cost is `n + inversions`.
+- Pitfalls: testing `j >= 0` instead of `j > 0` (reads `a[-1]`), using `>=` (loses stability), and doing the swaps one at a time when the shift form would be faster.
+--cost
+Time O(n^2) worst and average, O(n + inversions) in general, O(n) when nearly sorted. Space O(1). Stable.
+--java
+static void insertionSort(int[] a) {
+    for (int i = 1; i < a.length; i++)
+        for (int j = i; j > 0 && a[j - 1] > a[j]; j--)
+            swap(a, j - 1, j);                     // piece u-swap: slide the new item left
+}
+--py
+def insertion_sort(a):
+    for i in range(1, len(a)):
+        j = i
+        while j > 0 and a[j - 1] > a[j]:
+            swap(a, j - 1, j)                      # piece u-swap: slide the new item left
+            j -= 1
+--cpp
+void insertionSort(vector<int>& a) {
+    for (int i = 1; i < (int)a.size(); i++)
+        for (int j = i; j > 0 && a[j - 1] > a[j]; j--)
+            swapAt(a, j - 1, j);                   // piece u-swap: slide the new item left
+}
+--uses
+u-swap
+
+### stable
+--idea
+A sort is stable if items that compare equal stay in the same relative order as before sorting. Suppose a list of students is already ordered by name, and you now sort by grade. A stable sort puts the students of each grade in name order (the earlier order is kept inside each tie). An unstable sort may scramble the names inside each grade.
+Stability is what makes multi-key sorting easy. To sort by grade, then by name inside a grade, you can either write one comparator that compares grade first and name second, or run two stable sorts: first by the less important key (name), then by the more important key (grade). The second sort keeps the first one's order inside ties. A comparator is the small rule you give a sort to say which of two items comes first.
+--build
+1. A comparator takes two items `x` and `y` and returns a negative number if `x` goes first, zero if they tie, and a positive number if `y` goes first. The code piece `compare(a, b)` (`u-cmp`) does that for two integers and returns -1, 0 or 1.
+2. Build a multi-key comparator by chaining: `c = compare(key1(x), key1(y))`. If `c != 0` return it. Otherwise return `compare(key2(x), key2(y))`, and so on.
+3. For "descending" on a key, swap the two arguments: `compare(key(y), key(x))`.
+4. Give the comparator to a sort that you know to be stable: Java `Arrays.sort` on objects and `List.sort`, Python `sorted` and `list.sort`, C++ `std::stable_sort`. Do not use C++ `std::sort` when stability matters.
+5. The two-pass method: sort by the least important key first, then by the next more important key, and so on up to the most important. This works only with a stable sort. It is the idea behind radix sort.
+6. To make an unstable sort behave stably, add the original index as the last tie-break key: compare by key, then by original position.
+7. Test a comparator with three rules: `compare(x, x)` is 0, if `x` before `y` then `y` is after `x`, and if `x` before `y` and `y` before `z` then `x` before `z`.
+--think
+- Signal: "sort by A, then by B", "ties broken by earlier input order", "sort the records but keep the original order among equals", or a result that is printed in a specific order.
+- Decide first the ordering of the keys, their directions, and whether you really need stability or if the tie-break key makes the order fully determined (then any sort works).
+- Neighbouring techniques: sorting indices (the code piece `sortIndices`) keeps the original items untouched. Counting sort and radix sort are stable by design and rely on it. A heap-based sort is not stable.
+- Do not write the comparator as `x - y` for integers: it overflows for large values (for example `2^31 - 1` minus a negative number). Use `compare` or `Integer.compare`.
+- A comparator must be consistent (a strict weak ordering). A comparator that says "x before y" and "y before x" at once, or that is not transitive, makes some sorts crash, loop, or give garbage (Java may throw "Comparison method violates its general contract").
+- Pitfalls: `<=` in a comparator (should be strict, so that equal items compare as equal), mixing up ascending and descending, using an unstable sort and expecting stability, and comparing floating point numbers with `==`.
+--cost
+A comparison sort with a comparator is O(n log n) comparisons, each costing as much as the comparator. Stable library sorts are O(n log n) time and O(n) extra space (merge based).
+--java
+// rows are {score, id}: highest score first, ties by smaller id. Uses compare (piece u-cmp)
+static void sortRows(int[][] rows) {
+    java.util.Arrays.sort(rows, (x, y) -> {
+        int c = compare(y[0], x[0]);               // descending on score: swap the arguments
+        return c != 0 ? c : compare(x[1], y[1]);   // then ascending on id
+    });
+}
+
+// same result with two stable passes: least important key first (an object sort is stable)
+static void sortRowsTwoPass(int[][] rows) {
+    java.util.Arrays.sort(rows, (x, y) -> compare(x[1], y[1]));    // by id
+    java.util.Arrays.sort(rows, (x, y) -> compare(y[0], x[0]));    // then by score, descending
+}
+--py
+from functools import cmp_to_key
+
+def sort_rows(rows):
+    """rows are (score, id): highest score first, ties by smaller id. Uses compare (piece u-cmp)."""
+    def cmp(x, y):
+        c = compare(y[0], x[0])                    # descending on score: swap the arguments
+        return c if c != 0 else compare(x[1], y[1])   # then ascending on id
+    return sorted(rows, key=cmp_to_key(cmp))
+
+def sort_rows_two_pass(rows):
+    """Same result with two stable passes: least important key first."""
+    rows = sorted(rows, key=cmp_to_key(lambda x, y: compare(x[1], y[1])))     # by id
+    return sorted(rows, key=cmp_to_key(lambda x, y: compare(y[0], x[0])))     # then by score, descending
+--cpp
+// rows are {score, id}: highest score first, ties by smaller id. Uses compare (piece u-cmp)
+void sortRows(vector<array<int, 2>>& rows) {
+    sort(rows.begin(), rows.end(), [](const array<int, 2>& x, const array<int, 2>& y) {
+        int c = compare(y[0], x[0]);               // descending on score: swap the arguments
+        return c != 0 ? c < 0 : compare(x[1], y[1]) < 0;   // then ascending on id
+    });
+}
+
+// same result with two stable passes: least important key first (stable_sort keeps ties in order)
+void sortRowsTwoPass(vector<array<int, 2>>& rows) {
+    stable_sort(rows.begin(), rows.end(), [](const array<int, 2>& x, const array<int, 2>& y) { return compare(x[1], y[1]) < 0; });
+    stable_sort(rows.begin(), rows.end(), [](const array<int, 2>& x, const array<int, 2>& y) { return compare(y[0], x[0]) < 0; });
+}
+--uses
+u-cmp
+
+### merge-sort
+--idea
+Merge sort sorts a list by cutting it in half, sorting each half, and then merging the two sorted halves into one sorted list. Merging is easy: keep a finger at the front of each half, repeatedly take the smaller of the two front items, and move that finger forward. Two sorted lists of total length `n` merge in `n` steps.
+The halving can only go `log2 n` times before the pieces have one item (which is already sorted), and every level of halving costs `n` steps of merging in total. That is `n log n` overall, and, unlike quicksort, it holds on every input, with no bad case. The price is extra memory for the merged result. Because the merge takes from the left half when items tie, the sort is stable.
+--build
+1. Base case: a list of 0 or 1 items is already sorted, return it.
+2. Split at `mid = n / 2` into a left part and a right part.
+3. Sort both parts the same way, by calling `mergeSort` on each.
+4. Merge the two sorted parts with `merge(left, right)` (code piece `u-merge`). Inside it two fingers `i` and `j` walk the parts. Take `left[i]` if `left[i] <= right[j]` (the `<=` is what makes it stable), else take `right[j]`. When one part runs out, copy the rest of the other.
+5. Bottom-up form (no recursion): start with runs of width 1. In each round, merge neighbouring pairs of runs of the current width into runs of double the width: `width = 1, 2, 4, ...` until `width >= n`. Each round calls `merge` for every pair of neighbours.
+6. Invariant: after a call returns, its result holds exactly the items of its input, in sorted order. The merge keeps that true, because it only takes the smaller front item, and each front item is the smallest of what remains in its sorted part.
+--think
+- Signal: you need a guaranteed `n log n`, a stable sort, a sort of a linked list (merging needs no random access), data that arrives in sorted chunks, or a sort of data on disk (external merge sort). Also any problem that says "count pairs while combining two halves" (inversions).
+- Decide first whether extra memory is acceptable. Merge sort needs O(n) extra space for arrays. If memory is tight, use heapsort or quicksort. If stability matters, merge sort is a safe choice.
+- Neighbouring techniques: quicksort is usually faster in practice for arrays (better use of the cache, no extra array) but has a bad case. Timsort is merge sort that detects runs already in order. Counting inversions is merge sort with one extra line in the merge. Divide and conquer on other problems (closest pair, max subarray) has the same shape.
+- The recursion tree has `log2 n` levels and each level touches every item once. That is the entire cost analysis.
+- Pitfalls: using `<` instead of `<=` in the merge (loses stability), copying subarrays at every level carelessly (extra allocation is fine, but allocate the temp buffer once if you care), off-by-one at the midpoint, and recursion on a linked list that recomputes its length each time.
+--cost
+Time O(n log n) in all cases. Extra space O(n) for arrays (O(log n) stack plus O(1) for linked lists). Stable.
+--java
+// top-down: split, sort both halves, merge them (piece u-merge)
+static int[] mergeSort(int[] a) {
+    if (a.length <= 1) return a;
+    int mid = a.length / 2;
+    return merge(mergeSort(java.util.Arrays.copyOfRange(a, 0, mid)),
+                 mergeSort(java.util.Arrays.copyOfRange(a, mid, a.length)));
+}
+
+// bottom-up: merge runs of width 1, 2, 4, ... in place of recursion
+static void mergeSortBottomUp(int[] a) {
+    int n = a.length;
+    for (int width = 1; width < n; width *= 2) {
+        for (int i = 0; i < n; i += 2 * width) {
+            int mid = Math.min(i + width, n), end = Math.min(i + 2 * width, n);
+            int[] merged = merge(java.util.Arrays.copyOfRange(a, i, mid),
+                                 java.util.Arrays.copyOfRange(a, mid, end));      // piece u-merge
+            System.arraycopy(merged, 0, a, i, merged.length);
+        }
+    }
+}
+--py
+def merge_sort(a):
+    """Top-down: split, sort both halves, merge them (piece u-merge)."""
+    if len(a) <= 1:
+        return a
+    mid = len(a) // 2
+    return merge(merge_sort(a[:mid]), merge_sort(a[mid:]))
+
+def merge_sort_bottom_up(a):
+    """Merge runs of width 1, 2, 4, ... in place of recursion."""
+    n, width = len(a), 1
+    while width < n:
+        for i in range(0, n, 2 * width):
+            mid, end = min(i + width, n), min(i + 2 * width, n)
+            a[i:end] = merge(a[i:mid], a[mid:end])       # piece u-merge
+        width *= 2
+--cpp
+// top-down: split, sort both halves, merge them (piece u-merge)
+vector<int> mergeSort(const vector<int>& a) {
+    if (a.size() <= 1) return a;
+    int mid = a.size() / 2;
+    return mergeSorted(mergeSort(vector<int>(a.begin(), a.begin() + mid)),
+                       mergeSort(vector<int>(a.begin() + mid, a.end())));
+}
+
+// bottom-up: merge runs of width 1, 2, 4, ... in place of recursion
+void mergeSortBottomUp(vector<int>& a) {
+    int n = a.size();
+    for (int width = 1; width < n; width *= 2) {
+        for (int i = 0; i < n; i += 2 * width) {
+            int mid = min(i + width, n), end = min(i + 2 * width, n);
+            vector<int> merged = mergeSorted(vector<int>(a.begin() + i, a.begin() + mid),
+                                             vector<int>(a.begin() + mid, a.begin() + end));   // piece u-merge
+            copy(merged.begin(), merged.end(), a.begin() + i);
+        }
+    }
+}
+--uses
+u-merge
+
+### quick-sort
+--idea
+Quicksort picks one item as the pivot, moves every smaller item to its left and every larger item to its right (this step is called partitioning), and then sorts the left side and the right side the same way. After partitioning the pivot is already in its final place, and nothing ever crosses it again.
+If the pivot lands near the middle every time, the sides halve and the cost is `n log n`. If it lands at an end every time (for instance, the smallest item of an already sorted list), the sides shrink by one and the cost is `n^2`. Choosing the pivot at random makes the bad case astronomically unlikely, so quicksort is `n log n` on average for every input. It sorts in place, with no extra array, and runs very fast in practice.
+--build
+1. `quickSort(a, lo, hi)` sorts the part `a[lo .. hi]`. If `lo >= hi` (zero or one item) return.
+2. Pick a random pivot position `r = randInt(lo, hi)` (code piece `u-rand`) and move that item to the end: `swap(a, r, hi)` (code piece `u-swap`). A random pivot defeats sorted or adversarial inputs.
+3. Partition with `p = partition(a, lo, hi)` (code piece `u-part`). It treats `a[hi]` as the pivot, moves smaller items to the front, puts the pivot after them, and returns the pivot's final index `p`. Now every item in `a[lo .. p-1]` is smaller than the pivot and every item in `a[p+1 .. hi]` is not smaller.
+4. Recurse on `a[lo .. p-1]` and `a[p+1 .. hi]`. The pivot at `p` is never touched again.
+5. Many equal items are a trap: the one-pivot partition puts all equal items on one side, so a list of identical items costs `n^2`. The three-way version fixes it. Keep three regions: `< pivot`, `== pivot`, `> pivot`. Walk `i` from `lo`, with `lt` marking the end of the smaller region and `gt` the start of the larger region. If `a[i] < pivot`, swap it into place at `lt` and advance both. If it is larger, swap it to `gt` and shrink `gt` (do not advance `i`). If equal, advance `i`. Then only the smaller and larger regions are sorted again.
+6. Invariant: after partitioning around the pivot, the pivot is in its final sorted position, so the two sides can be sorted independently.
+7. Recursion depth is `O(log n)` on average, but can reach `n` in the worst case. Recurse into the smaller side and loop on the larger to cap the stack depth at `log2 n`.
+--think
+- Signal: you need a fast in-place sort for arrays and stability is not required. Also the base of quickselect (find the k-th smallest) and of introsort, which most `std::sort` implementations use.
+- Decide first how to choose the pivot (random is simplest and safe) and how to handle equal keys (three-way partition if there can be many).
+- Neighbouring techniques: merge sort for guaranteed `n log n` and stability. Heapsort for guaranteed `n log n` with O(1) space. Introsort switches to heapsort when recursion gets too deep, so the worst case is also `n log n`. Counting sort when keys are small.
+- Quicksort is not stable and the pivot swap makes that unavoidable in the in-place form.
+- Why random pivots give `n log n`: the expected number of comparisons between two items `x < y` of the sorted order is `2 / (rank gap + 1)`, which sums to about `2 n ln n`.
+- Pitfalls: choosing the first or last item as pivot on sorted input (quadratic), forgetting to recurse only on the two sides and not on the pivot, unbounded recursion depth, infinite loops from a partition that can leave the pivot at the boundary, and many equal items with the plain two-way partition.
+--cost
+Average O(n log n), worst case O(n^2) (made extremely unlikely by a random pivot). Space O(log n) for the stack. In place, not stable.
+--java
+static void quickSort(int[] a, int lo, int hi) {
+    if (lo >= hi) return;
+    swap(a, randInt(lo, hi), hi);                  // piece u-rand picks the pivot, piece u-swap moves it to the end
+    int p = partition(a, lo, hi);                  // piece u-part: the pivot lands at index p
+    quickSort(a, lo, p - 1);
+    quickSort(a, p + 1, hi);
+}
+
+// three-way version: items equal to the pivot are left alone, so many duplicates stay fast
+static void quickSort3(int[] a, int lo, int hi) {
+    if (lo >= hi) return;
+    int pivot = a[randInt(lo, hi)];                // piece u-rand
+    int lt = lo, i = lo, gt = hi;                  // a[lo..lt-1] < pivot, a[lt..i-1] == pivot, a[gt+1..hi] > pivot
+    while (i <= gt) {
+        if (a[i] < pivot) swap(a, lt++, i++);      // piece u-swap
+        else if (a[i] > pivot) swap(a, i, gt--);
+        else i++;
+    }
+    quickSort3(a, lo, lt - 1);
+    quickSort3(a, gt + 1, hi);
+}
+--py
+def quick_sort(a, lo, hi):
+    if lo >= hi: return
+    swap(a, rand_int(lo, hi), hi)                  # piece u-rand picks the pivot, piece u-swap moves it to the end
+    p = partition(a, lo, hi)                       # piece u-part: the pivot lands at index p
+    quick_sort(a, lo, p - 1)
+    quick_sort(a, p + 1, hi)
+
+def quick_sort3(a, lo, hi):
+    """Three-way version: items equal to the pivot are left alone, so many duplicates stay fast."""
+    if lo >= hi: return
+    pivot = a[rand_int(lo, hi)]                    # piece u-rand
+    lt, i, gt = lo, lo, hi                         # a[lo..lt-1] < pivot, a[lt..i-1] == pivot, a[gt+1..hi] > pivot
+    while i <= gt:
+        if a[i] < pivot:
+            swap(a, lt, i); lt += 1; i += 1        # piece u-swap
+        elif a[i] > pivot:
+            swap(a, i, gt); gt -= 1
+        else:
+            i += 1
+    quick_sort3(a, lo, lt - 1)
+    quick_sort3(a, gt + 1, hi)
+--cpp
+void quickSort(vector<int>& a, int lo, int hi) {
+    if (lo >= hi) return;
+    swapAt(a, randInt(lo, hi), hi);                // piece u-rand picks the pivot, piece u-swap moves it to the end
+    int p = partitionRange(a, lo, hi);             // piece u-part: the pivot lands at index p
+    quickSort(a, lo, p - 1);
+    quickSort(a, p + 1, hi);
+}
+
+// three-way version: items equal to the pivot are left alone, so many duplicates stay fast
+void quickSort3(vector<int>& a, int lo, int hi) {
+    if (lo >= hi) return;
+    int pivot = a[randInt(lo, hi)];                // piece u-rand
+    int lt = lo, i = lo, gt = hi;                  // a[lo..lt-1] < pivot, a[lt..i-1] == pivot, a[gt+1..hi] > pivot
+    while (i <= gt) {
+        if (a[i] < pivot) swapAt(a, lt++, i++);    // piece u-swap
+        else if (a[i] > pivot) swapAt(a, i, gt--);
+        else i++;
+    }
+    quickSort3(a, lo, lt - 1);
+    quickSort3(a, gt + 1, hi);
+}
+--uses
+u-part
+u-swap
+u-rand
+
+### heap-sort
+--idea
+Heapsort sorts by using a heap, the structure that always hands you its largest (or smallest) item quickly. Put everything into a heap, then take items out one at a time. Each item comes out in order, so the output is sorted. Taking out the smallest `n` times from a min-heap gives ascending order.
+The clever version does it inside the input array with no extra memory. Arrange the array itself as a max-heap, then repeatedly swap the largest item (at the front) with the last unsorted position, shrink the heap by one, and repair the heap. The sorted part grows from the back while the heap shrinks at the front. It is `n log n` on every input, and uses O(1) extra space, which makes it the standard fallback inside introsort.
+--build
+1. Simple form (extra memory): create a min-heap, `push` every item with `heapPush` (code piece `u-hpush`), then pop them all with `heapPop` (code piece `u-hpop`) into the output, which comes out in ascending order.
+2. In-place form. Treat the array as a binary tree stored by position: the children of `i` are `2i + 1` and `2i + 2`. A max-heap means every parent is at least as big as its children.
+3. `siftDown(a, i, n)` repairs one position of a heap of size `n`: while `i` has a child, find the bigger child `c`. If `a[i] >= a[c]` stop. Otherwise `swap(a, i, c)` (code piece `u-swap`) and continue from `c`.
+4. Build the max-heap: for `i` from `n / 2 - 1` down to 0, call `siftDown(a, i, n)`. Leaves already satisfy the rule, so start at the last parent. This takes O(n) in total.
+5. Sort: for `end` from `n - 1` down to 1: `swap(a, 0, end)` puts the current maximum at its final place `end`. Then `siftDown(a, 0, end)` restores the heap on the first `end` items.
+6. Invariant: before each round, `a[0 .. end]` is a max-heap and `a[end + 1 .. n - 1]` holds the largest items in final sorted order. The swap moves the heap's maximum into the sorted part, and `siftDown` restores the heap property.
+--think
+- Signal: you need `n log n` worst case with O(1) extra memory, or you already have a heap. Also used as the "safe fallback" when quicksort recursion goes too deep.
+- Decide first whether you need stability (heapsort is not stable) or speed on average (quicksort and merge sort usually beat it, because its memory access jumps around the array and wastes the cache).
+- Neighbouring techniques: top-k with a heap of size `k` avoids sorting everything. Selection sort is the same "find the max" idea done slowly by scanning. Smoothsort is a heapsort variant that is fast on nearly sorted input.
+- A max-heap sorts ascending, a min-heap sorts descending in the in-place form. The simple form with a min-heap sorts ascending.
+- Pitfalls: heap size `n` versus current heap size `end` (use the shrinking size in `siftDown`), a wrong child index (`2i + 1`, `2i + 2` for 0-based positions), starting the build at `n - 1` instead of `n / 2 - 1`, and forgetting to check that the right child exists.
+--cost
+Time O(n log n) in every case. Space O(1) for the in-place form, O(n) for the simple form. Not stable.
+--java
+// simple form: all items into a min-heap (piece u-hpush), then pop them out in order (piece u-hpop)
+static int[] heapSortSimple(int[] a) {
+    MinHeap h = new MinHeap();
+    for (int x : a) h.push(x);
+    int[] out = new int[a.length];
+    for (int i = 0; i < out.length; i++) out[i] = h.pop();
+    return out;
+}
+
+// in place: build a max-heap, then move the largest to the back one by one
+static void siftDown(int[] a, int i, int n) {
+    while (2 * i + 1 < n) {
+        int c = 2 * i + 1;
+        if (c + 1 < n && a[c + 1] > a[c]) c++;           // the bigger child
+        if (a[i] >= a[c]) return;
+        swap(a, i, c);                                   // piece u-swap
+        i = c;
+    }
+}
+static void heapSort(int[] a) {
+    int n = a.length;
+    for (int i = n / 2 - 1; i >= 0; i--) siftDown(a, i, n);      // build the heap
+    for (int end = n - 1; end > 0; end--) {
+        swap(a, 0, end);                                         // the maximum goes to its final place
+        siftDown(a, 0, end);
+    }
+}
+--py
+def heap_sort_simple(a):
+    """Simple form: all items into a min-heap (piece u-hpush), then pop them out in order (piece u-hpop)."""
+    h = []
+    for x in a:
+        heap_push(h, x)
+    return [heap_pop(h) for _ in range(len(a))]
+
+def sift_down(a, i, n):
+    while 2 * i + 1 < n:
+        c = 2 * i + 1
+        if c + 1 < n and a[c + 1] > a[c]:
+            c += 1                                   # the bigger child
+        if a[i] >= a[c]:
+            return
+        swap(a, i, c)                                # piece u-swap
+        i = c
+
+def heap_sort(a):
+    """In place: build a max-heap, then move the largest to the back one by one."""
+    n = len(a)
+    for i in range(n // 2 - 1, -1, -1):
+        sift_down(a, i, n)                           # build the heap
+    for end in range(n - 1, 0, -1):
+        swap(a, 0, end)                              # the maximum goes to its final place
+        sift_down(a, 0, end)
+--cpp
+// simple form: all items into a min-heap (piece u-hpush), then pop them out in order (piece u-hpop)
+vector<int> heapSortSimple(const vector<int>& a) {
+    vector<int> h, out;
+    for (int x : a) heapPush(h, x);
+    while (!h.empty()) out.push_back(heapPop(h));
+    return out;
+}
+
+// in place: build a max-heap, then move the largest to the back one by one
+void siftDown(vector<int>& a, int i, int n) {
+    while (2 * i + 1 < n) {
+        int c = 2 * i + 1;
+        if (c + 1 < n && a[c + 1] > a[c]) c++;           // the bigger child
+        if (a[i] >= a[c]) return;
+        swapAt(a, i, c);                                 // piece u-swap
+        i = c;
+    }
+}
+void heapSort(vector<int>& a) {
+    int n = a.size();
+    for (int i = n / 2 - 1; i >= 0; i--) siftDown(a, i, n);      // build the heap
+    for (int end = n - 1; end > 0; end--) {
+        swapAt(a, 0, end);                                       // the maximum goes to its final place
+        siftDown(a, 0, end);
+    }
+}
+--uses
+u-hpush
+u-hpop
+u-swap
+
+### counting-sort
+--idea
+Counting sort sorts without comparing items. If the values are whole numbers in a small range, say 0 to 99, you do not need to compare anything: just count how many times each value occurs, and then write the values out in order, each repeated as many times as it was counted. A classroom example is sorting exam marks out of 100: tally the marks, then read the tally from 0 to 100.
+Because it only counts and reads, it takes time proportional to the number of items plus the size of the range, which beats the `n log n` limit of comparison sorts when the range is small. The version used inside radix sort is stable: it uses running totals (prefix sums) to tell each item exactly which output position it takes, and fills the output from the back.
+--build
+1. Know the range: all values are integers in `[0, k)`. Make an array `count` of `k` zeros.
+2. Count: for each item `x`, do `count[x]++`.
+3. Prefix sums: turn counts into end positions. For `v` from 1 to `k - 1`, do `count[v] += count[v - 1]`. Now `count[v]` is the number of items that are `<= v`, so the items equal to `v` occupy the output positions just before `count[v]`.
+4. Place, scanning the input from the back to the front: for each item `x`, do `count[x]--` and write `out[count[x]] = x`. Going backwards keeps equal items in their original order, which makes the sort stable.
+5. Copy `out` back into the input if the sort must be in place.
+6. For records with a small integer key, step 4 places the whole record, not just the key. That is how it sorts a list by a key, stably, and why radix sort can use it as a building block.
+7. If the values are not in `[0, k)`, shift by the minimum: use `x - min` as the index and `k = max - min + 1`.
+--think
+- Signal: "values are between 0 and 100" or "n numbers each at most 10^6 with n about 10^6", sorting letters of a string, sorting scores, ages, digits. Also any time you need the count of each value anyway.
+- Decide first whether `k` (the range) is about as big as `n` or smaller. If `k` is much larger than `n` (say values up to 10^9 for 1000 items), the count array wastes time and memory, and a comparison sort is better.
+- Neighbouring techniques: radix sort handles big numbers by running counting sort digit by digit. Bucket sort handles real numbers spread evenly. A hash map of counts works for sparse values, then sort the distinct keys. A frequency table is the same first step.
+- It is not a comparison sort, so the `n log n` bound does not apply. It needs integer keys.
+- Pitfalls: running the placement loop forward (loses stability), forgetting to shift negative values, a count array that is too small (index out of range), and using it when the range is huge.
+--cost
+Time O(n + k). Space O(n + k). Stable (with the backward placement).
+--java
+// sort values in [0, k); stable
+static int[] countingSort(int[] a, int k) {
+    int[] count = new int[k], out = new int[a.length];
+    for (int x : a) count[x]++;
+    for (int v = 1; v < k; v++) count[v] += count[v - 1];     // count[v] = number of items <= v
+    for (int i = a.length - 1; i >= 0; i--)                   // backwards keeps equal items in order
+        out[--count[a[i]]] = a[i];
+    return out;
+}
+--py
+def counting_sort(a, k):
+    """Sort values in [0, k); stable."""
+    count = [0] * k
+    for x in a:
+        count[x] += 1
+    for v in range(1, k):
+        count[v] += count[v - 1]                  # count[v] = number of items <= v
+    out = [0] * len(a)
+    for x in reversed(a):                         # backwards keeps equal items in order
+        count[x] -= 1
+        out[count[x]] = x
+    return out
+--cpp
+// sort values in [0, k); stable
+vector<int> countingSort(const vector<int>& a, int k) {
+    vector<int> count(k, 0), out(a.size());
+    for (int x : a) count[x]++;
+    for (int v = 1; v < k; v++) count[v] += count[v - 1];     // count[v] = number of items <= v
+    for (int i = (int)a.size() - 1; i >= 0; i--)              // backwards keeps equal items in order
+        out[--count[a[i]]] = a[i];
+    return out;
+}
+
+### radix-sort
+--idea
+Radix sort sorts numbers by looking at one digit at a time, starting from the least significant digit (the ones place), then the tens, then the hundreds, and so on. For each digit it runs a stable sort that looks only at that digit. After the last digit pass, the numbers are fully sorted.
+It looks like it should not work, but stability is the secret. When you sort by the tens digit with a stable sort, numbers with the same tens digit stay in the order the ones-digit pass left them, which was already sorted by the ones digit. So each pass keeps all earlier work. It is the method used on punch card machines, and today it sorts fixed-size integers and strings faster than comparison sorts, because each pass is a linear-time counting sort over ten (or 256) possible digit values.
+--build
+1. Find the largest number `mx`. The number of passes is the number of digits in it. Use `digits(mx)` (code piece `u-digits`) and take its length.
+2. For each pass `p` from 0, the digit of `x` is `(x / 10^p) % 10`. Keep `exp = 10^p` and update it by `exp *= 10` after each pass.
+3. In each pass run a stable counting sort on that digit: count the 10 possible digit values, turn the counts into prefix sums, and place the items from the back to the front into an output array at positions given by the counts.
+4. After the pass, use the output as the new order for the next pass.
+5. After the last pass, the array is sorted.
+6. Choosing a bigger base (256 or 65536) means fewer passes with a bigger count array. For 32-bit numbers, base 256 needs only 4 passes.
+7. Invariant: after pass `p`, the numbers are sorted by their last `p + 1` digits. A stable pass on the next digit sorts by that digit and keeps the earlier order among ties, so the numbers become sorted by their last `p + 2` digits.
+8. For negative numbers, add `-min` first, or sort the negatives and non-negatives apart. For strings of equal length, the digits become characters, moving from the last position to the first.
+--think
+- Signal: sorting many integers of limited size (IDs, phone numbers, 32-bit values), or equal-length strings, where `n log n` is too slow or you want linear time. Also suffix array construction by prefix doubling uses it.
+- Decide first the base and the number of digits `d`. The cost is about `d (n + base)`. Pick the base around `n` or a power of two such as 256.
+- Neighbouring techniques: counting sort alone when the whole range is small. A normal comparison sort is simpler and good enough for most inputs. MSD radix sort (most significant digit first) is used for strings of different lengths, with recursion and no need for equal lengths.
+- It needs a stable inner sort. An unstable inner sort ruins the result.
+- Pitfalls: starting with the most significant digit in the LSD version (wrong), an unstable inner pass, `exp` overflow for large ints (use `long`), negative numbers, and not handling 0 (no digits).
+--cost
+Time O(d (n + base)) where `d` is the number of digits. For fixed-size integers that is O(n). Space O(n + base). Stable.
+--java
+// sort non-negative ints, least significant decimal digit first
+static void radixSort(int[] a) {
+    if (a.length == 0) return;
+    int mx = 0;
+    for (int x : a) mx = Math.max(mx, x);
+    if (mx == 0) return;
+    int passes = digits(mx).size();                       // piece u-digits: how many digits the biggest has
+    int[] out = new int[a.length];
+    long exp = 1;
+    for (int p = 0; p < passes; p++, exp *= 10) {
+        int[] count = new int[10];
+        for (int x : a) count[(int) (x / exp % 10)]++;
+        for (int d = 1; d < 10; d++) count[d] += count[d - 1];
+        for (int i = a.length - 1; i >= 0; i--)           // stable placement from the back
+            out[--count[(int) (a[i] / exp % 10)]] = a[i];
+        System.arraycopy(out, 0, a, 0, a.length);
+    }
+}
+--py
+def radix_sort(a):
+    """Sort non-negative ints, least significant decimal digit first."""
+    if not a or max(a) == 0:
+        return
+    passes = len(digits(max(a)))                          # piece u-digits: how many digits the biggest has
+    exp = 1
+    for _ in range(passes):
+        count = [0] * 10
+        for x in a:
+            count[x // exp % 10] += 1
+        for d in range(1, 10):
+            count[d] += count[d - 1]
+        out = [0] * len(a)
+        for x in reversed(a):                             # stable placement from the back
+            count[x // exp % 10] -= 1
+            out[count[x // exp % 10]] = x
+        a[:] = out
+        exp *= 10
+--cpp
+// sort non-negative ints, least significant decimal digit first
+void radixSort(vector<int>& a) {
+    if (a.empty()) return;
+    int mx = *max_element(a.begin(), a.end());
+    if (mx == 0) return;
+    int passes = digits(mx).size();                       // piece u-digits: how many digits the biggest has
+    vector<int> out(a.size());
+    long long exp = 1;
+    for (int p = 0; p < passes; p++, exp *= 10) {
+        int count[10] = {0};
+        for (int x : a) count[x / exp % 10]++;
+        for (int d = 1; d < 10; d++) count[d] += count[d - 1];
+        for (int i = (int)a.size() - 1; i >= 0; i--)      // stable placement from the back
+            out[--count[a[i] / exp % 10]] = a[i];
+        a = out;
+    }
+}
+--uses
+u-digits
+
+### bucket-sort
+--idea
+Bucket sort handles numbers that are spread fairly evenly over a known range. Make a number of empty buckets, each covering an equal slice of the range, drop every number into the bucket for its slice, sort each bucket (they are tiny), and read the buckets out from first to last. It is like sorting a pile of letters into pigeonholes by the first letter of the surname, then sorting inside each hole.
+If the numbers are spread evenly and you use about `n` buckets, each bucket holds a few items on average, so sorting all buckets costs only about `n` steps in total, and the whole sort is linear. If everything lands in one bucket, you are back to the cost of the inner sort, so the method depends on the spread.
+--build
+1. Know the smallest value `lo` and the largest value `hi` (scan the input once). Choose the number of buckets `k`, usually `n`.
+2. The range has `hi - lo + 1` possible values. The bucket of `x` is `(x - lo) * k / (hi - lo + 1)`, rounded down. Keep it inside `[0, k - 1]` with `clamp` (code piece `u-minmax`), as a guard against rounding at the edges.
+3. Make `k` empty lists. Append each item to its bucket's list. Do this with `long` arithmetic, since `(x - lo) * k` can overflow an `int`.
+4. Sort every bucket with insertion sort or the library sort. Items in one bucket are close in value, so it is a small job.
+5. Concatenate the buckets in order from bucket 0 to `k - 1`. Items in lower buckets are all smaller than items in higher buckets, so the result is sorted.
+6. For real numbers in `[0, 1)`, the bucket of `x` is `floor(x * k)`.
+7. Invariant: every item of bucket `b` is smaller than every item of bucket `b + 1`, because the bucket index is a non-decreasing function of the value.
+--think
+- Signal: "numbers uniformly distributed in a range", sorting percentages, random floating point numbers in `[0, 1)`, data with a known bounded range, or when you want linear time on well-spread data.
+- Decide first whether the data is spread evenly. If it is clustered (most values in a narrow band), buckets become unbalanced. Then use a comparison sort, or choose buckets from quantiles of a sample.
+- Neighbouring techniques: counting sort is the special case with one bucket per integer value and no inner sort. Radix sort is repeated bucketing by digits. Merge sort and quicksort do not care about the spread.
+- It is stable if the inner sort is stable and you append in input order.
+- Pitfalls: a bucket index that is out of range when `x == hi` (clamp it or use `hi - lo + 1`), integer overflow in `(x - lo) * k`, too few buckets (long chains), and very uneven data.
+--cost
+Average O(n + k) when the data is spread evenly. Worst case O(n^2) with a quadratic inner sort (O(n log n) with a good one) when all items fall into one bucket. Space O(n + k).
+--java
+static void bucketSort(int[] a) {
+    int n = a.length;
+    if (n <= 1) return;
+    int lo = a[0], hi = a[0];
+    for (int x : a) { lo = Math.min(lo, x); hi = Math.max(hi, x); }
+    int k = n;                                                       // about one item per bucket
+    java.util.List<Integer>[] buckets = new java.util.List[k];
+    for (int b = 0; b < k; b++) buckets[b] = new java.util.ArrayList<>();
+    for (int x : a) {
+        int b = clamp((int) ((long) (x - lo) * k / ((long) hi - lo + 1)), 0, k - 1);   // piece u-minmax
+        buckets[b].add(x);
+    }
+    int i = 0;
+    for (java.util.List<Integer> bucket : buckets) {
+        java.util.Collections.sort(bucket);                          // each bucket is small
+        for (int x : bucket) a[i++] = x;
+    }
+}
+--py
+def bucket_sort(a):
+    n = len(a)
+    if n <= 1:
+        return
+    lo, hi = min(a), max(a)
+    k = n                                                            # about one item per bucket
+    buckets = [[] for _ in range(k)]
+    for x in a:
+        b = clamp((x - lo) * k // (hi - lo + 1), 0, k - 1)           # piece u-minmax
+        buckets[b].append(x)
+    i = 0
+    for bucket in buckets:
+        for x in sorted(bucket):                                     # each bucket is small
+            a[i] = x
+            i += 1
+--cpp
+void bucketSort(vector<int>& a) {
+    int n = a.size();
+    if (n <= 1) return;
+    int lo = *min_element(a.begin(), a.end()), hi = *max_element(a.begin(), a.end());
+    int k = n;                                                       // about one item per bucket
+    vector<vector<int>> buckets(k);
+    for (int x : a) {
+        int b = clamp((int)((long long)(x - lo) * k / ((long long)hi - lo + 1)), 0, k - 1);   // piece u-minmax
+        buckets[b].push_back(x);
+    }
+    int i = 0;
+    for (auto& bucket : buckets) {
+        sort(bucket.begin(), bucket.end());                          // each bucket is small
+        for (int x : bucket) a[i++] = x;
+    }
+}
+--uses
+u-minmax
+
+### shell
+--idea
+Shell sort is insertion sort with a head start. Plain insertion sort is slow because an item far from its home moves only one step at a time. Shell sort first compares and swaps items that are far apart (a big gap), which moves them quickly toward their place. Then it repeats with a smaller gap, and finishes with gap 1, which is ordinary insertion sort, but on a list that is already nearly sorted, where insertion sort is fast.
+Think of sorting a bookshelf: first you swap books that are 100 places apart to bring the very misplaced ones near their spots, then 30 apart, then 10, then 1. Each stage leaves the shelf "almost sorted", and an almost sorted shelf is cheap to finish.
+--build
+1. Choose a decreasing list of gaps that ends in 1. A simple choice is Knuth's: `h = 1, 4, 13, 40, ...` (`h = 3h + 1`). Start from the largest `h` below `n / 3`, then step down with `h = h / 3` until `h` is 0.
+2. For one gap `h`: for `i` from `h` to `n - 1`, slide `a[i]` left in steps of `h` while the item `h` places to its left is bigger. That is: `j = i`, and while `j >= h` and `a[j - h] > a[j]`, do `swap(a, j - h, j)` (code piece `u-swap`) and `j -= h`.
+3. After the pass for gap `h`, the list is "`h`-sorted": the items `a[0], a[h], a[2h], ...` are in order, and so are the items of every other offset.
+4. A key fact: an `h`-sorted list stays `h`-sorted after you sort it with a smaller gap. So later passes do not undo earlier work, and each pass has less to do.
+5. The last pass with `h = 1` is plain insertion sort, and it guarantees the result is fully sorted.
+6. Invariant: after finishing gap `h`, every chain `a[r], a[r + h], a[r + 2h], ...` is sorted.
+--think
+- Signal: a small to medium array where you want a short, in-place, non-recursive sort that is much faster than insertion sort. It is also a classic in embedded code, where simplicity and no extra memory matter.
+- Decide first the gap sequence, since it sets the speed. Halving the gap (`n/2, n/4, ..., 1`) is simple but can be quadratic. Knuth's `3h + 1` gives about `n^1.5`. Ciura's measured gaps `1, 4, 10, 23, 57, 132, 301, 701` are best in practice.
+- Neighbouring techniques: insertion sort is the gap-1 case. Comb sort does the same idea with bubble sort. For `n log n` guarantees use merge, heap or quick sort.
+- It is not stable: swapping items far apart can jump over an equal item.
+- The exact running time depends on the gaps and is still studied by researchers. For Knuth's gaps it is `O(n^1.5)` in the worst case.
+- Pitfalls: a gap sequence that does not end at 1 (the result is not sorted), swapping with `j - 1` instead of `j - h`, and halving gaps that are all even (items at even and odd positions never meet until gap 1).
+--cost
+Depends on the gaps: O(n^1.5) with Knuth's, about O(n^(4/3)) with better ones, O(n^2) worst case with halving. Space O(1). Not stable.
+--java
+static void shellSort(int[] a) {
+    int n = a.length, h = 1;
+    while (h < n / 3) h = 3 * h + 1;               // largest Knuth gap below n / 3
+    for (; h >= 1; h /= 3)
+        for (int i = h; i < n; i++)
+            for (int j = i; j >= h && a[j - h] > a[j]; j -= h)
+                swap(a, j - h, j);                 // piece u-swap: insertion sort with step h
+}
+--py
+def shell_sort(a):
+    n, h = len(a), 1
+    while h < n // 3:
+        h = 3 * h + 1                              # largest Knuth gap below n / 3
+    while h >= 1:
+        for i in range(h, n):
+            j = i
+            while j >= h and a[j - h] > a[j]:
+                swap(a, j - h, j)                  # piece u-swap: insertion sort with step h
+                j -= h
+        h //= 3
+--cpp
+void shellSort(vector<int>& a) {
+    int n = a.size(), h = 1;
+    while (h < n / 3) h = 3 * h + 1;               // largest Knuth gap below n / 3
+    for (; h >= 1; h /= 3)
+        for (int i = h; i < n; i++)
+            for (int j = i; j >= h && a[j - h] > a[j]; j -= h)
+                swapAt(a, j - h, j);               // piece u-swap: insertion sort with step h
+}
+--uses
+u-swap
+
+### quickselect
+--idea
+Quickselect finds the `k`-th smallest item of an unsorted list without sorting the whole list. It uses quicksort's partition step: pick a pivot, put smaller items on its left and larger on its right. The pivot is now in its final sorted position `p`. If `p` is the position you want, you are done. If `k` is smaller than `p`, the answer is on the left, and if larger, it is on the right. Unlike quicksort, you only follow one side.
+Since you throw away the other side each time, the work forms a shrinking series: about `n + n/2 + n/4 + ...` which is `2n`. So on average it is linear, much cheaper than the `n log n` of a full sort. It is the standard way to find a median or the top `k` items.
+--build
+1. Work on the range `lo .. hi` of the array, starting with the whole array. `k` is the 0-based rank you want (0 is the smallest).
+2. Pick a random pivot position `r = randInt(lo, hi)` (code piece `u-rand`) and move it to the end with `swap(a, r, hi)` (code piece `u-swap`).
+3. Partition with `p = partition(a, lo, hi)` (code piece `u-part`). The pivot is now at `p`, smaller items are before it, and the others after it.
+4. If `p == k`, return `a[p]`. If `k < p`, set `hi = p - 1`. If `k > p`, set `lo = p + 1`. Repeat from step 2 with the smaller range.
+5. The loop ends because each round removes at least the pivot from the range, and when the range has one item, that item is the answer.
+6. Many equal items slow the two-way partition down, so use the three-way version: split into `< pivot`, `== pivot`, `> pivot`. If `k` falls in the equal block, the answer is the pivot value. Otherwise continue on the side that holds `k`.
+7. Invariant: the `k`-th smallest of the whole array always lies within `a[lo .. hi]`, since everything outside is known to be smaller than all of it (left) or larger (right).
+--think
+- Signal: "k-th smallest or largest", "the median", "top `k` elements in any order", "the smallest `k` items summed". If the output does not need order, selection beats sorting.
+- Decide first whether you need the item, or the whole set of the `k` smallest in no particular order (after quickselect, the first `k` positions hold the `k` smallest). If you need them sorted, sort those `k` afterwards.
+- Neighbouring techniques: a heap of size `k` handles a stream and needs `O(n log k)`. A full sort is `O(n log n)` and simplest. Median of medians gives a guaranteed `O(n)` quickselect with a longer proof and bigger constants. A counting approach works if values are small.
+- The k-th largest of `n` items is the `(n - k)`-th smallest (0-based), so convert and reuse.
+- It reorders the array. If you need the original order, work on a copy.
+- Pitfalls: mixing 0-based and 1-based `k`, an unlucky pivot on sorted input (use a random one), many duplicates with the two-way partition, and forgetting that the input array is modified.
+--cost
+Average O(n). Worst case O(n^2) (extremely unlikely with a random pivot). Space O(1) for the loop form. Reorders the input.
+--java
+// k-th smallest (k from 0) of a; reorders a
+static int quickSelect(int[] a, int k) {
+    int lo = 0, hi = a.length - 1;
+    while (lo < hi) {
+        swap(a, randInt(lo, hi), hi);              // piece u-rand picks the pivot, piece u-swap moves it to the end
+        int p = partition(a, lo, hi);              // piece u-part: the pivot lands at index p
+        if (p == k) return a[p];
+        if (k < p) hi = p - 1; else lo = p + 1;    // keep only the side that holds k
+    }
+    return a[lo];
+}
+
+// same with three-way partitioning: safe when there are many equal items
+static int quickSelect3(int[] a, int k) {
+    int lo = 0, hi = a.length - 1;
+    while (lo < hi) {
+        int pivot = a[randInt(lo, hi)];
+        int lt = lo, i = lo, gt = hi;
+        while (i <= gt) {
+            if (a[i] < pivot) swap(a, lt++, i++);
+            else if (a[i] > pivot) swap(a, i, gt--);
+            else i++;
+        }
+        if (k < lt) hi = lt - 1;                   // k is among the smaller items
+        else if (k > gt) lo = gt + 1;              // k is among the larger items
+        else return pivot;                         // k is in the block equal to the pivot
+    }
+    return a[lo];
+}
+--py
+def quick_select(a, k):
+    """k-th smallest (k from 0) of a; reorders a."""
+    lo, hi = 0, len(a) - 1
+    while lo < hi:
+        swap(a, rand_int(lo, hi), hi)              # piece u-rand picks the pivot, piece u-swap moves it to the end
+        p = partition(a, lo, hi)                   # piece u-part: the pivot lands at index p
+        if p == k: return a[p]
+        if k < p: hi = p - 1                       # keep only the side that holds k
+        else: lo = p + 1
+    return a[lo]
+
+def quick_select3(a, k):
+    """Same with three-way partitioning: safe when there are many equal items."""
+    lo, hi = 0, len(a) - 1
+    while lo < hi:
+        pivot = a[rand_int(lo, hi)]
+        lt, i, gt = lo, lo, hi
+        while i <= gt:
+            if a[i] < pivot:
+                swap(a, lt, i); lt += 1; i += 1
+            elif a[i] > pivot:
+                swap(a, i, gt); gt -= 1
+            else:
+                i += 1
+        if k < lt: hi = lt - 1                     # k is among the smaller items
+        elif k > gt: lo = gt + 1                   # k is among the larger items
+        else: return pivot                         # k is in the block equal to the pivot
+    return a[lo]
+--cpp
+// k-th smallest (k from 0) of a; reorders a
+int quickSelect(vector<int>& a, int k) {
+    int lo = 0, hi = a.size() - 1;
+    while (lo < hi) {
+        swapAt(a, randInt(lo, hi), hi);            // piece u-rand picks the pivot, piece u-swap moves it to the end
+        int p = partitionRange(a, lo, hi);         // piece u-part: the pivot lands at index p
+        if (p == k) return a[p];
+        if (k < p) hi = p - 1; else lo = p + 1;    // keep only the side that holds k
+    }
+    return a[lo];
+}
+
+// same with three-way partitioning: safe when there are many equal items
+int quickSelect3(vector<int>& a, int k) {
+    int lo = 0, hi = a.size() - 1;
+    while (lo < hi) {
+        int pivot = a[randInt(lo, hi)];
+        int lt = lo, i = lo, gt = hi;
+        while (i <= gt) {
+            if (a[i] < pivot) swapAt(a, lt++, i++);
+            else if (a[i] > pivot) swapAt(a, i, gt--);
+            else i++;
+        }
+        if (k < lt) hi = lt - 1;                   // k is among the smaller items
+        else if (k > gt) lo = gt + 1;              // k is among the larger items
+        else return pivot;                         // k is in the block equal to the pivot
+    }
+    return a[lo];
+}
+--uses
+u-part
+u-swap
+u-rand
+
+### inversions
+--idea
+An inversion is a pair of items that are in the wrong order: a bigger item sits somewhere to the left of a smaller one. The list `3 1 2` has two inversions: `(3, 1)` and `(3, 2)`. The count of inversions measures how far a list is from sorted: zero means sorted, and `n (n - 1) / 2` means exactly reversed. It is also the number of adjacent swaps bubble sort would make, and the number of pairs of people who rank two movies in opposite orders.
+Counting by checking all pairs takes `n^2` steps. The trick is to count while merge sorting. When you merge two sorted halves, every time you take an item from the right half, it jumps over all the items still waiting in the left half. Each of those is a bigger item on its left, so each is an inversion. Adding that number up over all merges counts every inversion exactly once, at no extra asymptotic cost.
+--build
+1. Recursive function `countInv(a, tmp, lo, hi)` works on the half-open range `[lo, hi)`. It sorts that range and returns the number of inversions inside it. A range with 0 or 1 items has none.
+2. Split at `mid = (lo + hi) / 2`. Count inversions inside the left half and inside the right half by two recursive calls. After they return, both halves are sorted.
+3. Count and merge the cross pairs, those with one item in each half. Walk `i` through the left half and `j` through the right half, writing the merged result into `tmp`.
+4. If `a[i] <= a[j]`, take the left item. No inversion (equal items are not inverted, so `<=`).
+5. Otherwise take `a[j]` from the right. Every item in the left half from `i` to the end is bigger than `a[j]` and to its left, so add `mid - i` to the count.
+6. When one half is empty, copy the rest of the other (no more inversions to count). Copy `tmp` back into `a[lo, hi)`.
+7. The answer is the left count plus the right count plus the cross count. Use a `long`: for `n = 10^6` there can be about `5 x 10^11` inversions.
+8. Invariant: at the start of each merge both halves are sorted, so for each right item `a[j]`, the left items bigger than it are exactly a suffix of the left half, whose size is `mid - i`.
+--think
+- Signal: "number of pairs `(i, j)` with `i < j` and `a[i] > a[j]`", "minimum adjacent swaps to sort", "how different are two rankings", "count pairs out of order". Also the shape "count pairs across two halves" for other conditions (such as `a[i] > 2 a[j]`).
+- Decide first whether you need only the count (merge sort) or also positions. For adjusting the condition (`a[i] > 2 a[j]`), count the cross pairs with a separate two-pointer pass over the two sorted halves, before the merge.
+- Neighbouring techniques: a Fenwick tree counts inversions in `O(n log n)` too: go left to right, count earlier items larger than the current one, then add it. It needs values compressed to ranks. A balanced tree with sizes works as well. The merge sort route needs no extra structure.
+- Equal items are not inversions. Be careful that your tie rule matches (strict `>` for a pair to count).
+- Pitfalls: counting with `int` and overflowing, using `<` in the merge test (counts equal pairs as inversions), forgetting to copy the merged range back, and counting `mid - i + 1` (off by one) or `hi - j`.
+--cost
+Time O(n log n). Space O(n) for the temporary array.
+--java
+static long countInversions(int[] a) {
+    int[] copy = a.clone();                                  // keep the caller's array unchanged
+    return countInv(copy, new int[a.length], 0, a.length);
+}
+
+static long countInv(int[] a, int[] tmp, int lo, int hi) {   // sorts a[lo, hi), returns its inversions
+    if (hi - lo < 2) return 0;
+    int mid = (lo + hi) / 2;
+    long inv = countInv(a, tmp, lo, mid) + countInv(a, tmp, mid, hi);
+    int i = lo, j = mid, k = lo;
+    while (i < mid && j < hi) {
+        if (a[i] <= a[j]) tmp[k++] = a[i++];
+        else { tmp[k++] = a[j++]; inv += mid - i; }          // a[j] jumps over everything left in the left half
+    }
+    while (i < mid) tmp[k++] = a[i++];
+    while (j < hi) tmp[k++] = a[j++];
+    System.arraycopy(tmp, lo, a, lo, hi - lo);
+    return inv;
+}
+--py
+def count_inversions(a):
+    """Number of pairs i < j with a[i] > a[j]. The input list is not changed."""
+    work = list(a)
+    tmp = [0] * len(a)
+
+    def go(lo, hi):                                      # sorts work[lo:hi], returns its inversions
+        if hi - lo < 2: return 0
+        mid = (lo + hi) // 2
+        inv = go(lo, mid) + go(mid, hi)
+        i, j, k = lo, mid, lo
+        while i < mid and j < hi:
+            if work[i] <= work[j]:
+                tmp[k] = work[i]; i += 1
+            else:
+                tmp[k] = work[j]; j += 1
+                inv += mid - i                           # work[j] jumps over everything left in the left half
+            k += 1
+        while i < mid: tmp[k] = work[i]; i += 1; k += 1
+        while j < hi: tmp[k] = work[j]; j += 1; k += 1
+        work[lo:hi] = tmp[lo:hi]
+        return inv
+
+    return go(0, len(a))
+--cpp
+long long countInv(vector<int>& a, vector<int>& tmp, int lo, int hi) {   // sorts a[lo, hi), returns its inversions
+    if (hi - lo < 2) return 0;
+    int mid = (lo + hi) / 2;
+    long long inv = countInv(a, tmp, lo, mid) + countInv(a, tmp, mid, hi);
+    int i = lo, j = mid, k = lo;
+    while (i < mid && j < hi) {
+        if (a[i] <= a[j]) tmp[k++] = a[i++];
+        else { tmp[k++] = a[j++]; inv += mid - i; }                      // a[j] jumps over everything left in the left half
+    }
+    while (i < mid) tmp[k++] = a[i++];
+    while (j < hi) tmp[k++] = a[j++];
+    copy(tmp.begin() + lo, tmp.begin() + hi, a.begin() + lo);
+    return inv;
+}
+
+long long countInversions(vector<int> a) {                               // a is a copy, the caller's list is unchanged
+    vector<int> tmp(a.size());
+    return countInv(a, tmp, 0, a.size());
+}
+
+### cycle-sort
+--idea
+Cycle sort is a sorting method built to make the fewest possible writes to the array. Each item is written straight to its final position at most once. It is useful only in the odd case where writing is very expensive (such as some flash memory that wears out with every write), since its comparisons are quadratic.
+The idea is that the final position of an item can be found by counting how many items are smaller than it. Take the item at the start of a cycle, count the smaller items to find its home, and put it there. That displaces another item, which now must go to its own home, displacing a third, and so on, until the displaced item is one that belongs at the starting place. The chain of displacements is a cycle. Following every cycle puts each item at home with one write.
+--build
+1. For each `start` from 0 to `n - 2`: the item `a[start]` is the one we try to send home.
+2. Find its home: `pos = start + (the number of items among a[start + 1 .. n - 1] that are smaller than a[start])`. Items before `start` are already in their final places and are not considered.
+3. If `pos == start`, the item is already home: this position is finished, go to the next `start`.
+4. Skip duplicates: while `a[pos] == a[start]`, do `pos++`. Equal items must not be placed on top of each other.
+5. Place the item with `swap(a, start, pos)` (code piece `u-swap`). The item goes to `pos`, which is its final place, and the displaced item comes to `start`.
+6. Go back to step 2 for the new `a[start]`, and repeat until the item at `start` is home (`pos == start`). Then move on to the next `start`.
+7. Each swap puts one item into its final position for good, so the number of swaps is at most `n - 1`. In this swap form each swap writes two cells. The textbook version holds the item in a variable and writes only one cell per move.
+8. Invariant: positions before `start` hold their final values, and every swap places one more item in its final position.
+--think
+- Signal: the problem states "minimise the number of writes", or "minimum swaps to sort an array" (the answer is `n` minus the number of cycles of the permutation, which is the same cycle structure).
+- Decide first whether writes really cost more than comparisons. If not, use a normal `n log n` sort.
+- Neighbouring techniques: selection sort also does at most `n - 1` swaps, but cycle sort does the minimum possible number of writes (each item written only when it has to move). The minimum swaps to sort a permutation is `n - cycles`, and it is found by following `i -> a[i]` cycles in `O(n)`.
+- Not stable: items jump over equal ones.
+- Pitfalls: forgetting the duplicate skip (infinite loop or wrong result with equal items), counting smaller items among all positions instead of only after `start`, and assuming it is fast (it is `n^2` comparisons).
+--cost
+Time O(n^2) comparisons. At most `n - 1` swaps, each placing one item in its final position. Space O(1). Not stable.
+--java
+static int cycleSort(int[] a) {                      // returns the number of swaps made
+    int swaps = 0;
+    for (int start = 0; start < a.length - 1; start++) {
+        while (true) {
+            int pos = start;
+            for (int i = start + 1; i < a.length; i++)
+                if (a[i] < a[start]) pos++;          // count the smaller items: that gives the home of a[start]
+            if (pos == start) break;                 // already home
+            while (a[pos] == a[start]) pos++;        // skip equal items already placed
+            swap(a, start, pos);                     // piece u-swap: a[start] goes home
+            swaps++;
+        }
+    }
+    return swaps;
+}
+--py
+def cycle_sort(a):
+    """Returns the number of swaps made."""
+    swaps = 0
+    for start in range(len(a) - 1):
+        while True:
+            pos = start
+            for i in range(start + 1, len(a)):
+                if a[i] < a[start]:
+                    pos += 1                         # count the smaller items: that gives the home of a[start]
+            if pos == start:
+                break                                # already home
+            while a[pos] == a[start]:
+                pos += 1                             # skip equal items already placed
+            swap(a, start, pos)                      # piece u-swap: a[start] goes home
+            swaps += 1
+    return swaps
+--cpp
+int cycleSort(vector<int>& a) {                      // returns the number of swaps made
+    int swaps = 0, n = a.size();
+    for (int start = 0; start < n - 1; start++) {
+        while (true) {
+            int pos = start;
+            for (int i = start + 1; i < n; i++)
+                if (a[i] < a[start]) pos++;          // count the smaller items: that gives the home of a[start]
+            if (pos == start) break;                 // already home
+            while (a[pos] == a[start]) pos++;        // skip equal items already placed
+            swapAt(a, start, pos);                   // piece u-swap: a[start] goes home
+            swaps++;
+        }
+    }
+    return swaps;
+}
+--uses
+u-swap
+
+### tim
+--idea
+Timsort is the sorting method inside Python (`sorted`, `list.sort`), Java (`Arrays.sort` for objects), and many other systems. It is a merge sort that first looks for stretches of the data that are already in order (called runs) and uses them instead of splitting blindly. Real data is rarely random: logs are mostly in time order, a list with a few new items appended is almost sorted. Timsort takes advantage of that and can sort already ordered data in a single pass, while still guaranteeing `n log n` in the worst case.
+The method has three parts. Find natural runs, turning descending runs around. Extend each short run to a minimum length by insertion sort, which is fast on small pieces. Then merge neighbouring runs, following rules on run lengths that keep the merges balanced (so a big run is not merged with a tiny one over and over). This lesson builds the core (it leaves out the speed-up called galloping mode).
+--build
+1. Choose `minrun` (real Timsort picks a value between 32 and 64 from `n`). Keep a stack `runs` of `(start, length)` pairs for the runs found so far.
+2. Find a run starting at `i`. Look at `a[i + 1]`. If it is strictly smaller than `a[i]`, the run is strictly descending: extend while each item is strictly smaller than the previous, then reverse that part in place. (Strictness keeps the sort stable.) Otherwise the run is non-descending: extend while each item is at least the previous one.
+3. If the run is shorter than `minrun`, extend it to `min(minrun, items left)` items, then repair the order with an insertion sort on `a[i .. end)`. Insertion sort uses `swap` (code piece `u-swap`), and the already sorted start of the range makes it cheap.
+4. Push the run on the stack, then restore the stack rules by merging, as long as a rule is broken. With the top three run lengths `X, Y, Z` (Z on top): need `X > Y + Z` and `Y > Z`. If `Y <= Z` or `X <= Y + Z`, merge `Y` with the smaller of its neighbours `X` and `Z`.
+5. Merging two adjacent runs `a[s .. m)` and `a[m .. e)` is `merge` (code piece `u-merge`), and the result is written back into `a[s .. e)`. The merged pair becomes one run on the stack.
+6. When all of the input is turned into runs, merge the stack from the top down until one run, which is the whole sorted array.
+7. Invariant: the runs on the stack are each sorted, they cover the input from the left up to `i`, and their lengths grow fast enough from the top to the bottom that merging two of similar size always makes sense.
+--think
+- Signal: you will rarely write it. But understand it when "sort the data that is almost sorted", "stable `n log n` sort with a good best case", or "why is Python sort so fast on real data" comes up. In an interview, the key points are runs, minrun with insertion sort, and the merge rules.
+- Decide first whether to just call the library sort. Almost always yes: it is tuned, stable, and handles runs.
+- Neighbouring techniques: plain merge sort ignores existing order. Introsort (C++ `std::sort`) is faster on random primitives but not stable. Natural merge sort is Timsort without the minimum run and without the stack rules.
+- The stack rules are what keep the total work at `O(n log n)`: they ensure that run lengths on the stack decrease at least like Fibonacci numbers, so the stack height is `O(log n)` and merges are balanced.
+- Reversing strictly descending runs (not non-increasing) matters: reversing a run with equal items would put equal items in the opposite order, breaking stability.
+- Pitfalls: reversing a non-strict descending run (breaks stability), forgetting to merge the leftovers at the end, off-by-one in the run end, and letting the stack rules drift (the worst case then gets worse).
+--cost
+Best case O(n) (one run). Worst and average O(n log n). Extra space up to O(n) for merging. Stable.
+--java
+static void timSort(int[] a, int minrun) {                 // real code uses a minrun of 32 to 64
+    int n = a.length;
+    int[] start = new int[n + 1], len = new int[n + 1];    // the run stack
+    int top = 0, i = 0;
+    while (i < n) {
+        int j = i + 1;
+        if (j < n && a[j] < a[i]) {                        // strictly descending run: turn it around
+            while (j < n && a[j] < a[j - 1]) j++;
+            for (int l = i, r = j - 1; l < r; l++, r--) swap(a, l, r);       // piece u-swap
+        } else {
+            while (j < n && a[j] >= a[j - 1]) j++;         // non-descending run
+        }
+        if (j - i < minrun) {                              // short run: extend and repair with insertion sort
+            int end = Math.min(n, i + minrun);
+            for (int p = j; p < end; p++)
+                for (int q = p; q > i && a[q - 1] > a[q]; q--) swap(a, q - 1, q);
+            j = end;
+        }
+        start[top] = i; len[top++] = j - i; i = j;
+        while (top > 1) {                                  // restore the stack rules by merging
+            int t = top - 2;
+            if (t > 0 && len[t - 1] <= len[t] + len[t + 1]) { if (len[t - 1] < len[t + 1]) t--; }
+            else if (len[t] > len[t + 1]) break;
+            mergeAt(a, start, len, t);
+            for (int m = t + 1; m < top - 1; m++) { start[m] = start[m + 1]; len[m] = len[m + 1]; }
+            top--;
+        }
+    }
+    while (top > 1) {                                      // merge what is left, from the top down
+        mergeAt(a, start, len, top - 2);
+        top--;
+    }
+}
+
+static void mergeAt(int[] a, int[] start, int[] len, int t) {     // merge run t and run t + 1
+    int s = start[t], m = start[t + 1], e = m + len[t + 1];
+    int[] merged = merge(java.util.Arrays.copyOfRange(a, s, m), java.util.Arrays.copyOfRange(a, m, e));   // piece u-merge
+    System.arraycopy(merged, 0, a, s, merged.length);
+    len[t] += len[t + 1];
+}
+--py
+def tim_sort(a, minrun=32):
+    """real code uses a minrun of 32 to 64"""
+    n, runs, i = len(a), [], 0                      # runs is the stack of [start, length]
+
+    def merge_at(t):                                # merge run t and run t + 1
+        s, m = runs[t][0], runs[t + 1][0]
+        e = m + runs[t + 1][1]
+        a[s:e] = merge(a[s:m], a[m:e])              # piece u-merge
+        runs[t][1] += runs[t + 1][1]
+        del runs[t + 1]
+
+    while i < n:
+        j = i + 1
+        if j < n and a[j] < a[i]:                   # strictly descending run: turn it around
+            while j < n and a[j] < a[j - 1]:
+                j += 1
+            l, r = i, j - 1
+            while l < r:
+                swap(a, l, r); l += 1; r -= 1       # piece u-swap
+        else:
+            while j < n and a[j] >= a[j - 1]:
+                j += 1                              # non-descending run
+        if j - i < minrun:                          # short run: extend and repair with insertion sort
+            end = min(n, i + minrun)
+            for p in range(j, end):
+                q = p
+                while q > i and a[q - 1] > a[q]:
+                    swap(a, q - 1, q); q -= 1
+            j = end
+        runs.append([i, j - i]); i = j
+        while len(runs) > 1:                        # restore the stack rules by merging
+            t = len(runs) - 2
+            if t > 0 and runs[t - 1][1] <= runs[t][1] + runs[t + 1][1]:
+                if runs[t - 1][1] < runs[t + 1][1]: t -= 1
+            elif runs[t][1] > runs[t + 1][1]:
+                break
+            merge_at(t)
+    while len(runs) > 1:                            # merge what is left, from the top down
+        merge_at(len(runs) - 2)
+--cpp
+static void mergeAt(vector<int>& a, vector<array<int, 2>>& runs, int t) {     // merge run t and run t + 1
+    int s = runs[t][0], m = runs[t + 1][0], e = m + runs[t + 1][1];
+    vector<int> merged = mergeSorted(vector<int>(a.begin() + s, a.begin() + m), vector<int>(a.begin() + m, a.begin() + e));   // piece u-merge
+    copy(merged.begin(), merged.end(), a.begin() + s);
+    runs[t][1] += runs[t + 1][1];
+    runs.erase(runs.begin() + t + 1);
+}
+
+void timSort(vector<int>& a, int minrun = 32) {            // real code uses a minrun of 32 to 64
+    int n = a.size(), i = 0;
+    vector<array<int, 2>> runs;                            // the run stack: {start, length}
+    while (i < n) {
+        int j = i + 1;
+        if (j < n && a[j] < a[i]) {                        // strictly descending run: turn it around
+            while (j < n && a[j] < a[j - 1]) j++;
+            for (int l = i, r = j - 1; l < r; l++, r--) swapAt(a, l, r);   // piece u-swap
+        } else {
+            while (j < n && a[j] >= a[j - 1]) j++;         // non-descending run
+        }
+        if (j - i < minrun) {                              // short run: extend and repair with insertion sort
+            int end = min(n, i + minrun);
+            for (int p = j; p < end; p++)
+                for (int q = p; q > i && a[q - 1] > a[q]; q--) swapAt(a, q - 1, q);
+            j = end;
+        }
+        runs.push_back({i, j - i}); i = j;
+        while (runs.size() > 1) {                          // restore the stack rules by merging
+            int t = runs.size() - 2;
+            if (t > 0 && runs[t - 1][1] <= runs[t][1] + runs[t + 1][1]) { if (runs[t - 1][1] < runs[t + 1][1]) t--; }
+            else if (runs[t][1] > runs[t + 1][1]) break;
+            mergeAt(a, runs, t);
+        }
+    }
+    while (runs.size() > 1) mergeAt(a, runs, runs.size() - 2);   // merge what is left, from the top down
+}
+--uses
+u-merge
+u-swap
+
+### intro
+--idea
+Introsort (introspective sort) is quicksort that watches itself. It starts as ordinary quicksort, which is fast on nearly all inputs. It keeps track of how deep the recursion has gone, and if the depth passes a limit of about `2 log2 n` (a sign that the pivots are turning out badly), it gives up on quicksort for that part and switches to heapsort, whose speed is guaranteed. Small pieces at the bottom are finished with insertion sort, which is quick on tiny arrays.
+The result keeps quicksort's speed on typical data and adds a worst case of `n log n`, so no input can force it into quadratic time. This is how C++ `std::sort` is usually implemented, and it is the answer to "what would you use for an in-place sort that is fast and never goes quadratic".
+--build
+1. Compute the depth limit `depth = 2 * floorLog2(n)` (code piece `u-log2`). This is about twice the depth of a perfectly balanced quicksort.
+2. `sortRange(a, lo, hi, depth)` works on `a[lo .. hi]`. While the range holds more than 16 items, do the rounds below. When it holds 16 or fewer, stop and finish it with insertion sort (which uses `swap`, code piece `u-swap`).
+3. If `depth == 0`, the recursion has gone too deep: sort this range with heapsort (build a max-heap inside the range, then move the maximum to the back repeatedly, as in the heapsort lesson) and return.
+4. Otherwise decrease `depth`. Choose the middle item as the pivot, move it to the end with `swap(a, mid, hi)`, and call `partition(a, lo, hi)` (code piece `u-part`), which returns the pivot's final place `p`.
+5. Recurse on the left part `a[lo .. p - 1]`. Continue the loop on the right part by setting `lo = p + 1` (this "loop on the larger side" keeps the stack shallow).
+6. At the end every range is either finished by heapsort, or by insertion sort. Neighbouring finished ranges are in order relative to each other because partitioning separated them.
+7. Invariant: each partition places its pivot permanently, so ranges never need to be reconsidered. The depth counter ensures every range is finished in `O(m log m)` time, with `m` the range size, because it is either partitioned within the budget or heap sorted.
+--think
+- Signal: you need a general-purpose in-place sort for arrays with a worst-case guarantee, or the question "why does `std::sort` never become quadratic". It also appears in discussions of algorithm engineering: hybrids beat pure algorithms.
+- Decide first whether a hybrid is worth writing. For real code, call the library. For learning, notice how each part covers another's weakness: quicksort for speed, heapsort for the worst case, insertion sort for tiny inputs.
+- Neighbouring techniques: plain quicksort with a random pivot is also safe in expectation. Merge sort and Timsort are stable but use extra memory. Pattern-defeating quicksort (pdqsort) adds more tricks and is used by Rust and Go.
+- The constants (the 16 cutoff, the factor 2) are tuned values, not magic. Any value near them works.
+- It is not stable, because both quicksort and heapsort are not.
+- Pitfalls: forgetting to decrement the depth, measuring depth wrongly (counting only one side), heapsort on the range using absolute instead of relative indices, and finishing small ranges with a method that assumes sorted neighbours.
+--cost
+Time O(n log n) worst case, and fast on average like quicksort. Space O(log n) for the stack. In place, not stable.
+--java
+static void introSort(int[] a) {
+    if (a.length < 2) return;
+    sortRange(a, 0, a.length - 1, 2 * floorLog2(a.length));       // piece u-log2: the depth limit
+}
+
+static void sortRange(int[] a, int lo, int hi, int depth) {
+    while (hi - lo + 1 > 16) {
+        if (depth == 0) { heapSortRange(a, lo, hi); return; }      // quicksort is going badly: fall back
+        depth--;
+        swap(a, lo + (hi - lo) / 2, hi);                          // piece u-swap: middle item becomes the pivot
+        int p = partition(a, lo, hi);                             // piece u-part
+        sortRange(a, lo, p - 1, depth);
+        lo = p + 1;                                               // loop on the right part
+    }
+    for (int i = lo + 1; i <= hi; i++)                            // small range: insertion sort
+        for (int j = i; j > lo && a[j - 1] > a[j]; j--) swap(a, j - 1, j);
+}
+
+static void heapSortRange(int[] a, int lo, int hi) {
+    int n = hi - lo + 1;
+    for (int i = n / 2 - 1; i >= 0; i--) siftDown(a, lo, i, n);
+    for (int end = n - 1; end > 0; end--) { swap(a, lo, lo + end); siftDown(a, lo, 0, end); }
+}
+
+static void siftDown(int[] a, int lo, int i, int n) {             // heap positions are relative to lo
+    while (2 * i + 1 < n) {
+        int c = 2 * i + 1;
+        if (c + 1 < n && a[lo + c + 1] > a[lo + c]) c++;
+        if (a[lo + i] >= a[lo + c]) return;
+        swap(a, lo + i, lo + c);
+        i = c;
+    }
+}
+--py
+def intro_sort(a):
+    if len(a) < 2: return
+    sort_range(a, 0, len(a) - 1, 2 * floor_log2(len(a)))          # piece u-log2: the depth limit
+
+def sort_range(a, lo, hi, depth):
+    while hi - lo + 1 > 16:
+        if depth == 0:
+            heap_sort_range(a, lo, hi)                            # quicksort is going badly: fall back
+            return
+        depth -= 1
+        swap(a, lo + (hi - lo) // 2, hi)                          # piece u-swap: middle item becomes the pivot
+        p = partition(a, lo, hi)                                  # piece u-part
+        sort_range(a, lo, p - 1, depth)
+        lo = p + 1                                                # loop on the right part
+    for i in range(lo + 1, hi + 1):                               # small range: insertion sort
+        j = i
+        while j > lo and a[j - 1] > a[j]:
+            swap(a, j - 1, j); j -= 1
+
+def heap_sort_range(a, lo, hi):
+    n = hi - lo + 1
+    for i in range(n // 2 - 1, -1, -1):
+        sift_down_range(a, lo, i, n)
+    for end in range(n - 1, 0, -1):
+        swap(a, lo, lo + end)
+        sift_down_range(a, lo, 0, end)
+
+def sift_down_range(a, lo, i, n):                                 # heap positions are relative to lo
+    while 2 * i + 1 < n:
+        c = 2 * i + 1
+        if c + 1 < n and a[lo + c + 1] > a[lo + c]: c += 1
+        if a[lo + i] >= a[lo + c]: return
+        swap(a, lo + i, lo + c)
+        i = c
+--cpp
+void siftDownRange(vector<int>& a, int lo, int i, int n) {        // heap positions are relative to lo
+    while (2 * i + 1 < n) {
+        int c = 2 * i + 1;
+        if (c + 1 < n && a[lo + c + 1] > a[lo + c]) c++;
+        if (a[lo + i] >= a[lo + c]) return;
+        swapAt(a, lo + i, lo + c);
+        i = c;
+    }
+}
+
+void heapSortRange(vector<int>& a, int lo, int hi) {
+    int n = hi - lo + 1;
+    for (int i = n / 2 - 1; i >= 0; i--) siftDownRange(a, lo, i, n);
+    for (int end = n - 1; end > 0; end--) { swapAt(a, lo, lo + end); siftDownRange(a, lo, 0, end); }
+}
+
+void sortRange(vector<int>& a, int lo, int hi, int depth) {
+    while (hi - lo + 1 > 16) {
+        if (depth == 0) { heapSortRange(a, lo, hi); return; }      // quicksort is going badly: fall back
+        depth--;
+        swapAt(a, lo + (hi - lo) / 2, hi);                        // piece u-swap: middle item becomes the pivot
+        int p = partitionRange(a, lo, hi);                        // piece u-part
+        sortRange(a, lo, p - 1, depth);
+        lo = p + 1;                                               // loop on the right part
+    }
+    for (int i = lo + 1; i <= hi; i++)                            // small range: insertion sort
+        for (int j = i; j > lo && a[j - 1] > a[j]; j--) swapAt(a, j - 1, j);
+}
+
+void introSort(vector<int>& a) {
+    if (a.size() < 2) return;
+    sortRange(a, 0, a.size() - 1, 2 * floorLog2(a.size()));       // piece u-log2: the depth limit
+}
+--uses
+u-log2
+u-swap
+u-part
+
+### extsort
+--idea
+External merge sort sorts data that is too big to fit in memory, such as a 100 GB file on a machine with 4 GB of RAM. Reading and writing a disk is slow and works best in long sequential streams, so the method is built around that: read the data in pieces that do fit, sort each piece in memory, and write each sorted piece to disk as a run. Then merge the runs together, reading each run sequentially, to produce one sorted output.
+Merging is the part that scales. Two sorted runs can be merged by streaming through both, keeping only the current front item of each in memory. With `k` runs, keep one front item per run in a min-heap: the smallest of them is the next output item, and then you refill from that run. Memory used is just `k` items (plus read buffers), however large the files are.
+--build
+1. Let `M` be how many items fit in memory. Read the input `M` items at a time. Sort each batch in memory with any fast sort. Write it out as a sorted run. For `n` items, there are `ceil(n / M)` runs.
+2. Merge the runs. The simplest way is two at a time. Merge run 1 with run 2, run 3 with run 4, and so on, using `merge` (code piece `u-merge`, which merges two sorted lists in one streaming pass). Repeat on the results until one run remains. Each pass reads and writes all the data once, and halves the number of runs, so there are `log2(runs)` passes.
+3. Better: merge many runs at once, `k` at a time, to cut the number of passes to `log_k(runs)`. Keep a min-heap holding one entry per run: `(value, run index, position in run)`.
+4. Start with the first item of every run in the heap. Repeat: pop the smallest entry, write its value to the output, and push the next item of the same run (if the run has one).
+5. When the heap is empty, the output is fully sorted.
+6. In real disk-based sort, each run is a file read through a buffer, and the output is written through a buffer. The code here keeps runs as lists to show the logic.
+7. Choose `k` as large as memory allows. With 4 GB of memory and 1 MB buffers per run, `k` can be thousands, so a single merge pass is enough even for terabytes.
+8. Invariant: the heap always holds the smallest not-yet-output item of every run that is not exhausted, so the smallest of them is the smallest of all remaining items.
+--think
+- Signal: "sort a file larger than memory", "sort on disk", "sort data streams", MapReduce style sorting, database sorting for `ORDER BY` on large tables.
+- Decide first how much memory there is, and the block size of the disk. The cost is dominated by the number of passes over the data, each pass costing a full read and write.
+- Neighbouring techniques: replacement selection makes runs longer than memory (about `2M` on average) by feeding new items into the heap while writing. Distribution sort (like quicksort on disk, splitting by sample pivots) is the alternative approach. In a distributed system, partition by key range and sort each partition on a different machine.
+- When the data fits in memory, none of this is needed: just call the library sort.
+- The number of passes is `1 + ceil(log_k(runs))`. One pass to make runs, and the rest to merge.
+- Pitfalls: reading in tiny pieces (disk seeks dominate, use big sequential buffers), a heap entry that forgets which run it came from, running out of memory by opening too many runs at once, and not flushing the output buffer.
+--cost
+Time O(n log n) comparisons in total. Disk work: about `(n / B)` block reads and writes per pass (`B` is the block size), with `1 + ceil(log_k(n / M))` passes. Memory O(M).
+--java
+// sort chunks of at most memLimit items; each chunk is a sorted run
+static java.util.List<int[]> makeRuns(int[] data, int memLimit) {
+    java.util.List<int[]> runs = new java.util.ArrayList<>();
+    for (int i = 0; i < data.length; i += memLimit) {
+        int[] chunk = java.util.Arrays.copyOfRange(data, i, Math.min(data.length, i + memLimit));
+        java.util.Arrays.sort(chunk);
+        runs.add(chunk);
+    }
+    return runs;
+}
+
+// merge runs two at a time until one is left (piece u-merge); returns the number of passes through the data
+static int mergePasses(java.util.List<int[]> runs, int[][] result) {
+    int passes = 0;
+    while (runs.size() > 1) {
+        java.util.List<int[]> next = new java.util.ArrayList<>();
+        for (int i = 0; i + 1 < runs.size(); i += 2) next.add(merge(runs.get(i), runs.get(i + 1)));
+        if (runs.size() % 2 == 1) next.add(runs.get(runs.size() - 1));
+        runs = next; passes++;
+    }
+    result[0] = runs.isEmpty() ? new int[0] : runs.get(0);
+    return passes;
+}
+
+// merge all runs in a single pass with a heap of (value, run, position)
+static int[] kWayMerge(java.util.List<int[]> runs) {
+    java.util.PriorityQueue<int[]> heap = new java.util.PriorityQueue<>((x, y) -> Integer.compare(x[0], y[0]));
+    int total = 0;
+    for (int r = 0; r < runs.size(); r++) {
+        total += runs.get(r).length;
+        if (runs.get(r).length > 0) heap.add(new int[]{runs.get(r)[0], r, 0});
+    }
+    int[] out = new int[total]; int k = 0;
+    while (!heap.isEmpty()) {
+        int[] top = heap.poll();
+        out[k++] = top[0];                                        // smallest front item of all runs
+        int[] run = runs.get(top[1]);
+        if (top[2] + 1 < run.length) heap.add(new int[]{run[top[2] + 1], top[1], top[2] + 1});
+    }
+    return out;
+}
+--py
+import heapq
+
+def make_runs(data, mem_limit):
+    """Sort chunks of at most mem_limit items; each chunk is a sorted run."""
+    return [sorted(data[i:i + mem_limit]) for i in range(0, len(data), mem_limit)]
+
+def merge_passes(runs):
+    """Merge runs two at a time until one is left (piece u-merge). Returns (result, passes)."""
+    passes = 0
+    while len(runs) > 1:
+        nxt = [merge(runs[i], runs[i + 1]) for i in range(0, len(runs) - 1, 2)]
+        if len(runs) % 2 == 1:
+            nxt.append(runs[-1])
+        runs, passes = nxt, passes + 1
+    return (runs[0] if runs else []), passes
+
+def k_way_merge(runs):
+    """Merge all runs in a single pass with a heap of (value, run, position)."""
+    heap = [(r[0], i, 0) for i, r in enumerate(runs) if r]
+    heapq.heapify(heap)
+    out = []
+    while heap:
+        value, i, pos = heapq.heappop(heap)
+        out.append(value)                                         # smallest front item of all runs
+        if pos + 1 < len(runs[i]):
+            heapq.heappush(heap, (runs[i][pos + 1], i, pos + 1))
+    return out
+--cpp
+// sort chunks of at most memLimit items; each chunk is a sorted run
+vector<vector<int>> makeRuns(const vector<int>& data, int memLimit) {
+    vector<vector<int>> runs;
+    for (size_t i = 0; i < data.size(); i += memLimit) {
+        vector<int> chunk(data.begin() + i, data.begin() + min(data.size(), i + memLimit));
+        sort(chunk.begin(), chunk.end());
+        runs.push_back(chunk);
+    }
+    return runs;
+}
+
+// merge runs two at a time until one is left (piece u-merge); returns the number of passes through the data
+int mergePasses(vector<vector<int>> runs, vector<int>& result) {
+    int passes = 0;
+    while (runs.size() > 1) {
+        vector<vector<int>> next;
+        for (size_t i = 0; i + 1 < runs.size(); i += 2) next.push_back(mergeSorted(runs[i], runs[i + 1]));
+        if (runs.size() % 2 == 1) next.push_back(runs.back());
+        runs = next; passes++;
+    }
+    result = runs.empty() ? vector<int>() : runs[0];
+    return passes;
+}
+
+// merge all runs in a single pass with a heap of (value, run, position)
+vector<int> kWayMerge(const vector<vector<int>>& runs) {
+    using T = array<int, 3>;
+    priority_queue<T, vector<T>, greater<T>> heap;
+    for (int r = 0; r < (int)runs.size(); r++) if (!runs[r].empty()) heap.push({runs[r][0], r, 0});
+    vector<int> out;
+    while (!heap.empty()) {
+        auto [value, r, pos] = heap.top(); heap.pop();
+        out.push_back(value);                                     // smallest front item of all runs
+        if (pos + 1 < (int)runs[r].size()) heap.push({runs[r][pos + 1], r, pos + 1});
+    }
+    return out;
+}
+--uses
+u-merge
+
+### sortnet
+--idea
+A sorting network is a fixed recipe of compare-and-swap steps that sorts any input of a given size, where the steps do not depend on the data. It is a list of pairs of positions. For each pair `(i, j)` in order, compare the two items and, if they are in the wrong order, swap them. There are no `if` decisions about which steps to do next, no loops that depend on the data: the same list of pairs, always, sorts every input.
+That makes sorting networks a natural fit for hardware (the compare-and-swap steps become circuits, and steps that touch different positions run at the same time) and for graphics processors, where every thread must do the same thing. The number of rounds when steps run in parallel is the depth, and good networks have depth about `log^2 n`.
+--build
+1. A compare-and-swap (or comparator) on positions `i < j`: if `compare(a[i], a[j]) > 0` (code piece `u-cmp`), exchange them with `swap(a, i, j)` (code piece `u-swap`). After it, `a[i] <= a[j]`.
+2. A network is a list of such pairs. To run it, go through the list and apply each comparator. Steps whose pairs share no position can run in parallel (a layer).
+3. Build the network with Batcher's odd-even merge sort, for `n` a power of two. It sorts the two halves recursively and then merges them with the odd-even merge. In the loop form: for `p = 1, 2, 4, ... < n`; for `k = p, p / 2, ..., 1`; for `j` from `k mod p` up to `n - k - 1` in steps of `2k`; for `i` from 0 to `min(k, n - j - k) - 1`: if `(i + j) / (2p) == (i + j + k) / (2p)`, add the pair `(i + j, i + j + k)`.
+4. For `n = 8` this gives 19 comparators. The best known networks are smaller still, but Batcher's is easy to generate for every power of two and has `O(n log^2 n)` comparators.
+5. To test a network, use the 0-1 principle: a comparator network sorts all inputs if and only if it sorts all inputs made of only 0 and 1. So you only need to check `2^n` inputs, not all `n!` permutations.
+6. For other sizes, pad the input with large values up to the next power of two, sort, and drop the padding.
+7. Invariant: the network is oblivious: the pairs depend only on `n`, so the comparisons made never depend on the values. It is correct if the 0-1 test passes.
+--think
+- Signal: sorting in hardware, on a GPU, or in a setting where branching on data is costly or leaks information (constant-time sorting in cryptography). Also in puzzles about "minimum number of comparators to sort 4 or 5 numbers".
+- Decide first whether you need the network at all. For ordinary software, a normal sort beats it, since networks do more comparisons (`n log^2 n` against `n log n`).
+- Neighbouring techniques: bitonic sort is another network of the same size class, with a simpler pattern. Odd-even transposition sort is a very simple network of depth `n`. Merge sort is data-dependent and so is not a network.
+- Counting comparators and depth are the two measures. Optimal sizes are known only for tiny `n` (up to about 12).
+- Pitfalls: generating pairs with `i > j` (the comparator then sorts descending), forgetting to pad to a power of two for Batcher's loop form, and testing with only a few random inputs instead of all 0-1 inputs.
+--cost
+Batcher's odd-even merge sort: `O(n log^2 n)` comparators, depth `O(log^2 n)`. As a single processor program this costs the same in time.
+--java
+// compare-and-swap on positions i < j (pieces u-cmp and u-swap)
+static void compareSwap(int[] a, int i, int j) {
+    if (compare(a[i], a[j]) > 0) swap(a, i, j);
+}
+
+// Batcher's odd-even merge sort network for n a power of two: the list of comparator pairs
+static java.util.List<int[]> batcherNetwork(int n) {
+    java.util.List<int[]> pairs = new java.util.ArrayList<>();
+    for (int p = 1; p < n; p *= 2)
+        for (int k = p; k >= 1; k /= 2)
+            for (int j = k % p; j < n - k; j += 2 * k)
+                for (int i = 0; i < Math.min(k, n - j - k); i++)
+                    if ((i + j) / (2 * p) == (i + j + k) / (2 * p)) pairs.add(new int[]{i + j, i + j + k});
+    return pairs;
+}
+
+static void runNetwork(int[] a, java.util.List<int[]> pairs) {
+    for (int[] pr : pairs) compareSwap(a, pr[0], pr[1]);
+}
+--py
+def compare_swap(a, i, j):
+    """Compare-and-swap on positions i < j (pieces u-cmp and u-swap)."""
+    if compare(a[i], a[j]) > 0:
+        swap(a, i, j)
+
+def batcher_network(n):
+    """Batcher's odd-even merge sort network for n a power of two: the list of comparator pairs."""
+    pairs = []
+    p = 1
+    while p < n:
+        k = p
+        while k >= 1:
+            for j in range(k % p, n - k, 2 * k):
+                for i in range(min(k, n - j - k)):
+                    if (i + j) // (2 * p) == (i + j + k) // (2 * p):
+                        pairs.append((i + j, i + j + k))
+            k //= 2
+        p *= 2
+    return pairs
+
+def run_network(a, pairs):
+    for i, j in pairs:
+        compare_swap(a, i, j)
+--cpp
+// compare-and-swap on positions i < j (pieces u-cmp and u-swap)
+void compareSwap(vector<int>& a, int i, int j) {
+    if (compare(a[i], a[j]) > 0) swapAt(a, i, j);
+}
+
+// Batcher's odd-even merge sort network for n a power of two: the list of comparator pairs
+vector<pair<int, int>> batcherNetwork(int n) {
+    vector<pair<int, int>> pairs;
+    for (int p = 1; p < n; p *= 2)
+        for (int k = p; k >= 1; k /= 2)
+            for (int j = k % p; j < n - k; j += 2 * k)
+                for (int i = 0; i < min(k, n - j - k); i++)
+                    if ((i + j) / (2 * p) == (i + j + k) / (2 * p)) pairs.push_back({i + j, i + j + k});
+    return pairs;
+}
+
+void runNetwork(vector<int>& a, const vector<pair<int, int>>& pairs) {
+    for (auto [i, j] : pairs) compareSwap(a, i, j);
+}
+--uses
+u-cmp
+u-swap
+
+### bitonic
+--idea
+Bitonic sort is a sorting network (a fixed pattern of compare-and-swap steps, whatever the data) that is especially easy to run in parallel, which is why it is common on graphics processors and in hardware. It is built on the idea of a bitonic sequence: a sequence that first goes up and then goes down (such as `1 4 7 9 6 3 2`), or a rotation of such a sequence.
+The key fact: if you take a bitonic sequence of length `2m`, compare each item in the first half with the item `m` places later, and put the smaller one in the first half and the larger in the second half, then both halves are again bitonic, and every item in the first half is no larger than any item in the second half. Repeating this on each half, down to single items, sorts the sequence. To get a bitonic sequence in the first place, sort one half ascending and the other half descending.
+--build
+1. The length must be a power of two, `n = 2^k`. For other lengths, pad with the largest possible value up to the next power of two, and ignore the padding at the end.
+2. `bitonicMerge(a, lo, n, asc)` turns a bitonic range `a[lo .. lo + n)` into a sorted one (ascending if `asc`, else descending). If `n == 1` do nothing. Let `m = n / 2`. For `i` from `lo` to `lo + m - 1`, compare `a[i]` with `a[i + m]` and exchange them if they are in the wrong order for the direction (`compareSwap`, using `swap` from code piece `u-swap`).
+3. After that loop, both halves are bitonic and all items in the first half are on the correct side of all items in the second half. Recurse: `bitonicMerge` on `a[lo .. lo + m)` and on `a[lo + m .. lo + n)`, in the same direction.
+4. `bitonicSort(a, lo, n, asc)` sorts a range. If `n == 1` do nothing. Let `m = n / 2`. Sort the first half ascending and the second half descending (the two recursive calls). Together they form a bitonic sequence. Then call `bitonicMerge(a, lo, n, asc)`.
+5. The comparison in `compareSwap(a, i, j, asc)`: swap when `(a[i] > a[j]) == asc`. For an ascending sort, the larger item must go to the right, so swap if the left is bigger.
+6. Parallel view: inside one `bitonicMerge` level, the `m` compare-and-swaps touch different pairs, so they can all run at the same time. The total depth is `k (k + 1) / 2` rounds for `n = 2^k`.
+7. Invariant: after the first half of `bitonicSort` finishes, the range is bitonic (up then down). The merge turns any bitonic range into a sorted one, because each step splits it into two bitonic halves where every item of the first half is at most every item of the second half.
+--think
+- Signal: sorting on a GPU or in hardware, an oblivious algorithm (steps independent of data), or a question about bitonic sequences. In ordinary programs it is rarely the best choice.
+- Decide first whether the size is a power of two. If not, pad. The comparator count is `O(n log^2 n)`, higher than the `n log n` of ordinary sorts, which pays off only with many parallel units.
+- Neighbouring techniques: odd-even merge sort (Batcher's other network) has fewer comparators. The sorting network lesson covers the general idea and the 0-1 test. Merge sort and quicksort are the sequential best choices.
+- The direction flag is what builds the bitonic input: ascending on the left half and descending on the right half. Forgetting it produces a wrong order.
+- Pitfalls: a length that is not a power of two, a wrong direction in `compareSwap`, using `i + m` outside the range, and padding with a value that is not the maximum (then the padding sorts into the middle).
+--cost
+`O(n log^2 n)` comparators in total, depth `O(log^2 n)` when run in parallel. Space O(1) (in place).
+--java
+static void compareSwap(int[] a, int i, int j, boolean asc) {
+    if ((a[i] > a[j]) == asc) swap(a, i, j);                  // piece u-swap
+}
+
+static void bitonicMerge(int[] a, int lo, int n, boolean asc) {
+    if (n <= 1) return;
+    int m = n / 2;
+    for (int i = lo; i < lo + m; i++) compareSwap(a, i, i + m, asc);   // split into two bitonic halves
+    bitonicMerge(a, lo, m, asc);
+    bitonicMerge(a, lo + m, m, asc);
+}
+
+static void bitonicSort(int[] a, int lo, int n, boolean asc) {         // n must be a power of two
+    if (n <= 1) return;
+    int m = n / 2;
+    bitonicSort(a, lo, m, true);                              // ascending, then
+    bitonicSort(a, lo + m, m, false);                         // descending: together a bitonic sequence
+    bitonicMerge(a, lo, n, asc);
+}
+
+// any length: pad with the largest value up to a power of two
+static void bitonicSortAny(int[] a) {
+    int n = 1;
+    while (n < a.length) n *= 2;
+    int[] b = java.util.Arrays.copyOf(a, n);
+    java.util.Arrays.fill(b, a.length, n, Integer.MAX_VALUE);
+    bitonicSort(b, 0, n, true);
+    System.arraycopy(b, 0, a, 0, a.length);
+}
+--py
+def compare_swap(a, i, j, asc):
+    if (a[i] > a[j]) == asc:
+        swap(a, i, j)                                         # piece u-swap
+
+def bitonic_merge(a, lo, n, asc):
+    if n <= 1: return
+    m = n // 2
+    for i in range(lo, lo + m):
+        compare_swap(a, i, i + m, asc)                        # split into two bitonic halves
+    bitonic_merge(a, lo, m, asc)
+    bitonic_merge(a, lo + m, m, asc)
+
+def bitonic_sort(a, lo, n, asc):                              # n must be a power of two
+    if n <= 1: return
+    m = n // 2
+    bitonic_sort(a, lo, m, True)                              # ascending, then
+    bitonic_sort(a, lo + m, m, False)                         # descending: together a bitonic sequence
+    bitonic_merge(a, lo, n, asc)
+
+def bitonic_sort_any(a):
+    """Any length: pad with the largest value up to a power of two."""
+    n = 1
+    while n < len(a): n *= 2
+    b = a + [float('inf')] * (n - len(a))
+    bitonic_sort(b, 0, n, True)
+    a[:] = b[:len(a)]
+--cpp
+void compareSwap(vector<int>& a, int i, int j, bool asc) {
+    if ((a[i] > a[j]) == asc) swapAt(a, i, j);                // piece u-swap
+}
+
+void bitonicMerge(vector<int>& a, int lo, int n, bool asc) {
+    if (n <= 1) return;
+    int m = n / 2;
+    for (int i = lo; i < lo + m; i++) compareSwap(a, i, i + m, asc);   // split into two bitonic halves
+    bitonicMerge(a, lo, m, asc);
+    bitonicMerge(a, lo + m, m, asc);
+}
+
+void bitonicSort(vector<int>& a, int lo, int n, bool asc) {   // n must be a power of two
+    if (n <= 1) return;
+    int m = n / 2;
+    bitonicSort(a, lo, m, true);                              // ascending, then
+    bitonicSort(a, lo + m, m, false);                         // descending: together a bitonic sequence
+    bitonicMerge(a, lo, n, asc);
+}
+
+// any length: pad with the largest value up to a power of two
+void bitonicSortAny(vector<int>& a) {
+    int n = 1;
+    while (n < (int)a.size()) n *= 2;
+    vector<int> b = a;
+    b.resize(n, INT_MAX);
+    bitonicSort(b, 0, n, true);
+    copy(b.begin(), b.begin() + a.size(), a.begin());
+}
+--uses
+u-swap
+
+### linear-search
+--idea
+Linear search checks the items one at a time, from the first to the last, until it finds what it wants or runs out of items. It is how you look for a name in an unsorted list, or a word on a page when you have no index. It needs nothing from the data: the items may be in any order, in any container, even a stream you can read only once.
+It is slow for big data (up to `n` checks), but it is the only choice when the data is unsorted and you search once, and it is often the fastest for small lists because it has almost no overhead. Sorting first costs `n log n`, which is more than a single linear scan, so for one search a scan wins.
+--build
+1. Loop `i` from 0 to `n - 1`. At each position ask whether `a[i]` is the target. Use `compare(a[i], x) == 0` (code piece `u-cmp`) so the same loop works for any ordering rule: `compare` returns 0 exactly when the two items tie.
+2. If it matches, return `i` (the first position). If the loop ends, return -1 (not found).
+3. For the last occurrence, loop from `n - 1` down to 0 and return the first match found.
+4. To count occurrences, do not stop at the first match: add one for each match.
+5. To find the best item (largest or smallest), keep the position of the best so far and update it when a better one appears. That is the same scan with a different question.
+6. Sentinel trick: put the target at the very end of the array (after saving the old last item). Then the loop needs no `i < n` test, because it is certain to stop. Afterwards, restore the last item and check whether the match was inside the array or only the sentinel.
+7. Invariant: when the loop is at position `i`, none of `a[0 .. i - 1]` matches, so the first match found is the smallest position.
+--think
+- Signal: unsorted data searched once, a tiny list, a linked list (no random access), or a stream. Also "find the first item that satisfies a condition that is not a simple order", such as "the first prime in the list".
+- Decide first how many searches you will do. One search: scan. Many searches on the same data: sort and use binary search, or build a hash set. Rule of thumb: sorting pays off after about `log n` searches.
+- Neighbouring techniques: binary search needs sorted data. A hash table finds in constant time on average but needs memory and a good hash. A trie finds by prefix. A bitset or a counting array if the values are small.
+- Many problems hide a linear search: "does any element satisfy ...?", "first index where ...". Do not forget to stop early, since early exit is the point.
+- Pitfalls: comparing with `==` on objects or strings in Java (use `equals` or a compare function), returning the loop index when nothing was found, and scanning the whole array when you can stop at the first match.
+--cost
+Time O(n) worst and average, O(1) best case. Space O(1).
+--java
+// first position of x in a, or -1; compare is the code piece u-cmp
+static int linearSearch(int[] a, int x) {
+    for (int i = 0; i < a.length; i++)
+        if (compare(a[i], x) == 0) return i;
+    return -1;
+}
+
+static int linearSearchLast(int[] a, int x) {            // last position, scanning from the back
+    for (int i = a.length - 1; i >= 0; i--)
+        if (compare(a[i], x) == 0) return i;
+    return -1;
+}
+
+static int countOf(int[] a, int x) {                      // no early exit: every match counts
+    int c = 0;
+    for (int v : a) if (compare(v, x) == 0) c++;
+    return c;
+}
+
+// sentinel version: no bounds test inside the loop
+static int sentinelSearch(int[] a, int x) {
+    int n = a.length;
+    if (n == 0) return -1;
+    int last = a[n - 1];
+    a[n - 1] = x;                                         // the sentinel guarantees the loop stops
+    int i = 0;
+    while (a[i] != x) i++;
+    a[n - 1] = last;                                      // put the real item back
+    return (i < n - 1 || last == x) ? i : -1;
+}
+--py
+def linear_search(a, x):
+    """First position of x in a, or -1; compare is the code piece u-cmp."""
+    for i, v in enumerate(a):
+        if compare(v, x) == 0:
+            return i
+    return -1
+
+def linear_search_last(a, x):
+    for i in range(len(a) - 1, -1, -1):                   # scan from the back
+        if compare(a[i], x) == 0:
+            return i
+    return -1
+
+def count_of(a, x):
+    return sum(1 for v in a if compare(v, x) == 0)        # no early exit: every match counts
+
+def sentinel_search(a, x):
+    """Sentinel version: no bounds test inside the loop."""
+    n = len(a)
+    if n == 0: return -1
+    last = a[-1]
+    a[-1] = x                                             # the sentinel guarantees the loop stops
+    i = 0
+    while a[i] != x:
+        i += 1
+    a[-1] = last                                          # put the real item back
+    return i if (i < n - 1 or last == x) else -1
+--cpp
+// first position of x in a, or -1; compare is the code piece u-cmp
+int linearSearch(const vector<int>& a, int x) {
+    for (int i = 0; i < (int)a.size(); i++)
+        if (compare(a[i], x) == 0) return i;
+    return -1;
+}
+
+int linearSearchLast(const vector<int>& a, int x) {        // last position, scanning from the back
+    for (int i = (int)a.size() - 1; i >= 0; i--)
+        if (compare(a[i], x) == 0) return i;
+    return -1;
+}
+
+int countOf(const vector<int>& a, int x) {                  // no early exit: every match counts
+    int c = 0;
+    for (int v : a) if (compare(v, x) == 0) c++;
+    return c;
+}
+
+// sentinel version: no bounds test inside the loop
+int sentinelSearch(vector<int>& a, int x) {
+    int n = a.size();
+    if (n == 0) return -1;
+    int last = a[n - 1];
+    a[n - 1] = x;                                           // the sentinel guarantees the loop stops
+    int i = 0;
+    while (a[i] != x) i++;
+    a[n - 1] = last;                                        // put the real item back
+    return (i < n - 1 || last == x) ? i : -1;
+}
+--uses
+u-cmp
+
+### ternary
+--idea
+Ternary search finds the highest point (or the lowest) of a function that goes up and then comes down, with only one peak and no other bumps. Such a function is called unimodal. Binary search needs a yes or no question that flips once. For a peak, one probe is not enough to say which side the peak is on, so ternary search probes two points and compares them.
+Pick two points inside the range, one third and two thirds of the way along. If the left one is lower, the peak cannot be at or left of it (the function was still rising there), so drop the left third. If the right one is lower, drop the right third. Each step removes a third of the range, so it homes in on the peak quickly. For integers there is an even simpler form: compare `f(m)` with `f(m + 1)`, which tells you whether the function is still rising at `m`, and that is a binary search.
+--build
+1. Check the function is unimodal on the range: strictly rising up to the peak and strictly falling after it. Flat stretches (plateaus) that are not at the top break the method.
+2. Integer form: keep `lo` and `hi`. While `lo < hi`, let `m = mid(lo, hi)` (code piece `u-mid`). If `f(m) < f(m + 1)`, the function is still rising at `m`, so the peak is to the right: `lo = m + 1`. Otherwise it is at `m` or left of it: `hi = m`. At the end `lo` is the position of the peak.
+3. Real number form: repeat about 100 times. Let `m1 = lo + (hi - lo) / 3` and `m2 = hi - (hi - lo) / 3`. If `f(m1) < f(m2)`, set `lo = m1`, else set `hi = m2`. After the rounds, `lo` (or the middle of `[lo, hi]`) is the peak to within rounding. Each round shrinks the range to two thirds.
+4. To find a minimum, flip the comparisons (or search the negated function).
+5. Do not compare `f(m1) == f(m2)` and decide on that; with exact ties on a strict peak the peak lies between the two points, so either side is safe.
+6. Invariant: the peak is always inside `[lo, hi]`. Dropping the side with the smaller probe never throws away the peak because the function is strictly rising before the peak and strictly falling after it.
+--think
+- Signal: "find the maximum of a function that increases then decreases", "minimum of a convex function", "best point on a line", "the distance between two moving points is smallest at what time", geometry problems with a single optimum.
+- Decide first whether the function is really unimodal. A convex function has a single minimum, so ternary search works. If it can be flat in the middle, or has several peaks, ternary search can go wrong. In that case consider golden section search or just sample finely and refine.
+- Neighbouring techniques: binary search on the derivative (the slope changes sign at the peak). Golden section search reuses one probe per round (about 38 percent fewer function calls). Gradient descent for many dimensions. Nested ternary search works for functions of two variables that are convex.
+- For real numbers, use a fixed number of rounds (100) instead of comparing to a tolerance, which can loop forever on noise.
+- Pitfalls: plateaus (equal values away from the peak hide the direction), integer rounding with thirds (the integer form with `f(m)` against `f(m + 1)` avoids it), and a function with noise or floating point jitter near the peak.
+--cost
+Integer form O(log n) evaluations. Real form: each round costs two evaluations and keeps two thirds, about `log_{1.5}(range / precision)` rounds, so about 100 rounds are plenty.
+--java
+// position of the peak of a strictly rising-then-falling f on integers lo..hi (piece u-mid)
+static int peakInt(java.util.function.IntUnaryOperator f, int lo, int hi) {
+    while (lo < hi) {
+        int m = mid(lo, hi);
+        if (f.applyAsInt(m) < f.applyAsInt(m + 1)) lo = m + 1;      // still rising: the peak is to the right
+        else hi = m;
+    }
+    return lo;
+}
+
+// the x of the peak of a unimodal function on real numbers
+static double ternaryMax(java.util.function.DoubleUnaryOperator f, double lo, double hi) {
+    for (int it = 0; it < 100; it++) {
+        double m1 = lo + (hi - lo) / 3, m2 = hi - (hi - lo) / 3;
+        if (f.applyAsDouble(m1) < f.applyAsDouble(m2)) lo = m1;    // the left third cannot hold the peak
+        else hi = m2;
+    }
+    return (lo + hi) / 2;
+}
+--py
+def peak_int(f, lo, hi):
+    """Position of the peak of a strictly rising-then-falling f on integers lo..hi (piece u-mid)."""
+    while lo < hi:
+        m = mid(lo, hi)
+        if f(m) < f(m + 1):
+            lo = m + 1                       # still rising: the peak is to the right
+        else:
+            hi = m
+    return lo
+
+def ternary_max(f, lo, hi):
+    """The x of the peak of a unimodal function on real numbers."""
+    for _ in range(100):
+        m1 = lo + (hi - lo) / 3
+        m2 = hi - (hi - lo) / 3
+        if f(m1) < f(m2):
+            lo = m1                          # the left third cannot hold the peak
+        else:
+            hi = m2
+    return (lo + hi) / 2
+--cpp
+// position of the peak of a strictly rising-then-falling f on integers lo..hi (piece u-mid)
+int peakInt(function<long long(int)> f, int lo, int hi) {
+    while (lo < hi) {
+        int m = mid(lo, hi);
+        if (f(m) < f(m + 1)) lo = m + 1;                        // still rising: the peak is to the right
+        else hi = m;
+    }
+    return lo;
+}
+
+// the x of the peak of a unimodal function on real numbers
+double ternaryMax(function<double(double)> f, double lo, double hi) {
+    for (int it = 0; it < 100; it++) {
+        double m1 = lo + (hi - lo) / 3, m2 = hi - (hi - lo) / 3;
+        if (f(m1) < f(m2)) lo = m1;                             // the left third cannot hold the peak
+        else hi = m2;
+    }
+    return (lo + hi) / 2;
+}
+--uses
+u-mid
+
+### expo-search
+--idea
+Exponential search finds a value in a sorted list when you do not know how long the list is, or when the target is probably near the front. It first finds a range that must contain the target by jumping 1, 2, 4, 8, 16, ... places along the list until it overshoots, and then runs an ordinary binary search inside that range.
+The doubling takes about `log2 p` steps, where `p` is the position of the target, and the binary search over the final range takes about `log2 p` too. So the cost depends on where the target is, not on the total length. It is perfect for searching an infinite or unbounded sorted sequence (a stream of values, a function that grows forever), and good when the target tends to be close to the start.
+--build
+1. If the list is empty return -1. If `a[0] == x` return 0.
+2. Set `bound = 1`. While `bound < n` and `a[bound] < x`, double it: `bound = bound * 2`. Now either `bound >= n` or `a[bound] >= x`, so if `x` is present it lies in positions `bound / 2` up to `min(bound, n - 1)`. (The previous bound was checked and its value was smaller than `x`.)
+3. Run binary search on `lo = bound / 2` and `hi = min(bound, n - 1)`: while `lo <= hi`, take `m = mid(lo, hi)` (code piece `u-mid`, safe from overflow), return `m` if `a[m] == x`, go right (`lo = m + 1`) if `a[m] < x`, else go left (`hi = m - 1`).
+4. If the loop ends, the value is absent: return -1.
+5. For an unbounded sequence given by a function `f(i)` that is non-decreasing, the same doubling finds an `i` with `f(i) >= x`, then binary search narrows it.
+6. Invariant: after the doubling, `a[bound / 2] < x` (or `bound / 2` is 0 and handled by the first check), and `a[bound] >= x` or `bound` is past the end. So `x` can only be in the final range.
+--think
+- Signal: "sorted but of unknown or infinite size", "search in a stream or an API that gives `f(i)`", "the answer is probably small", "find the first index where a growing function exceeds a value". Also finding the upper bound for a binary search on the answer when you do not know one: double until the test turns true.
+- Decide first whether you know the length. If you know it and the target is anywhere, plain binary search is simpler. Exponential search shines for unbounded size or for targets near the front.
+- Neighbouring techniques: binary search for a known range. Interpolation search for evenly spread numbers. Galloping in Timsort is exponential search used to find where in a run an item belongs.
+- To avoid overflow when doubling, stop when `bound` passes `n` (or use `long`).
+- Pitfalls: starting `bound` at 0 (doubling 0 stays 0), searching the wrong range (it is `bound / 2` to `bound`, not `0` to `bound`), forgetting to cap `hi` at `n - 1`, and doubling an `int` past its limit on a huge unbounded search.
+--cost
+Time O(log p), where `p` is the position of the target (so O(1) for targets at the front, and O(log n) at worst). Space O(1).
+--java
+static int expoSearch(int[] a, int x) {
+    int n = a.length;
+    if (n == 0) return -1;
+    if (a[0] == x) return 0;
+    int bound = 1;
+    while (bound < n && a[bound] < x) bound *= 2;           // 1, 2, 4, 8, ... until we pass x
+    int lo = bound / 2, hi = Math.min(bound, n - 1);         // x can only be in this range
+    while (lo <= hi) {
+        int m = mid(lo, hi);                                 // piece u-mid
+        if (a[m] == x) return m;
+        if (a[m] < x) lo = m + 1; else hi = m - 1;
+    }
+    return -1;
+}
+--py
+def expo_search(a, x):
+    n = len(a)
+    if n == 0: return -1
+    if a[0] == x: return 0
+    bound = 1
+    while bound < n and a[bound] < x:
+        bound *= 2                                           # 1, 2, 4, 8, ... until we pass x
+    lo, hi = bound // 2, min(bound, n - 1)                   # x can only be in this range
+    while lo <= hi:
+        m = mid(lo, hi)                                      # piece u-mid
+        if a[m] == x: return m
+        if a[m] < x: lo = m + 1
+        else: hi = m - 1
+    return -1
+--cpp
+int expoSearch(const vector<int>& a, int x) {
+    int n = a.size();
+    if (n == 0) return -1;
+    if (a[0] == x) return 0;
+    int bound = 1;
+    while (bound < n && a[bound] < x) bound *= 2;            // 1, 2, 4, 8, ... until we pass x
+    int lo = bound / 2, hi = min(bound, n - 1);              // x can only be in this range
+    while (lo <= hi) {
+        int m = mid(lo, hi);                                 // piece u-mid
+        if (a[m] == x) return m;
+        if (a[m] < x) lo = m + 1; else hi = m - 1;
+    }
+    return -1;
+}
+--uses
+u-mid
+
+### interp
+--idea
+Interpolation search finds a value in a sorted list by guessing where it should be, the way you look up a name in a phone book. You do not open the book at the middle to find "Zhang": you open it near the end, because you expect it there. The search estimates the position from the value: if the target is a quarter of the way between the smallest and largest value in the current range, probe a quarter of the way along the positions.
+When the numbers are spread evenly (close to a straight line when plotted against position), the guess is nearly right, and it needs only about `log2 log2 n` probes, far fewer than binary search. When the numbers are bunched (exponentially growing, for instance) the guesses can be poor, and it degrades to `n` probes in the worst case. A common fix is to alternate interpolation steps with binary search steps, which caps the worst case at about twice the binary search cost.
+--build
+1. Keep `lo = 0` and `hi = n - 1`. Continue while `lo <= hi` and `x` lies between `a[lo]` and `a[hi]` (if it is outside this range, it is not present).
+2. If `a[lo] == a[hi]`, all items in the range are equal. Return `lo` if they equal `x`, otherwise -1. (This also avoids a division by zero below.)
+3. Interpolation probe: `pos = lo + (x - a[lo]) * (hi - lo) / (a[hi] - a[lo])`, with integer division and `long` arithmetic for the product, because `(x - a[lo]) * (hi - lo)` can overflow an `int`.
+4. Binary probe (every second round): `pos = mid(lo, hi)` (code piece `u-mid`). Alternating guarantees the range at least halves every two rounds.
+5. If `a[pos] == x`, return `pos`. If `a[pos] < x`, set `lo = pos + 1`. Otherwise set `hi = pos - 1`.
+6. When the loop ends, return -1.
+7. Invariant: if `x` is present at all, it lies in `a[lo .. hi]`. Every probe removes `pos` and everything on the wrong side of it, so the invariant holds and the range always shrinks.
+--think
+- Signal: a large sorted array of numbers that are roughly uniform (ids, timestamps at a steady rate, sorted random numbers), where binary search is too slow or the probe cost is high (a disk or network read per probe, so fewer probes matter a lot).
+- Decide first whether the data is evenly spread. For skewed data, binary search is safer. If unsure, use the alternating hybrid.
+- Neighbouring techniques: binary search for the guaranteed `log n`. Exponential search for unbounded or front-heavy data. A hash table for pure lookups with no order needs. Interpolation search needs numeric keys (or keys that can be mapped to numbers).
+- It is the algorithm people use by hand with a dictionary, which makes it a good way to remember it.
+- Pitfalls: dividing by zero when `a[hi] == a[lo]`, overflow in the product, a probe outside `[lo, hi]` when `x` is out of range (hence the range test in the loop condition), and relying on it for clustered data.
+--cost
+Average O(log log n) on uniformly spread data. Worst case O(n) for the pure form, O(log n) for the alternating hybrid. Space O(1).
+--java
+static int interpSearch(int[] a, int x) {
+    int lo = 0, hi = a.length - 1;
+    boolean bisect = false;                                     // alternate: interpolation, bisection, ...
+    while (lo <= hi && x >= a[lo] && x <= a[hi]) {
+        if (a[lo] == a[hi]) return a[lo] == x ? lo : -1;        // flat range, also avoids dividing by zero
+        int pos = bisect ? mid(lo, hi)                          // piece u-mid: plain bisection step
+                         : lo + (int) ((long) (x - a[lo]) * (hi - lo) / ((long) a[hi] - a[lo]));   // the guess
+        bisect = !bisect;
+        if (a[pos] == x) return pos;
+        if (a[pos] < x) lo = pos + 1; else hi = pos - 1;
+    }
+    return -1;
+}
+--py
+def interp_search(a, x):
+    lo, hi = 0, len(a) - 1
+    bisect = False                                              # alternate: interpolation, bisection, ...
+    while lo <= hi and a[lo] <= x <= a[hi]:
+        if a[lo] == a[hi]:
+            return lo if a[lo] == x else -1                     # flat range, also avoids dividing by zero
+        if bisect:
+            pos = mid(lo, hi)                                   # piece u-mid: plain bisection step
+        else:
+            pos = lo + (x - a[lo]) * (hi - lo) // (a[hi] - a[lo])   # the guess
+        bisect = not bisect
+        if a[pos] == x: return pos
+        if a[pos] < x: lo = pos + 1
+        else: hi = pos - 1
+    return -1
+--cpp
+int interpSearch(const vector<int>& a, int x) {
+    int lo = 0, hi = (int)a.size() - 1;
+    bool bisect = false;                                        // alternate: interpolation, bisection, ...
+    while (lo <= hi && x >= a[lo] && x <= a[hi]) {
+        if (a[lo] == a[hi]) return a[lo] == x ? lo : -1;        // flat range, also avoids dividing by zero
+        int pos = bisect ? mid(lo, hi)                          // piece u-mid: plain bisection step
+                         : lo + (int)((long long)(x - a[lo]) * (hi - lo) / ((long long)a[hi] - a[lo]));   // the guess
+        bisect = !bisect;
+        if (a[pos] == x) return pos;
+        if (a[pos] < x) lo = pos + 1; else hi = pos - 1;
+    }
+    return -1;
+}
+--uses
+u-mid
+
+### jump
+--idea
+Jump search is a middle road between linear search and binary search for sorted data. Instead of checking every item, it leaps ahead in blocks of a fixed size, and checks only the last item of each block. As soon as it lands on a block whose last item is at least the target, the target (if present) must be inside that block, and it scans that one block item by item.
+The best block size is about the square root of `n`: with `n = 10^6`, jump in steps of 1000, so there are at most 1000 leaps and then at most 1000 steps inside the block, about 2000 checks instead of up to a million. It is slower than binary search, but it only moves forward, which matters on media where going backwards is expensive (tape, or a linked structure with skip pointers), and it is easy to reason about.
+--build
+1. Let `n` be the length and `step = max(1, sqrtFloor(n))` (code piece `u-sqrt`).
+2. Block `b` covers positions `b * step` up to `min((b + 1) * step, n) - 1`. Start with `prev = 0`.
+3. Jump: while `prev < n` and the last item of the current block, `a[min(prev + step, n) - 1]`, is smaller than `x`, move to the next block: `prev += step`. The whole block is smaller than `x`, so it cannot contain it.
+4. If `prev >= n`, every block's last item was smaller than `x`: return -1.
+5. Scan the block linearly: for `i` from `prev` to `min(prev + step, n) - 1`, return `i` if `a[i] == x`. Return -1 if none matches. (You can stop early once `a[i] > x`.)
+6. Invariant: before each jump, every item in positions below `prev` is smaller than `x`, because each skipped block ended in a value smaller than `x` and the list is sorted.
+7. Why `sqrt(n)`: with step `s` the cost is about `n / s` jumps plus `s` scan steps. This sum is smallest when `s = sqrt(n)`.
+--think
+- Signal: sorted data where moving backwards is costly, or where the structure only supports forward steps with skipping (some linked structures with skip pointers). Otherwise binary search is better. It also appears as a teaching step between linear and binary search.
+- Decide first whether random access is cheap. If yes, binary search is better. If probing is cheap but going back is not, jump search is a reasonable fit.
+- Neighbouring techniques: binary search `O(log n)`, interpolation search for uniform data, exponential search for unbounded data. A skip list is a multi-level jump search.
+- The same block idea gives square root decomposition for range queries: blocks for skipping, a loop for the part inside.
+- Pitfalls: a block size of 0 for `n = 0` or 1 (use `max(1, ...)`), reading past the end in the last block (use `min`), and checking the first instead of the last item of each block.
+--cost
+Time O(sqrt n). Space O(1).
+--java
+static int jumpSearch(int[] a, int x) {
+    int n = a.length;
+    if (n == 0) return -1;
+    int step = (int) Math.max(1, sqrtFloor(n));              // piece u-sqrt: block size
+    int prev = 0;
+    while (prev < n && a[Math.min(prev + step, n) - 1] < x) prev += step;   // leap over blocks that end below x
+    if (prev >= n) return -1;
+    for (int i = prev; i < Math.min(prev + step, n); i++) {  // scan the one block that may hold x
+        if (a[i] == x) return i;
+        if (a[i] > x) break;
+    }
+    return -1;
+}
+--py
+def jump_search(a, x):
+    n = len(a)
+    if n == 0: return -1
+    step = max(1, sqrt_floor(n))                             # piece u-sqrt: block size
+    prev = 0
+    while prev < n and a[min(prev + step, n) - 1] < x:
+        prev += step                                         # leap over blocks that end below x
+    if prev >= n: return -1
+    for i in range(prev, min(prev + step, n)):               # scan the one block that may hold x
+        if a[i] == x: return i
+        if a[i] > x: break
+    return -1
+--cpp
+int jumpSearch(const vector<int>& a, int x) {
+    int n = a.size();
+    if (n == 0) return -1;
+    int step = (int)max(1LL, sqrtFloor(n));                  // piece u-sqrt: block size
+    int prev = 0;
+    while (prev < n && a[min(prev + step, n) - 1] < x) prev += step;   // leap over blocks that end below x
+    if (prev >= n) return -1;
+    for (int i = prev; i < min(prev + step, n); i++) {       // scan the one block that may hold x
+        if (a[i] == x) return i;
+        if (a[i] > x) break;
+    }
+    return -1;
+}
+--uses
+u-sqrt
+
+### bs-answer
+--idea
+Binary search on the answer uses binary search when the thing you are searching for is not a position in a list but a number that solves a problem. Instead of asking "where is this value in the array?", you ask "can the problem be solved with the value `k`?", and if the answer flips from no to yes exactly once as `k` grows, you can find the smallest working `k` by halving the range of candidate values.
+Take "what is the slowest eating speed that finishes all the piles of bananas within `h` hours?". If a speed works, any faster speed also works, so the speeds form a row of "no no no yes yes yes". Checking one speed is easy: add up the hours each pile takes. You never need to invent a formula for the best speed, you only need a fast way to check a given one, and binary search does the rest.
+--build
+1. State the question as "the smallest `k` such that `ok(k)` is true" (or the largest `k` such that it is true; flip the direction). Write down what `k` is, in plain words.
+2. Check the monotone rule: if `ok(k)` is true, `ok(k + 1)` must be true too (for the smallest `k`). If making `k` larger could ever turn a yes into a no, binary search does not apply.
+3. Choose the range `[lo, hi]` of candidate answers: `lo` is a value that is too small or just right, `hi` is a value that surely works. For eating speed: `lo = 1`, `hi = the largest pile`.
+4. Write `ok(k)` as a small function. For eating speed: the hours at speed `k` are the sum of `ceilDiv(pile, k)` over all piles (code piece `u-ceildiv`, division that rounds up), and `ok(k)` is `hours <= h`.
+5. Find the first true value with `firstTrue(lo, hi, ok)` (code piece `u-first`): while `lo < hi`, take `m = lo + (hi - lo) / 2`; if `ok(m)` is true set `hi = m`, else `lo = m + 1`. When the loop ends, `lo` is the answer.
+6. Count the cost: `log2(range)` checks, each costing the time of one `ok` call.
+7. Invariant: the answer is always inside `[lo, hi]`, because `hi` always satisfies `ok` and everything below `lo` was shown to fail.
+--think
+- Signal: wording like "minimum possible maximum", "maximum possible minimum", "smallest `x` such that you can ...", "the least time to finish", "largest length you can cut", with a big range for the answer (up to `10^9` or `10^18`). If you can verify a guess easily but cannot compute the best directly, think binary search on the answer.
+- Decide first what the answer variable is and the range. Then write the check as a function of one number. The check is often a greedy pass over the input (see the lesson on binary search with a greedy check).
+- Neighbouring techniques: if the answer is a position in sorted data, plain binary search. If `ok` is not monotone, binary search fails; look for dynamic programming. If the answer is a real number, use the real-number version with a fixed number of rounds. Ternary search for a best point of a hump-shaped function.
+- Rounding matters: use `ceilDiv` for "how many rounds or hours does this take", never plain division.
+- Pitfalls: a range where `hi` does not actually satisfy `ok` (the search returns `hi` anyway, so always check feasibility), overflow in the sum inside `ok` (use `long`), the wrong direction of the monotonicity, and an infinite loop from `lo = m` instead of `lo = m + 1`.
+--cost
+Time O(log(range) x cost of one check). Space O(1) beyond the check.
+--java
+// slowest eating speed that finishes all piles within h hours (h >= number of piles)
+static int minSpeed(int[] piles, int h) {
+    int max = 0;
+    for (int p : piles) max = Math.max(max, p);
+    return firstTrue(1, max, k -> {                       // piece u-first: smallest speed where the test is true
+        long hours = 0;
+        for (int p : piles) hours += ceilDiv(p, k);       // piece u-ceildiv: a partial hour counts as a whole hour
+        return hours <= h;
+    });
+}
+
+// smallest integer r with r * r >= n (the square root rounded up)
+static int ceilSqrt(int n) {
+    return firstTrue(0, (int) Math.min(n, 46341), r -> (long) r * r >= n);
+}
+--py
+def min_speed(piles, h):
+    """Slowest eating speed that finishes all piles within h hours (h >= number of piles)."""
+    def ok(k):
+        hours = sum(ceil_div(p, k) for p in piles)       # piece u-ceildiv: a partial hour counts as a whole hour
+        return hours <= h
+    return first_true(1, max(piles), ok)                 # piece u-first: smallest speed where ok is true
+
+def ceil_sqrt(n):
+    """Smallest integer r with r * r >= n (the square root rounded up)."""
+    return first_true(0, n, lambda r: r * r >= n)
+--cpp
+// slowest eating speed that finishes all piles within h hours (h >= number of piles)
+int minSpeed(const vector<int>& piles, int h) {
+    int mx = *max_element(piles.begin(), piles.end());
+    return firstTrue(1, mx, [&](int k) {                  // piece u-first: smallest speed where the test is true
+        long long hours = 0;
+        for (int p : piles) hours += ceilDiv(p, k);       // piece u-ceildiv: a partial hour counts as a whole hour
+        return hours <= h;
+    });
+}
+
+// smallest integer r with r * r >= n (the square root rounded up)
+int ceilSqrt(int n) {
+    return firstTrue(0, min(n, 46341), [&](int r) { return (long long)r * r >= n; });
+}
+--uses
+u-ceildiv
+u-first
+
+### bs-real
+--idea
+When the answer is a real number (a length, a time, a probability), you cannot search over positions, because there are infinitely many candidates. But the same halving idea works: keep a range `[lo, hi]` that contains the answer, test the middle, and keep the half that still contains it. The difference is in when to stop. Real numbers never get exactly equal in a computer, so you do not stop when `lo == hi`. You repeat a fixed number of times, such as 100, and the range shrinks by a factor of `2^100` which is far below the accuracy of a `double`.
+For example, to find the square root of 2, ask "is `m * m` bigger than 2?". If yes, the root is below `m`, otherwise above. Another classic: cut ropes of various lengths into at least `k` pieces of equal length; find the longest piece length. Longer pieces give fewer pieces, so "can I get `k` pieces of length `L`?" flips once from yes to no as `L` grows, and binary search finds the flip.
+--build
+1. Decide the answer variable and make sure there is a yes or no test that flips once. For the ropes: `ok(L)` is "the pieces of length `L` number at least `k`", true for small `L`, false for large `L`.
+2. Choose `lo` where the test is surely true and `hi` where it is surely false (or the other way). For the ropes: `lo = 0` (any tiny length gives many pieces), `hi = the longest rope`.
+3. Repeat a fixed number of rounds (about 100, or 60 if the range is small). Each round, take `m = (lo + hi) / 2`. If `ok(m)`, move `lo = m`, else move `hi = m`.
+4. After the rounds, print `lo` (the best length known to work). Print enough digits (the answer is correct to about `1e-9` relative error or better).
+5. Count pieces without overflow: `pieces(L) = sum of floor(rope / L)` over all ropes. Use `long` or `double` for the sum if lengths are large.
+6. Alternative stop rule: loop while `hi - lo > eps` (a small number like `1e-9`). It is fine when `eps` is above the double resolution at that magnitude, but a fixed round count is safer, since a too-small `eps` can loop forever when `lo` and `hi` are adjacent doubles.
+7. Invariant: the answer is always in `[lo, hi]`, and each round halves `hi - lo`.
+--think
+- Signal: "find the maximum length / minimum time / the exact `x` such that ...", with the answer printed to a number of decimal places. Also finding the root of a continuous increasing function, and the inverse of a monotone function.
+- Decide first the tolerance the problem asks for and the magnitude of the numbers. Absolute precision `1e-6` on values near `1e9` needs about 50 rounds. 100 rounds always suffice for doubles.
+- Neighbouring techniques: binary search on integers when the answer is a whole number (it is exact). Newton's method converges faster for smooth functions but can fail. Ternary search for a maximum of a hump. For exact fractions, scale to integers.
+- Floating point warning: the test must be reliable near the answer. If `ok(m)` is noisy at the 1e-12 level it does not matter, because the answer is only needed to a looser tolerance.
+- Pitfalls: stopping on `lo == hi` (may never happen), a test `m == target` on doubles, `lo` starting at 0 and the test dividing by `m` (guard against division by zero by starting `lo` at a tiny positive value or never testing 0), and too few rounds.
+--cost
+Time O(rounds x cost of one check), with about 100 rounds. Space O(1).
+--java
+// square root of x (x >= 0) by halving
+static double sqrtReal(double x) {
+    double lo = 0, hi = Math.max(1, x);                    // sqrt(x) is at most max(1, x)
+    for (int it = 0; it < 100; it++) {
+        double m = (lo + hi) / 2;
+        if (m * m < x) lo = m; else hi = m;
+    }
+    return lo;
+}
+
+// longest piece length L such that the ropes give at least k pieces of length L
+static double maxPieceLength(double[] ropes, int k) {
+    double lo = 0, hi = 0;
+    for (double r : ropes) hi = Math.max(hi, r);
+    for (int it = 0; it < 100; it++) {
+        double m = (lo + hi) / 2;
+        long pieces = 0;
+        for (double r : ropes) pieces += (long) (r / m);   // whole pieces from this rope
+        if (pieces >= k) lo = m; else hi = m;              // enough pieces: we may try longer ones
+    }
+    return lo;
+}
+--py
+def sqrt_real(x):
+    """Square root of x (x >= 0) by halving."""
+    lo, hi = 0.0, max(1.0, x)                              # sqrt(x) is at most max(1, x)
+    for _ in range(100):
+        m = (lo + hi) / 2
+        if m * m < x: lo = m
+        else: hi = m
+    return lo
+
+def max_piece_length(ropes, k):
+    """Longest piece length L such that the ropes give at least k pieces of length L."""
+    lo, hi = 0.0, max(ropes)
+    for _ in range(100):
+        m = (lo + hi) / 2
+        pieces = sum(int(r // m) for r in ropes)           # whole pieces from each rope
+        if pieces >= k: lo = m                             # enough pieces: we may try longer ones
+        else: hi = m
+    return lo
+--cpp
+// square root of x (x >= 0) by halving
+double sqrtReal(double x) {
+    double lo = 0, hi = max(1.0, x);                       // sqrt(x) is at most max(1, x)
+    for (int it = 0; it < 100; it++) {
+        double m = (lo + hi) / 2;
+        if (m * m < x) lo = m; else hi = m;
+    }
+    return lo;
+}
+
+// longest piece length L such that the ropes give at least k pieces of length L
+double maxPieceLength(const vector<double>& ropes, int k) {
+    double lo = 0, hi = *max_element(ropes.begin(), ropes.end());
+    for (int it = 0; it < 100; it++) {
+        double m = (lo + hi) / 2;
+        long long pieces = 0;
+        for (double r : ropes) pieces += (long long)(r / m);   // whole pieces from this rope
+        if (pieces >= k) lo = m; else hi = m;                  // enough pieces: we may try longer ones
+    }
+    return lo;
+}
+
+### bs-matrix
+--idea
+Searching a matrix whose rows and columns are sorted is a puzzle about throwing away as much as possible with every comparison. Suppose every row is sorted left to right and every column is sorted top to bottom. Stand in the top-right corner. That cell is the largest in its row and the smallest in its column. If it is bigger than the target, the whole column below it is bigger too, so you can discard the column and step left. If it is smaller than the target, the whole row to its left is smaller too, so you can discard the row and step down. Each step removes a full row or column, so at most `rows + cols` steps are needed.
+A second shape of matrix is stricter: each row is sorted and the first item of every row is larger than the last item of the previous row. Reading the matrix row by row then gives one long sorted list, and you can binary search over positions `0 .. rows * cols - 1`, converting a position `p` to the cell `(p / cols, p % cols)`.
+--build
+1. Staircase search (rows sorted and columns sorted): set `r = 0` and `c = cols - 1`, the top-right corner.
+2. While `inBounds(r, c, rows, cols)` (code piece `u-idx`): look at `g[r][c]`. If it equals `x`, found. If it is larger than `x`, move left (`c--`), because everything below it in this column is larger still. If it is smaller than `x`, move down (`r++`), because everything to its left in this row is smaller still.
+3. If the walk leaves the grid, the target is absent. Report a cell as the flat position `idx(r, c, cols)` (code piece `u-idx`), which is `r * cols + c`.
+4. Fully ordered matrix: binary search over `lo = 0 .. hi = rows * cols - 1`. For the middle `m`, the cell is `g[m / cols][m % cols]`. Compare with `x` as in an ordinary binary search.
+5. The k-th smallest in a matrix with sorted rows and columns: binary search on the answer value. Count how many cells are `<= v` with a staircase walk from the bottom-left corner: while in bounds, if `g[r][c] <= v`, the whole column segment above it (`r + 1` cells) counts, so add `r + 1` and move right; else move up. The smallest `v` for which the count is at least `k` is the answer (`firstTrue`, code piece `u-first`, over the range of values).
+6. Invariant of the staircase: if the target is in the grid, it is in the part not yet discarded (the rows `r..` and columns `..c`), because every discarded row or column was shown to contain only smaller or only larger values.
+--think
+- Signal: a grid with sorted rows and columns and a question of membership or rank. The word "matrix" together with "sorted". Also "count cells less than `x`" in multiplication tables or other monotone grids.
+- Decide first which sortedness you have. Rows and columns sorted separately (staircase, `O(rows + cols)`). Rows chained into one sorted list (flat binary search, `O(log(rows x cols))`). Only rows sorted (binary search each row, `O(rows log cols)`).
+- Neighbouring techniques: binary search on the answer for the k-th element (the check is the staircase count). A heap of one cell per row also finds the k-th smallest in `O(k log rows)`. Divide and conquer on the grid works too.
+- Why start at a corner: only top-right (or bottom-left) corners have one direction that gets bigger and the other that gets smaller, so each comparison decides the next move. A top-left corner would be the smallest of both directions and cannot decide.
+- Pitfalls: starting in the wrong corner, mixing up rows and columns for non-square grids (`cols` is the length of a row), using the staircase on a matrix that is only row-sorted, and an empty matrix (`rows = 0`).
+--cost
+Staircase search O(rows + cols). Flat binary search O(log(rows x cols)). K-th smallest O((rows + cols) log(value range)). Space O(1).
+--java
+// rows and columns both sorted ascending: flat position of x (r * cols + c), or -1
+static int searchStaircase(int[][] g, int x) {
+    int rows = g.length, cols = rows == 0 ? 0 : g[0].length;
+    int r = 0, c = cols - 1;                               // top-right corner
+    while (inBounds(r, c, rows, cols)) {                   // piece u-idx
+        if (g[r][c] == x) return idx(r, c, cols);          // piece u-idx: flat position
+        if (g[r][c] > x) c--;                              // the rest of this column is larger: drop the column
+        else r++;                                          // the rest of this row is smaller: drop the row
+    }
+    return -1;
+}
+
+// each row sorted and every row starts after the previous one ends: binary search over flat positions
+static boolean searchFlat(int[][] g, int x) {
+    int rows = g.length, cols = rows == 0 ? 0 : g[0].length;
+    int lo = 0, hi = rows * cols - 1;
+    while (lo <= hi) {
+        int m = lo + (hi - lo) / 2, v = g[m / cols][m % cols];
+        if (v == x) return true;
+        if (v < x) lo = m + 1; else hi = m - 1;
+    }
+    return false;
+}
+
+// k-th smallest (k from 1) in a matrix with sorted rows and columns
+static int kthSmallest(int[][] g, int k) {
+    int rows = g.length, cols = g[0].length;
+    return firstTrue(g[0][0], g[rows - 1][cols - 1], v -> {          // piece u-first: smallest v with count(<= v) >= k
+        int count = 0, r = rows - 1, c = 0;                         // bottom-left corner
+        while (inBounds(r, c, rows, cols)) {
+            if (g[r][c] <= v) { count += r + 1; c++; }             // the whole column above counts
+            else r--;
+        }
+        return count >= k;
+    });
+}
+--py
+def search_staircase(g, x):
+    """Rows and columns both sorted ascending: flat position of x (r * cols + c), or -1."""
+    rows, cols = len(g), (len(g[0]) if g else 0)
+    r, c = 0, cols - 1                                    # top-right corner
+    while in_bounds(r, c, rows, cols):                    # piece u-idx
+        if g[r][c] == x: return idx(r, c, cols)           # piece u-idx: flat position
+        if g[r][c] > x: c -= 1                            # the rest of this column is larger: drop the column
+        else: r += 1                                      # the rest of this row is smaller: drop the row
+    return -1
+
+def search_flat(g, x):
+    """Each row sorted and every row starts after the previous one ends: binary search over flat positions."""
+    rows, cols = len(g), (len(g[0]) if g else 0)
+    lo, hi = 0, rows * cols - 1
+    while lo <= hi:
+        m = (lo + hi) // 2
+        v = g[m // cols][m % cols]
+        if v == x: return True
+        if v < x: lo = m + 1
+        else: hi = m - 1
+    return False
+
+def kth_smallest(g, k):
+    """k-th smallest (k from 1) in a matrix with sorted rows and columns."""
+    rows, cols = len(g), len(g[0])
+    def enough(v):                                        # are at least k cells <= v ?
+        count, r, c = 0, rows - 1, 0                      # bottom-left corner
+        while in_bounds(r, c, rows, cols):
+            if g[r][c] <= v:
+                count += r + 1; c += 1                    # the whole column above counts
+            else:
+                r -= 1
+        return count >= k
+    return first_true(g[0][0], g[rows - 1][cols - 1], enough)   # piece u-first
+--cpp
+// rows and columns both sorted ascending: flat position of x (r * cols + c), or -1
+int searchStaircase(const vector<vector<int>>& g, int x) {
+    int rows = g.size(), cols = rows == 0 ? 0 : g[0].size();
+    int r = 0, c = cols - 1;                               // top-right corner
+    while (inBounds(r, c, rows, cols)) {                   // piece u-idx
+        if (g[r][c] == x) return idx(r, c, cols);          // piece u-idx: flat position
+        if (g[r][c] > x) c--;                              // the rest of this column is larger: drop the column
+        else r++;                                          // the rest of this row is smaller: drop the row
+    }
+    return -1;
+}
+
+// each row sorted and every row starts after the previous one ends: binary search over flat positions
+bool searchFlat(const vector<vector<int>>& g, int x) {
+    int rows = g.size(), cols = rows == 0 ? 0 : g[0].size();
+    int lo = 0, hi = rows * cols - 1;
+    while (lo <= hi) {
+        int m = lo + (hi - lo) / 2, v = g[m / cols][m % cols];
+        if (v == x) return true;
+        if (v < x) lo = m + 1; else hi = m - 1;
+    }
+    return false;
+}
+
+// k-th smallest (k from 1) in a matrix with sorted rows and columns
+int kthSmallest(const vector<vector<int>>& g, int k) {
+    int rows = g.size(), cols = g[0].size();
+    return firstTrue(g[0][0], g[rows - 1][cols - 1], [&](int v) {   // piece u-first: smallest v with count(<= v) >= k
+        int count = 0, r = rows - 1, c = 0;                         // bottom-left corner
+        while (inBounds(r, c, rows, cols)) {
+            if (g[r][c] <= v) { count += r + 1; c++; }             // the whole column above counts
+            else r--;
+        }
+        return count >= k;
+    });
+}
+--uses
+u-idx
+u-first
+
+### fibsearch
+--idea
+Fibonacci search finds a value in a sorted list like binary search, but it splits the range at Fibonacci numbers (1, 1, 2, 3, 5, 8, 13, 21, ...) instead of in half. Each Fibonacci number is the sum of the two before it, so a range of length `F(k)` splits exactly into a part of length `F(k - 1)` and a part of length `F(k - 2)`. After one comparison you keep one of the two parts, and the new length is again a Fibonacci number, so the process continues the same way.
+The reason to use it is that the split points are found with only additions and subtractions of Fibonacci numbers, no division and no averaging. On old hardware where division was slow this mattered, and it still matters for systems where the cost of accessing locations close to each other is lower than far apart, since it probes slightly closer positions than binary search does. Its comparison count is about 4 percent higher than binary search in the worst case, so in everyday code binary search is preferred.
+--build
+1. Find the smallest Fibonacci number `fibM` that is at least `n` (the length). Keep the two Fibonacci numbers before it: `fibM1 = F(k - 1)` and `fibM2 = F(k - 2)`. So `fibM = fibM1 + fibM2`.
+2. Keep `offset = -1`: everything at positions up to `offset` has been eliminated (it is smaller than `x`).
+3. While `fibM > 1`: probe position `i = min(offset + fibM2, n - 1)`. (The `min` is for the case where the Fibonacci length is longer than the real array.)
+4. If `a[i] < x`: the target is to the right. Move the Fibonacci numbers one step down the sequence: set `fibM = fibM1`, `fibM1 = fibM2`, `fibM2 = fibM - fibM1`, and `offset = i`. The remaining range is the larger part (length `F(k - 1)`).
+5. If `a[i] > x`: the target is to the left, inside the smaller part. Set `fibM = fibM2`, `fibM1 = fibM1 - fibM2`, `fibM2 = fibM - fibM1`. The offset stays.
+6. If `a[i] == x`, return `i`.
+7. After the loop, one position may remain: if `fibM1 == 1` and `offset + 1 < n` and `a[offset + 1] == x`, return `offset + 1`. Otherwise return -1.
+8. Invariant: the target, if present, lies in positions `offset + 1 ... offset + fibM`, and `fibM = fibM1 + fibM2` always holds, so the next probe splits the range into Fibonacci-sized parts.
+--think
+- Signal: it is a textbook alternative to binary search, asked about in algorithm courses. In practice it fits where arithmetic division is unavailable or expensive, or where memory locality matters (searching on tape or on a device where short moves are cheaper).
+- Decide first whether you have a reason. Without one, use binary search: it is simpler and slightly faster.
+- Neighbouring techniques: binary search, interpolation search, exponential search, jump search. Fibonacci search is also the discrete cousin of golden section search, which finds the peak of a unimodal function and uses the golden ratio, the limit of the ratio of consecutive Fibonacci numbers.
+- The parts shrink by a factor of about 0.618 (golden ratio) in the large case and 0.382 in the small case, against exactly 0.5 for binary search.
+- Pitfalls: the update formulas (they are easy to get wrong, write the invariant `fibM = fibM1 + fibM2` as a check), probing beyond `n - 1`, forgetting the final single position, and arrays whose length is not a Fibonacci number (the `min` handles it).
+--cost
+Time O(log n), with about 1.44 log2 n probes in the worst case. Space O(1).
+--java
+static int fibSearch(int[] a, int x) {
+    int n = a.length;
+    int fibM2 = 0, fibM1 = 1, fibM = fibM1 + fibM2;          // F(k-2), F(k-1), F(k)
+    while (fibM < n) { fibM2 = fibM1; fibM1 = fibM; fibM = fibM2 + fibM1; }   // smallest Fibonacci number >= n
+    int offset = -1;                                         // everything up to offset is smaller than x
+    while (fibM > 1) {
+        int i = Math.min(offset + fibM2, n - 1);
+        if (a[i] < x) { fibM = fibM1; fibM1 = fibM2; fibM2 = fibM - fibM1; offset = i; }   // go right: bigger part
+        else if (a[i] > x) { fibM = fibM2; fibM1 = fibM1 - fibM2; fibM2 = fibM - fibM1; }  // go left: smaller part
+        else return i;
+    }
+    if (fibM1 == 1 && offset + 1 < n && a[offset + 1] == x) return offset + 1;   // one position may be left
+    return -1;
+}
+--py
+def fib_search(a, x):
+    n = len(a)
+    fib_m2, fib_m1 = 0, 1
+    fib_m = fib_m2 + fib_m1                                  # F(k-2), F(k-1), F(k)
+    while fib_m < n:
+        fib_m2, fib_m1 = fib_m1, fib_m                       # smallest Fibonacci number >= n
+        fib_m = fib_m2 + fib_m1
+    offset = -1                                              # everything up to offset is smaller than x
+    while fib_m > 1:
+        i = min(offset + fib_m2, n - 1)
+        if a[i] < x:                                         # go right: bigger part
+            fib_m, fib_m1 = fib_m1, fib_m2
+            fib_m2 = fib_m - fib_m1
+            offset = i
+        elif a[i] > x:                                       # go left: smaller part
+            fib_m = fib_m2
+            fib_m1 = fib_m1 - fib_m2
+            fib_m2 = fib_m - fib_m1
+        else:
+            return i
+    if fib_m1 == 1 and offset + 1 < n and a[offset + 1] == x:    # one position may be left
+        return offset + 1
+    return -1
+--cpp
+int fibSearch(const vector<int>& a, int x) {
+    int n = a.size();
+    int fibM2 = 0, fibM1 = 1, fibM = fibM1 + fibM2;          // F(k-2), F(k-1), F(k)
+    while (fibM < n) { fibM2 = fibM1; fibM1 = fibM; fibM = fibM2 + fibM1; }   // smallest Fibonacci number >= n
+    int offset = -1;                                         // everything up to offset is smaller than x
+    while (fibM > 1) {
+        int i = min(offset + fibM2, n - 1);
+        if (a[i] < x) { fibM = fibM1; fibM1 = fibM2; fibM2 = fibM - fibM1; offset = i; }   // go right: bigger part
+        else if (a[i] > x) { fibM = fibM2; fibM1 = fibM1 - fibM2; fibM2 = fibM - fibM1; }  // go left: smaller part
+        else return i;
+    }
+    if (fibM1 == 1 && offset + 1 < n && a[offset + 1] == x) return offset + 1;   // one position may be left
+    return -1;
+}
+
+### bs-greedy
+--idea
+Binary search with a greedy check is the most common shape of "binary search on the answer". You are asked for an extreme value (the smallest possible largest-sum, the biggest possible smallest-gap). You guess a value, and then you test the guess with a single quick greedy pass over the input: do the best you can under that limit and see whether it is enough. If the guess works, anything easier also works, so the guesses form "no no no yes yes yes" and binary search finds the boundary.
+Example: split a list of numbers into `m` consecutive pieces so that the largest piece sum is as small as possible. Guess a limit `cap`. Greedily fill each piece with as many numbers as fit under `cap`, starting a new piece only when the next number would break the limit. If you need `m` pieces or fewer, the limit is big enough. The greedy pass is optimal for the check, which is why the whole method is correct.
+--build
+1. Name the answer: for the splitting problem it is `cap`, the largest allowed piece sum. Decide the range: at least the largest single number (a piece must hold it), and at most the sum of all numbers (one piece).
+2. Write the greedy check `pieces(cap)`: start with 1 piece and a running sum 0. For each number `x`: if `sum + x > cap`, start a new piece (`pieces++`, `sum = 0`). Then add: `sum += x`. Return `pieces`.
+3. The test for a guess is `pieces(cap) <= m`. Bigger limits need fewer pieces, so the test flips once, from false to true.
+4. Find the smallest `cap` for which the test holds with `firstTrue(lo, hi, test)` (code piece `u-first`).
+5. For a "largest minimum" problem (such as placing `c` cows in stalls so the nearest pair is as far apart as possible) the test is true for small distances and false for large ones. Find the first distance where it fails and subtract one: the answer is `firstTrue(1, maxDist + 1, d -> !canPlace(d)) - 1`. The check places the first cow at the first stall, then greedily puts the next cow at the first stall at least `d` away.
+6. Prove the greedy is right: pushing as many items as possible into the current piece (or putting each cow as early as possible) can never hurt later pieces, since it leaves the most room for the rest.
+7. Invariant: the answer is always in `[lo, hi]`, and `hi` always passes the test.
+--think
+- Signal: "minimise the maximum" or "maximise the minimum" with consecutive pieces, days, machines, workers, or distances: split array largest sum, ship packages within `D` days, allocate pages to students, aggressive cows, painter's partition, cut ribbons.
+- Decide first the range and the direction. Then write the check as a greedy single pass, and make sure the greedy choice is optimal for the check. If the greedy is not optimal, the check is wrong and binary search returns garbage.
+- Neighbouring techniques: dynamic programming solves the splitting problem exactly in `O(n^2 m)`, much slower. Plain binary search on the answer is the same idea with any check function. Two pointers handle checks of fixed form on sorted data. Parametric search is the theory behind it.
+- Always check that a limit that is too small cannot work (fewer pieces would be needed than allowed is the wrong direction): a piece must at least hold the largest single number, so `lo` starts there, not at 0 or 1.
+- Pitfalls: starting `lo` too low (a limit below the biggest number makes the greedy loop count wrong), overflow in the sum (use `long` when the total can exceed `2^31`), mixing up `<=` and `<` in the check, and forgetting the flip for "maximise the minimum".
+--cost
+Time O(n log(range)): `log(range)` guesses, each one pass over the `n` items. Space O(1).
+--java
+// split nums into at most m consecutive pieces, minimising the largest piece sum
+static int splitArray(int[] nums, int m) {
+    int lo = 0, hi = 0;
+    for (int x : nums) { lo = Math.max(lo, x); hi += x; }       // a piece holds at least the biggest number, at most everything
+    return firstTrue(lo, hi, cap -> {                            // piece u-first: smallest cap that works
+        int pieces = 1, sum = 0;
+        for (int x : nums) {
+            if (sum + x > cap) { pieces++; sum = 0; }            // greedy: start a new piece only when forced
+            sum += x;
+        }
+        return pieces <= m;
+    });
+}
+
+// place c cows in stalls so the closest pair is as far apart as possible (c >= 2)
+static int maxMinDistance(int[] stalls, int c) {
+    int[] s = stalls.clone();
+    java.util.Arrays.sort(s);
+    int hi = s[s.length - 1] - s[0] + 1;                         // this distance surely fails for c >= 2
+    return firstTrue(1, hi, d -> {                               // first distance that does NOT work
+        int placed = 1, last = s[0];
+        for (int p : s) if (p - last >= d) { placed++; last = p; }
+        return placed < c;
+    }) - 1;                                                       // so the one before it is the answer
+}
+--py
+def split_array(nums, m):
+    """Split nums into at most m consecutive pieces, minimising the largest piece sum."""
+    def ok(cap):
+        pieces, total = 1, 0
+        for x in nums:
+            if total + x > cap:
+                pieces, total = pieces + 1, 0                   # greedy: start a new piece only when forced
+            total += x
+        return pieces <= m
+    return first_true(max(nums), sum(nums), ok)                  # piece u-first: smallest cap that works
+
+def max_min_distance(stalls, c):
+    """Place c cows in stalls so the closest pair is as far apart as possible (c >= 2)."""
+    s = sorted(stalls)
+    def fails(d):                                                # first distance that does NOT work
+        placed, last = 1, s[0]
+        for p in s:
+            if p - last >= d:
+                placed, last = placed + 1, p
+        return placed < c
+    return first_true(1, s[-1] - s[0] + 1, fails) - 1            # so the one before it is the answer
+--cpp
+// split nums into at most m consecutive pieces, minimising the largest piece sum
+int splitArray(const vector<int>& nums, int m) {
+    int lo = *max_element(nums.begin(), nums.end()), hi = accumulate(nums.begin(), nums.end(), 0);
+    return firstTrue(lo, hi, [&](int cap) {                      // piece u-first: smallest cap that works
+        int pieces = 1, sum = 0;
+        for (int x : nums) {
+            if (sum + x > cap) { pieces++; sum = 0; }            // greedy: start a new piece only when forced
+            sum += x;
+        }
+        return pieces <= m;
+    });
+}
+
+// place c cows in stalls so the closest pair is as far apart as possible (c >= 2)
+int maxMinDistance(vector<int> s, int c) {
+    sort(s.begin(), s.end());
+    int hi = s.back() - s[0] + 1;                                // this distance surely fails for c >= 2
+    return firstTrue(1, hi, [&](int d) {                         // first distance that does NOT work
+        int placed = 1, last = s[0];
+        for (int p : s) if (p - last >= d) { placed++; last = p; }
+        return placed < c;
+    }) - 1;                                                       // so the one before it is the answer
+}
+--uses
+u-first
+
+### parallelbs
+--idea
+Parallel binary search answers many binary-search questions at once when each single check is too expensive to repeat for every question. Suppose edges are added to a network one by one, and there are many questions "after how many edges are cities `a` and `b` first connected?". Each question is a binary search over time, and checking one time means rebuilding the network up to that time, which is far too slow to do separately for each question.
+The trick is to run all the binary searches in step, round by round. In each round every question has a guess for its middle time. Replay the edges once from the start, and at each time answer all the questions whose guess is that time: is the pair connected now? One replay serves every question. After about `log2(m)` rounds (with `m` edges), every question has narrowed down to a single time.
+--build
+1. For each question `q` keep a range `lo[q] .. hi[q]` of possible answers. Here the answer is a prefix length `k`: the smallest number of edges after which the pair is connected. The range starts at `lo = 0` and `hi = m + 1`, where `m + 1` means "never connected".
+2. Repeat rounds while some question has `lo < hi`.
+3. In a round, for each active question compute its guess `mid = (lo + hi) / 2` and put the question in the list for time `mid` (a bucket per time `0 .. m`).
+4. Reset the structure (a fresh union-find). Replay time from `k = 0` to `m`: at `k > 0`, add edge `k - 1` using `union(a, b)` (code piece `u-dsuunion`). Then, for every question in the bucket for `k`: if its two cities are connected (`find(a) == find(b)`), set `hi = mid` (the answer is at most `mid`). Otherwise set `lo = mid + 1`.
+5. After all rounds, `lo[q]` is the answer for question `q`. A value of `m + 1` means the cities are never connected.
+6. The cost of a round is one replay of `m` edges plus the work to answer the `Q` questions: `O((m + Q) alpha)` with a union-find. There are `log2(m + 2)` rounds, so the total is `O((m + Q) log m alpha)`.
+7. Invariant: for every question, the true answer is inside `[lo, hi]` because each round keeps the half that contains the first time the pair is connected (connection is monotone: once connected, it stays connected as edges are added).
+--think
+- Signal: many queries of the form "earliest time when ..." over a structure that only grows (connectivity, counts, sums), where one check requires rebuilding or replaying the structure. The key words: "for each query, the earliest moment", "the first day when", with offline allowed.
+- Decide first that the question is monotone in time and that you can answer "is it true at time `t`?" by replaying updates in order. Then see whether the check can be answered for many questions in one replay: that is when parallel binary search is the right tool.
+- Neighbouring techniques: a union-find with weights or a Kruskal reconstruction tree answers "earliest connection" more directly for this exact question. A persistent data structure answers each check in `log` time without a replay. Offline divide and conquer ("whole binary search") is a close relative with a recursion on the answer range.
+- It is offline: all questions must be known in advance.
+- Pitfalls: not resetting the structure each round, forgetting time 0 (zero edges added, connected only when `a == b`), using the wrong bucket (`mid` versus `mid - 1` off by one), and mutating `lo` and `hi` before all questions of the round are answered (each question only changes its own range, so it is safe, but the guess must be computed before the replay).
+--cost
+Time O((m + Q) log m) times the cost of one structure operation, with `m` updates and `Q` questions. Space O(m + Q).
+--java
+static class Dsu {
+    int[] p, sz;
+    Dsu(int n) { p = new int[n]; sz = new int[n]; for (int i = 0; i < n; i++) { p[i] = i; sz[i] = 1; } }
+    int find(int x) { while (p[x] != x) { p[x] = p[p[x]]; x = p[x]; } return x; }   // path halving
+    // union(a, b) is the code piece u-dsuunion
+}
+
+// edges[k] = {a, b} added at time k + 1; queries[q] = {a, b}. Returns, for each query, the smallest k
+// such that a and b are connected after the first k edges (m + 1 if never).
+static int[] earliestConnection(int n, int[][] edges, int[][] queries) {
+    int m = edges.length, qn = queries.length;
+    int[] lo = new int[qn], hi = new int[qn];
+    java.util.Arrays.fill(hi, m + 1);
+    boolean active = true;
+    while (active) {
+        active = false;
+        java.util.List<Integer>[] bucket = new java.util.List[m + 1];
+        for (int k = 0; k <= m; k++) bucket[k] = new java.util.ArrayList<>();
+        for (int q = 0; q < qn; q++)
+            if (lo[q] < hi[q]) { bucket[(lo[q] + hi[q]) / 2].add(q); active = true; }   // each question's guess
+        if (!active) break;
+        Dsu d = new Dsu(n);                                      // fresh structure, replay from time 0
+        for (int k = 0; k <= m; k++) {
+            if (k > 0) d.union(edges[k - 1][0], edges[k - 1][1]);   // piece u-dsuunion
+            for (int q : bucket[k]) {
+                if (d.find(queries[q][0]) == d.find(queries[q][1])) hi[q] = k;      // connected already: answer <= k
+                else lo[q] = k + 1;                                                 // not yet: answer > k
+            }
+        }
+    }
+    return lo;
+}
+--py
+p, sz = [], []                                       # module level, as the piece u-dsuunion expects
+
+def init_dsu(n):
+    global p, sz
+    p, sz = list(range(n)), [1] * n
+
+def find(x):
+    while p[x] != x:
+        p[x] = p[p[x]]                               # path halving
+        x = p[x]
+    return x
+# union(a, b) is the code piece u-dsuunion
+
+def earliest_connection(n, edges, queries):
+    """edges[k] = (a, b) is added at time k + 1. For each query (a, b) return the smallest k such that
+    a and b are connected after the first k edges (m + 1 if never)."""
+    m, qn = len(edges), len(queries)
+    lo, hi = [0] * qn, [m + 1] * qn
+    while True:
+        bucket = [[] for _ in range(m + 1)]
+        active = False
+        for q in range(qn):
+            if lo[q] < hi[q]:
+                bucket[(lo[q] + hi[q]) // 2].append(q)      # each question's guess
+                active = True
+        if not active: break
+        init_dsu(n)                                          # fresh structure, replay from time 0
+        for k in range(m + 1):
+            if k > 0:
+                union(edges[k - 1][0], edges[k - 1][1])      # piece u-dsuunion
+            for q in bucket[k]:
+                if find(queries[q][0]) == find(queries[q][1]):
+                    hi[q] = k                                # connected already: answer <= k
+                else:
+                    lo[q] = k + 1                            # not yet: answer > k
+    return lo
+--cpp
+struct Dsu {
+    vector<int> p, sz;
+    Dsu(int n) : p(n), sz(n, 1) { iota(p.begin(), p.end(), 0); }
+    int find(int x) { while (p[x] != x) { p[x] = p[p[x]]; x = p[x]; } return x; }   // path halving
+    // unite(a, b) is the code piece u-dsuunion
+};
+
+// edges[k] = {a, b} added at time k + 1. For each query {a, b}: the smallest k such that a and b are
+// connected after the first k edges (m + 1 if never).
+vector<int> earliestConnection(int n, const vector<array<int, 2>>& edges, const vector<array<int, 2>>& queries) {
+    int m = edges.size(), qn = queries.size();
+    vector<int> lo(qn, 0), hi(qn, m + 1);
+    while (true) {
+        vector<vector<int>> bucket(m + 1);
+        bool active = false;
+        for (int q = 0; q < qn; q++)
+            if (lo[q] < hi[q]) { bucket[(lo[q] + hi[q]) / 2].push_back(q); active = true; }   // each question's guess
+        if (!active) break;
+        Dsu d(n);                                                // fresh structure, replay from time 0
+        for (int k = 0; k <= m; k++) {
+            if (k > 0) d.unite(edges[k - 1][0], edges[k - 1][1]);   // piece u-dsuunion
+            for (int q : bucket[k]) {
+                if (d.find(queries[q][0]) == d.find(queries[q][1])) hi[q] = k;      // connected already: answer <= k
+                else lo[q] = k + 1;                                                 // not yet: answer > k
+            }
+        }
+    }
+    return lo;
+}
+--uses
+u-dsuunion
+
+### fraccasc
+--idea
+Fractional cascading searches for the same value in many sorted lists with only one real binary search. Normally, finding `x` in each of `k` lists costs `k` binary searches, `k log n` in all. Fractional cascading does one binary search in the first list, and then reaches the right place in every other list in a constant number of steps each, for `log n + k` in total.
+The idea is to leave breadcrumbs. Every list is enlarged with a sample (every second item) of the list below it, so each list contains a bit of information about where things are in the next one. Every entry also stores two pointers: where it falls in its own original list, and where it falls in the enlarged list below. Once you know your position in one list, a pointer takes you to roughly the right position in the next, and a single small step corrects it.
+--build
+1. Start with `k` sorted lists `L_0, L_1, ..., L_{k-1}`. Build enlarged lists `A_0, ..., A_{k-1}` from the bottom up.
+2. `A_{k-1}` is just `L_{k-1}`.
+3. For `i` from `k - 2` down to 0: take every second item of `A_{i+1}` (the items at odd positions 1, 3, 5, ...) and merge them with the items of `L_i`, using `merge` (code piece `u-merge`). The result is `A_i`. It is sorted, and it has at most `|L_i| + |A_{i+1}| / 2` items, so the total size of all lists is at most twice the original.
+4. For every entry `j` of `A_i` (and one extra entry for "past the end") store `own[i][j]`: the position in the original list `L_i` of the first item that is at least `A_i[j]`. Compute it with `lowerBound(L_i, A_i[j])` (code piece `u-lower`). The "past the end" entry stores `|L_i|`.
+5. Also store `next[i][j]`: the position in `A_{i+1}` of the first item at least `A_i[j]`, computed with `lowerBound(A_{i+1}, A_i[j])`. The "past the end" entry stores `|A_{i+1}|`.
+6. Query for `x`: do one `lowerBound(A_0, x)` to get `j`. For list `i = 0`, the answer is `own[0][j]`.
+7. To move to the next list: set `j = next[i][j]`. This is the position of the first item at least `A_i[j]` in `A_{i+1}`, which is the right place for `x` or one or two places too far. Correct it: while `j > 0` and `A_{i+1}[j - 1] >= x`, do `j--`. Because every second item of `A_{i+1}` was copied into `A_i`, this loop runs at most once or twice. Then the answer for list `i + 1` is `own[i + 1][j]`.
+8. Invariant: after each step, `j` is the position in `A_i` of the first item at least `x`, so `own[i][j]` is the position in the original list `L_i` of the first item at least `x` (because `L_i` is a part of `A_i`).
+--think
+- Signal: "search the same key in many sorted lists", multi-list range search, segment tree of sorted lists (merge sort tree) queries that repeat the same key on every node, or "for each of several categories find the first element at least `x`". A `k log n` cost that you want to cut to `log n + k`.
+- Decide first whether the extra memory (a factor of two) and the extra code are worth it. For a small `k`, repeated binary search is fine. The method matters when `k` is large (for example, along a path of a tree with a sorted list at each node).
+- Neighbouring techniques: a merge sort tree answers the same search in `log^2 n` and fractional cascading brings it to `log n`. Persistent segment trees avoid the lists entirely. A single sorted list with a pointer per entry is the special case with `k = 2`.
+- The sampling rate decides the constant: copying every second item gives at most a constant number of correction steps; copying every item would make lists grow too fast.
+- Pitfalls: forgetting the extra "past the end" entry, a correction loop that goes the wrong way (the pointer lands at or after the true position, so step left), sampling the wrong items (any fixed fraction works, but the bound changes), and ties among equal keys (the code uses first item `>= x` consistently).
+--cost
+Build O(total size x log) with the simple pointer computation here (O(total size) with a pointer sweep). Query O(log n + k). Space O(total size), at most about twice the input.
+--java
+static class Cascade {
+    int k; int[][] aug, own, next;
+
+    Cascade(int[][] lists) {                                       // each list sorted ascending
+        k = lists.length;
+        aug = new int[k][]; own = new int[k][]; next = new int[k][];
+        for (int i = k - 1; i >= 0; i--) {
+            if (i == k - 1) aug[i] = lists[i].clone();
+            else {
+                int[] sample = new int[aug[i + 1].length / 2];
+                for (int t = 0; t < sample.length; t++) sample[t] = aug[i + 1][2 * t + 1];   // every second item
+                aug[i] = merge(lists[i], sample);                  // piece u-merge
+            }
+            own[i] = new int[aug[i].length + 1];
+            for (int j = 0; j < aug[i].length; j++) own[i][j] = lowerBound(lists[i], aug[i][j]);   // piece u-lower
+            own[i][aug[i].length] = lists[i].length;
+            if (i < k - 1) {
+                next[i] = new int[aug[i].length + 1];
+                for (int j = 0; j < aug[i].length; j++) next[i][j] = lowerBound(aug[i + 1], aug[i][j]);
+                next[i][aug[i].length] = aug[i + 1].length;
+            }
+        }
+    }
+
+    // for every list, the position of the first item >= x, using one real binary search
+    int[] search(int x) {
+        int[] res = new int[k];
+        int j = lowerBound(aug[0], x);                             // the only full binary search
+        for (int i = 0; i < k; i++) {
+            res[i] = own[i][j];
+            if (i < k - 1) {
+                j = next[i][j];                                    // jump to the neighbourhood in the next list
+                while (j > 0 && aug[i + 1][j - 1] >= x) j--;       // correct by a step or two
+            }
+        }
+        return res;
+    }
+}
+--py
+class Cascade:
+    def __init__(self, lists):                                     # each list sorted ascending
+        self.k = k = len(lists)
+        self.aug, self.own, self.next = [None] * k, [None] * k, [None] * k
+        for i in range(k - 1, -1, -1):
+            if i == k - 1:
+                self.aug[i] = list(lists[i])
+            else:
+                sample = self.aug[i + 1][1::2]                     # every second item
+                self.aug[i] = merge(lists[i], sample)              # piece u-merge
+            self.own[i] = [lower_bound(lists[i], v) for v in self.aug[i]] + [len(lists[i])]   # piece u-lower
+            if i < k - 1:
+                self.next[i] = [lower_bound(self.aug[i + 1], v) for v in self.aug[i]] + [len(self.aug[i + 1])]
+
+    def search(self, x):
+        """For every list, the position of the first item >= x, using one real binary search."""
+        res = []
+        j = lower_bound(self.aug[0], x)                            # the only full binary search
+        for i in range(self.k):
+            res.append(self.own[i][j])
+            if i < self.k - 1:
+                j = self.next[i][j]                                # jump to the neighbourhood in the next list
+                while j > 0 and self.aug[i + 1][j - 1] >= x:       # correct by a step or two
+                    j -= 1
+        return res
+--cpp
+struct Cascade {
+    int k; vector<vector<int>> aug, own, next;
+
+    Cascade(const vector<vector<int>>& lists) : k(lists.size()), aug(k), own(k), next(k) {   // each list sorted ascending
+        for (int i = k - 1; i >= 0; i--) {
+            if (i == k - 1) aug[i] = lists[i];
+            else {
+                vector<int> sample;
+                for (size_t t = 1; t < aug[i + 1].size(); t += 2) sample.push_back(aug[i + 1][t]);   // every second item
+                aug[i] = mergeSorted(lists[i], sample);            // piece u-merge
+            }
+            own[i].assign(aug[i].size() + 1, 0);
+            for (size_t j = 0; j < aug[i].size(); j++) own[i][j] = lowerBound(lists[i], aug[i][j]);   // piece u-lower
+            own[i][aug[i].size()] = lists[i].size();
+            if (i < k - 1) {
+                next[i].assign(aug[i].size() + 1, 0);
+                for (size_t j = 0; j < aug[i].size(); j++) next[i][j] = lowerBound(aug[i + 1], aug[i][j]);
+                next[i][aug[i].size()] = aug[i + 1].size();
+            }
+        }
+    }
+
+    // for every list, the position of the first item >= x, using one real binary search
+    vector<int> search(int x) const {
+        vector<int> res(k);
+        int j = lowerBound(aug[0], x);                             // the only full binary search
+        for (int i = 0; i < k; i++) {
+            res[i] = own[i][j];
+            if (i < k - 1) {
+                j = next[i][j];                                    // jump to the neighbourhood in the next list
+                while (j > 0 && aug[i + 1][j - 1] >= x) j--;       // correct by a step or two
+            }
+        }
+        return res;
+    }
+};
+--uses
+u-merge
+u-lower
+
