@@ -34,11 +34,14 @@ for k in les:
         links=[p for p in by_id[k]["pre"] if by_id[p]["col"]<2]
         for u in used:
             if u not in code: errs.append(f"lesson {k}: --uses lists {u}, which is not a code piece");continue
-            for lg in ("java","py","cpp"):
+            for lg in ("java","py","cpp")+(("go",) if L.get("go","").strip() and snips[u].get("go") else ()):
                 if not calls(L[lg],method_names(snips[u][lg],lg)): errs.append(f"lesson {k}: the {lg} code never calls {u} ({sorted(method_names(snips[u][lg],lg))})")
         if links and not used: nouse.append(k)
         elif links and not any(u in used for u in links): nolink.append(k)
 topics=[n for n in graph if n["col"]>=2]
+_gp=sum(1 for c in code if snips.get(c,{}).get("go","").strip());_gl=sum(1 for k in les if json.load(open(f"{D}/lessons/{k}.json")).get("go","").strip())
+print("Go:",_gp,"of",len(code),"code pieces,",_gl,"of",len(les),"lessons")
+if os.environ.get("STRICT_GO") and (_gp<len(code) or _gl<len(les)):errs.append("Go is incomplete")
 print(len(les),"of",len(topics),"topics have a lesson")
 withlinks=[k for k in les if any(by_id[p]["col"]<2 for p in by_id[k]["pre"])]
 print(len(withlinks)-len(nouse)-len(nolink),"of",len(withlinks),"lessons with linked code pieces build on them")

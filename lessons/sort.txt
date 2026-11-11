@@ -592,7 +592,7 @@ Counting sort sorts without comparing items. If the values are whole numbers in 
 Because it only counts and reads, it takes time proportional to the number of items plus the size of the range, which beats the `n log n` limit of comparison sorts when the range is small. The version used inside radix sort is stable: it uses running totals (prefix sums) to tell each item exactly which output position it takes, and fills the output from the back.
 --build
 1. Know the range: all values are integers in `[0, k)`. Make an array `count` of `k` zeros.
-2. Count: for each item `x`, do `count[x]++`.
+2. Count: call `countFreq(a)` (code piece `u-freq`) to get how many times each value `x` appears. Copy those tallies into `count[x]`.
 3. Prefix sums: turn counts into end positions. For `v` from 1 to `k - 1`, do `count[v] += count[v - 1]`. Now `count[v]` is the number of items that are `<= v`, so the items equal to `v` occupy the output positions just before `count[v]`.
 4. Place, scanning the input from the back to the front: for each item `x`, do `count[x]--` and write `out[count[x]] = x`. Going backwards keeps equal items in their original order, which makes the sort stable.
 5. Copy `out` back into the input if the sort must be in place.
@@ -606,11 +606,14 @@ Because it only counts and reads, it takes time proportional to the number of it
 - Pitfalls: running the placement loop forward (loses stability), forgetting to shift negative values, a count array that is too small (index out of range), and using it when the range is huge.
 --cost
 Time O(n + k). Space O(n + k). Stable (with the backward placement).
+--uses
+u-freq
 --java
 // sort values in [0, k); stable
 static int[] countingSort(int[] a, int k) {
     int[] count = new int[k], out = new int[a.length];
-    for (int x : a) count[x]++;
+    for (Map.Entry<Integer, Integer> e : countFreq(a).entrySet())   // piece u-freq: tally of each value
+        count[e.getKey()] = e.getValue();
     for (int v = 1; v < k; v++) count[v] += count[v - 1];     // count[v] = number of items <= v
     for (int i = a.length - 1; i >= 0; i--)                   // backwards keeps equal items in order
         out[--count[a[i]]] = a[i];
@@ -620,8 +623,8 @@ static int[] countingSort(int[] a, int k) {
 def counting_sort(a, k):
     """Sort values in [0, k); stable."""
     count = [0] * k
-    for x in a:
-        count[x] += 1
+    for x, c in count_freq(a).items():             # piece u-freq: tally of each value
+        count[x] = c
     for v in range(1, k):
         count[v] += count[v - 1]                  # count[v] = number of items <= v
     out = [0] * len(a)
@@ -633,7 +636,7 @@ def counting_sort(a, k):
 // sort values in [0, k); stable
 vector<int> countingSort(const vector<int>& a, int k) {
     vector<int> count(k, 0), out(a.size());
-    for (int x : a) count[x]++;
+    for (auto& [x, c] : countFreq(a)) count[x] = c;           // piece u-freq: tally of each value
     for (int v = 1; v < k; v++) count[v] += count[v - 1];     // count[v] = number of items <= v
     for (int i = (int)a.size() - 1; i >= 0; i--)              // backwards keeps equal items in order
         out[--count[a[i]]] = a[i];
@@ -2584,6 +2587,7 @@ The trick is to run all the binary searches in step, round by round. In each rou
 5. After all rounds, `lo[q]` is the answer for question `q`. A value of `m + 1` means the cities are never connected.
 6. The cost of a round is one replay of `m` edges plus the work to answer the `Q` questions: `O((m + Q) alpha)` with a union-find. There are `log2(m + 2)` rounds, so the total is `O((m + Q) log m alpha)`.
 7. Invariant: for every question, the true answer is inside `[lo, hi]` because each round keeps the half that contains the first time the pair is connected (connection is monotone: once connected, it stays connected as edges are added).
+8. The slow way to check it is one binary search per question: call `firstTrue(0, m + 1, test)` (code piece `u-first`, `first_true` in Python), where `test(k)` rebuilds a union-find from the first `k` edges and asks whether the pair is connected (`m + 1` always counts as true). It costs `O(Q m log m alpha)`, which is what the shared replay of parallel binary search avoids.
 --think
 - Signal: many queries of the form "earliest time when ..." over a structure that only grows (connectivity, counts, sums), where one check requires rebuilding or replaying the structure. The key words: "for each query, the earliest moment", "the first day when", with offline allowed.
 - Decide first that the question is monotone in time and that you can answer "is it true at time `t`?" by replaying updates in order. Then see whether the check can be answered for many questions in one replay: that is when parallel binary search is the right tool.
@@ -2625,6 +2629,22 @@ static int[] earliestConnection(int n, int[][] edges, int[][] queries) {
     }
     return lo;
 }
+
+// the slow reference: one binary search per question, each test replays its own union-find
+static int[] earliestConnectionSlow(int n, int[][] edges, int[][] queries) {
+    int m = edges.length;
+    int[] ans = new int[queries.length];
+    for (int q = 0; q < queries.length; q++) {
+        final int a = queries[q][0], b = queries[q][1];
+        ans[q] = firstTrue(0, m + 1, k -> {                    // piece u-first: smallest k that passes
+            if (k > m) return true;                            // m + 1 means "never"
+            Dsu d = new Dsu(n);
+            for (int i = 0; i < k; i++) d.union(edges[i][0], edges[i][1]);
+            return d.find(a) == d.find(b);
+        });
+    }
+    return ans;
+}
 --py
 p, sz = [], []                                       # module level, as the piece u-dsuunion expects
 
@@ -2662,6 +2682,17 @@ def earliest_connection(n, edges, queries):
                 else:
                     lo[q] = k + 1                            # not yet: answer > k
     return lo
+
+def earliest_connection_slow(n, edges, queries):
+    """The slow reference: one binary search per question, each test replays its own union-find."""
+    m = len(edges)
+    def connected_after(a, b, k):
+        if k > m: return True                                # m + 1 means "never"
+        init_dsu(n)
+        for i in range(k):
+            union(edges[i][0], edges[i][1])
+        return find(a) == find(b)
+    return [first_true(0, m + 1, lambda k: connected_after(a, b, k)) for a, b in queries]   # piece u-first
 --cpp
 struct Dsu {
     vector<int> p, sz;
@@ -2692,8 +2723,23 @@ vector<int> earliestConnection(int n, const vector<array<int, 2>>& edges, const 
     }
     return lo;
 }
+
+// the slow reference: one binary search per question, each test replays its own union-find
+vector<int> earliestConnectionSlow(int n, const vector<array<int, 2>>& edges, const vector<array<int, 2>>& queries) {
+    int m = edges.size();
+    vector<int> ans;
+    for (auto& qu : queries)
+        ans.push_back(firstTrue(0, m + 1, [&](int k) {         // piece u-first: smallest k that passes
+            if (k > m) return true;                            // m + 1 means "never"
+            Dsu d(n);
+            for (int i = 0; i < k; i++) d.unite(edges[i][0], edges[i][1]);
+            return d.find(qu[0]) == d.find(qu[1]);
+        }));
+    return ans;
+}
 --uses
 u-dsuunion
+u-first
 
 ### fraccasc
 --idea

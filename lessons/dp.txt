@@ -3,10 +3,10 @@
 Memoization means "write the answer down the first time you work it out, and look it up every time after". A plain recursive function often asks the same question many times. Computing the stairs-climbing count for 30 steps by plain recursion re-solves the same small questions millions of times. Keep a notebook (an array or a map) keyed by the question, and the repeats cost almost nothing.
 It works because the answer to a question depends only on the question itself, not on how you reached it. So the first answer is the answer forever. This is the top-down form of dynamic programming (DP, solving a big problem from remembered answers to smaller ones). The bottom-up form fills the notebook in a planned order instead of on demand.
 --build
-1. Write the plain recursion first. State what the function means in one sentence. Here `f(n)` is the number of ordered ways to climb exactly `n` stairs when each move is one of the sizes in `steps`.
+1. Write the plain recursion first. State what the function means in one sentence. Here `f(n)` is the number of ordered ways to climb exactly `n` stairs when each move is one of the sizes in `steps`, modulo 1,000,000,007 so the count never overflows.
 2. Transition: `f(n) = sum of f(n - s)` over every step size `s` with `s <= n`.
 3. Base case: `f(0) = 1`, because there is exactly one way to be done: make no more moves.
-4. Add the notebook `memo`, sized `n + 1`, filled with a marker meaning "not computed" (here `-1`). At the top of `f`, if `memo[n]` is not the marker, return it. Before returning a new answer, store it in `memo[n]`.
+4. Add the notebook `memo`, a map from `n` to its answer. At the top of `f`, read it with the piece `getOrDefault` (`get_or_default` in Python), using `-1` as the default that means "not computed". If the result is not `-1`, return it. Before returning a new answer, store it in `memo[n]`.
 5. Order to fill: you do not choose one. The recursion computes the smaller states on demand, each one once.
 6. Read the answer: it is the return value of `f(n)`, the original question.
 --think
@@ -18,43 +18,52 @@ It works because the answer to a question depends only on the question itself, n
 --cost
 Time is the number of distinct states times the work per state, here O(n times number of step sizes). Space O(n) for the notebook plus O(n) recursion depth.
 --java
-static long ways(int n, int[] steps) {
-    long[] memo = new long[n + 1];
-    Arrays.fill(memo, -1);                       // -1 means "not computed yet"
+static final int MOD = 1_000_000_007;
+static int ways(int n, int[] steps) {
+    Map<Integer, Integer> memo = new HashMap<>();   // the notebook
     return waysRec(n, steps, memo);
 }
-static long waysRec(int n, int[] steps, long[] memo) {
-    if (n == 0) return 1;                        // base: one way to finish
-    if (memo[n] != -1) return memo[n];           // already known
+static int waysRec(int n, int[] steps, Map<Integer, Integer> memo) {
+    if (n == 0) return 1;                            // base: one way to finish
+    int known = getOrDefault(memo, n, -1);           // piece: -1 means "not computed yet"
+    if (known != -1) return known;
     long total = 0;
     for (int s : steps)
         if (s <= n) total += waysRec(n - s, steps, memo);
-    return memo[n] = total;                      // write it in the notebook
+    int ans = (int) (total % MOD);
+    memo.put(n, ans);                                // write it in the notebook
+    return ans;
 }
 --py
+MOD = 1_000_000_007
 def ways(n, steps):
-    memo = {}                                    # the notebook
+    memo = {}                                        # the notebook
     def f(k):
         if k == 0:
-            return 1                             # base: one way to finish
-        if k in memo:
-            return memo[k]                       # already known
-        memo[k] = sum(f(k - s) for s in steps if s <= k)
+            return 1                                 # base: one way to finish
+        known = get_or_default(memo, k, -1)          # piece: -1 means "not computed yet"
+        if known != -1:
+            return known
+        memo[k] = sum(f(k - s) for s in steps if s <= k) % MOD
         return memo[k]
     return f(n)
 --cpp
-long long waysRec(int n, const vector<int>& steps, vector<long long>& memo) {
-    if (n == 0) return 1;                        // base: one way to finish
-    if (memo[n] != -1) return memo[n];           // already known
+const int MOD = 1'000'000'007;
+int waysRec(int n, const vector<int>& steps, map<int, int>& memo) {
+    if (n == 0) return 1;                            // base: one way to finish
+    int known = getOrDefault(memo, n, -1);           // piece: -1 means "not computed yet"
+    if (known != -1) return known;
     long long total = 0;
     for (int s : steps)
         if (s <= n) total += waysRec(n - s, steps, memo);
-    return memo[n] = total;                      // write it in the notebook
+    return memo[n] = (int)(total % MOD);             // write it in the notebook
 }
-long long ways(int n, const vector<int>& steps) {
-    vector<long long> memo(n + 1, -1);           // -1 means "not computed yet"
+int ways(int n, const vector<int>& steps) {
+    map<int, int> memo;                              // the notebook
     return waysRec(n, steps, memo);
 }
+--uses
+u-hget
 
 ### dp1
 --idea
@@ -597,8 +606,8 @@ A palindromic substring is a block of consecutive characters that reads the same
 A table of true and false answers for all ranges turns a check that would cost O(n) per range into O(1), because the inside range is shorter and already known.
 --build
 1. State: `ok[i][j]` is true when the substring `s[i..j]` (inclusive) is a palindrome.
-2. Transition: `ok[i][j] = (s[i] == s[j]) and (j - i < 2 or ok[i+1][j-1])`. Lengths 1 and 2 need no inner check.
-3. Base case: every single letter `ok[i][i]` is true. Length 2 is true when both letters are equal.
+2. Transition: `ok[i][j] = (s[i] == s[j]) and ok[i+1][j-1]` for lengths 3 and more. The inside range is shorter, so it is already known.
+3. Base case: ranges of length 1 and 2 have no inside range to look up, so ask the piece `isPalindrome` (`is_palindrome` in Python) about the two or fewer letters directly.
 4. Order to fill: `i` from `n - 1` down to 0, and `j` from `i` up to `n - 1`, so `ok[i+1][j-1]` is ready.
 5. Read the answer: the number of true cells is the count of palindromic substrings. To get the longest, remember the widest true `[i, j]`.
 --think
@@ -613,11 +622,11 @@ static int countPalindromes(String s) {
     int n = s.length(), count = 0;
     boolean[][] ok = new boolean[n][n];
     for (int i = n - 1; i >= 0; i--)
-        for (int j = i; j < n; j++)
-            if (s.charAt(i) == s.charAt(j) && (j - i < 2 || ok[i + 1][j - 1])) {
-                ok[i][j] = true;                 // ends match, inside is a palindrome
-                count++;
-            }
+        for (int j = i; j < n; j++) {
+            if (j - i < 2) ok[i][j] = isPalindrome(s.substring(i, j + 1));   // piece: length 1 or 2
+            else ok[i][j] = s.charAt(i) == s.charAt(j) && ok[i + 1][j - 1];  // ends match, inside is a palindrome
+            if (ok[i][j]) count++;
+        }
     return count;
 }
 --py
@@ -627,8 +636,11 @@ def count_palindromes(s):
     count = 0
     for i in range(n - 1, -1, -1):
         for j in range(i, n):
-            if s[i] == s[j] and (j - i < 2 or ok[i + 1][j - 1]):
-                ok[i][j] = True                  # ends match, inside is a palindrome
+            if j - i < 2:
+                ok[i][j] = is_palindrome(s[i:j + 1])         # piece: length 1 or 2
+            else:
+                ok[i][j] = s[i] == s[j] and ok[i + 1][j - 1]  # ends match, inside is a palindrome
+            if ok[i][j]:
                 count += 1
     return count
 --cpp
@@ -636,13 +648,15 @@ int countPalindromes(const string& s) {
     int n = s.size(), count = 0;
     vector<vector<bool>> ok(n, vector<bool>(n, false));
     for (int i = n - 1; i >= 0; i--)
-        for (int j = i; j < n; j++)
-            if (s[i] == s[j] && (j - i < 2 || ok[i + 1][j - 1])) {
-                ok[i][j] = true;                 // ends match, inside is a palindrome
-                count++;
-            }
+        for (int j = i; j < n; j++) {
+            if (j - i < 2) ok[i][j] = isPalindrome(s.substr(i, j - i + 1));  // piece: length 1 or 2
+            else ok[i][j] = s[i] == s[j] && ok[i + 1][j - 1];                // ends match, inside is a palindrome
+            if (ok[i][j]) count++;
+        }
     return count;
 }
+--uses
+u-ispalin
 
 ### unbounded
 --idea
@@ -773,9 +787,9 @@ The example is painting a row of houses with three colours so that neighbours di
 --build
 1. List the modes. Here: colour 0, 1 or 2 for the last house painted.
 2. State: `dp[i][m]` is the least cost to paint houses `0..i` such that house `i` has colour `m`.
-3. Transition: `dp[i][m] = cost[i][m] + min(dp[i-1][k])` over all modes `k != m` (the allowed previous modes).
-4. Base case: `dp[0][m] = cost[0][m]` for every mode.
-5. Order to fill: `i` from 1 up to `n - 1`. Each row needs only the previous row, so keep three numbers.
+3. Transition: `dp[i][m] = cost[i][m] + min(dp[i-1][k])` over all modes `k != m` (the allowed previous modes). Each candidate is offered to the new row with the piece `chmin`, which keeps the smaller of the old and new value.
+4. Base case: `dp[0][m] = cost[0][m]` for every mode. Every new row starts at a large "impossible" value so that `chmin` can lower it.
+5. Order to fill: `i` from 1 up to `n - 1`. Each row needs only the previous row, so keep two rows of three numbers.
 6. Read the answer: `min(dp[n-1][m])` over all modes, since the last house may have any colour.
 --think
 - Signal: a decision per step with a memory of "what I did last" (a colour, holding or not holding, cooldown, a streak length). If a rule mentions the previous or last few steps, the memory is the mode.
@@ -787,35 +801,44 @@ The example is painting a row of houses with three colours so that neighbours di
 Time O(n times modes squared). Space O(modes) with rolling values.
 --java
 static int paintHouses(int[][] cost) {
-    int a = cost[0][0], b = cost[0][1], c = cost[0][2];   // best ending in each colour
+    final long INF = Long.MAX_VALUE / 4;
+    long[] prev = {cost[0][0], cost[0][1], cost[0][2]};   // best ending in each colour
     for (int i = 1; i < cost.length; i++) {
-        int na = cost[i][0] + Math.min(b, c);    // colour 0 now: previous was 1 or 2
-        int nb = cost[i][1] + Math.min(a, c);
-        int nc = cost[i][2] + Math.min(a, b);
-        a = na; b = nb; c = nc;
+        long[] cur = {INF, INF, INF};
+        for (int m = 0; m < 3; m++)
+            for (int k = 0; k < 3; k++)
+                if (k != m) chmin(cur, m, prev[k] + cost[i][m]);   // piece: previous colour k differs from m
+        prev = cur;
     }
-    return Math.min(a, Math.min(b, c));
+    return (int) Math.min(prev[0], Math.min(prev[1], prev[2]));
 }
 --py
 def paint_houses(cost):
-    a, b, c = cost[0]                            # best ending in each colour
+    INF = float("inf")
+    prev = list(cost[0])                         # best ending in each colour
     for i in range(1, len(cost)):
-        na = cost[i][0] + min(b, c)              # colour 0 now: previous was 1 or 2
-        nb = cost[i][1] + min(a, c)
-        nc = cost[i][2] + min(a, b)
-        a, b, c = na, nb, nc
-    return min(a, b, c)
+        cur = [INF] * 3
+        for m in range(3):
+            for k in range(3):
+                if k != m:
+                    chmin(cur, m, prev[k] + cost[i][m])   # piece: previous colour k differs from m
+        prev = cur
+    return min(prev)
 --cpp
 int paintHouses(const vector<array<int, 3>>& cost) {
-    int a = cost[0][0], b = cost[0][1], c = cost[0][2];   // best ending in each colour
+    const long long INF = LLONG_MAX / 4;
+    array<long long, 3> prev = {cost[0][0], cost[0][1], cost[0][2]};   // best ending in each colour
     for (size_t i = 1; i < cost.size(); i++) {
-        int na = cost[i][0] + min(b, c);         // colour 0 now: previous was 1 or 2
-        int nb = cost[i][1] + min(a, c);
-        int nc = cost[i][2] + min(a, b);
-        a = na; b = nb; c = nc;
+        array<long long, 3> cur = {INF, INF, INF};
+        for (int m = 0; m < 3; m++)
+            for (int k = 0; k < 3; k++)
+                if (k != m) chmin(cur[m], prev[k] + cost[i][m]);   // piece: previous colour k differs from m
+        prev = cur;
     }
-    return min({a, b, c});
+    return (int) min({prev[0], prev[1], prev[2]});
 }
+--uses
+u-maxupd
 
 ### stock
 --idea
@@ -1237,12 +1260,12 @@ u-rolling
 A bitset is a row of bits stored many to a machine word, so one instruction handles 64 of them at once. For subset sum, store the set of reachable totals as bits: bit `s` is 1 when the total `s` can be made. Adding a number `x` means "every reachable total, shifted up by `x`, is reachable too", which is one shift and one OR on the whole row.
 So the inner loop over `s` disappears into a few word operations, making the DP about 64 times faster. It is the same DP as subset sum, only stored compactly.
 --build
-1. State: bit `s` of `bits` is 1 when some subset of the numbers processed so far adds up to exactly `s`. Keep only totals up to `cap`.
+1. State: bit `s` of `bits` is 1 when some subset of the numbers processed so far adds up to exactly `s`. Keep only totals up to `cap`. The bits are stored 32 to an `int` word, so total `s` lives in word `s / 32`, at bit `s % 32`.
 2. Transition: for each number `x`, `bits = bits OR (bits shifted left by x)`. The old bits stay (not taking `x`), the shifted copy is "taking `x`". Both read the old value, so each number is used once.
-3. Base case: `bits = 1`, only bit 0 set (the empty subset).
+3. Base case: only bit 0 set (the empty subset), made with the piece `setBit` (`set_bit` in Python).
 4. Order to fill: numbers one at a time, any order.
-5. Read the answer: bit `target` for "is it reachable". The number of 1 bits in positions 0 to `cap` is how many different totals are reachable.
-6. Where the language has no bitset of dynamic size (Java), shift by hand: move whole words by `x / 64` and the remaining `x % 64` bits across the word boundary, going from the highest word down so the old values are still unread.
+5. Read the answer: the piece `getBit` (`get_bit`) tells whether bit `target` is set. The number of 1 bits in positions 0 to `cap` is how many different totals are reachable.
+6. Shift by hand: move whole words by `x / 32` and the remaining `x % 32` bits across the word boundary, going from the highest word down so the old values are still unread. Python needs none of this because its integers are as wide as needed.
 --think
 - Signal: subset sum or 0/1 knapsack feasibility where `n times cap` is too big for a plain table, but `n times cap / 64` is fine (about 10 to the 9 to 10 to the 10 in total).
 - It answers yes or no, not values. For "best value" you need the normal table, but a bitset still helps counting which sums are possible.
@@ -1253,39 +1276,49 @@ So the inner loop over `s` disappears into a few word operations, making the DP 
 Time O(n times cap / 64). Space O(cap / 64) words.
 --java
 static int reachableSums(int[] a, int cap) {
-    int words = cap / 64 + 1;
-    long[] bits = new long[words];
-    bits[0] = 1L;                                // only the empty sum
+    int words = cap / 32 + 1;
+    int[] bits = new int[words];
+    bits[0] = setBit(bits[0], 0);                // piece: only the empty sum
     for (int x : a) {
-        int q = x / 64, r = x % 64;
+        int q = x / 32, r = x % 32;
         for (int i = words - 1; i >= q; i--) {   // high to low: old values still unread
-            long add = bits[i - q] << r;
-            if (r > 0 && i - q - 1 >= 0) add |= bits[i - q - 1] >>> (64 - r);
+            int add = bits[i - q] << r;
+            if (r > 0 && i - q - 1 >= 0) add |= bits[i - q - 1] >>> (32 - r);
             bits[i] |= add;
         }
     }
     int count = 0;
     for (int s = 0; s <= cap; s++)
-        if ((bits[s >> 6] >>> (s & 63) & 1L) != 0) count++;
+        if (getBit(bits[s >> 5], s & 31)) count++;   // piece: is total s reachable?
     return count;
 }
 --py
 def reachable_sums(a, cap):
     mask = (1 << (cap + 1)) - 1                  # keep totals 0..cap only
-    bits = 1                                     # only the empty sum
+    bits = set_bit(0, 0)                         # piece: only the empty sum
     for x in a:
         bits |= (bits << x) & mask               # take x, or not
-    return bin(bits).count("1")
+    return sum(1 for s in range(cap + 1) if get_bit(bits, s))   # piece: is total s reachable?
 --cpp
 int reachableSums(const vector<int>& a, int cap) {
-    const int MAXC = 100001;                     // compile-time size, must exceed cap
-    bitset<MAXC> bits;
-    bits[0] = 1;                                 // only the empty sum
-    for (int x : a) bits |= bits << x;           // take x, or not
+    int words = cap / 32 + 1;
+    vector<int> bits(words, 0);
+    bits[0] = setBit(bits[0], 0);                // piece: only the empty sum
+    for (int x : a) {
+        int q = x / 32, r = x % 32;
+        for (int i = words - 1; i >= q; i--) {   // high to low: old values still unread
+            unsigned add = (unsigned)bits[i - q] << r;
+            if (r > 0 && i - q - 1 >= 0) add |= (unsigned)bits[i - q - 1] >> (32 - r);
+            bits[i] |= (int)add;
+        }
+    }
     int count = 0;
-    for (int s = 0; s <= cap; s++) count += bits[s];
+    for (int s = 0; s <= cap; s++)
+        if (getBit(bits[s >> 5], s & 31)) count++;   // piece: is total s reachable?
     return count;
 }
+--uses
+u-bit
 
 ### multiknap
 --idea
@@ -2070,9 +2103,9 @@ double expectedRolls(int n, int f) {
 Game DP solves two-player games where both play perfectly and take turns. A state is winning for the player to move if there is some move to a state that is losing for the opponent. A state is losing if every move leads to a winning state for the opponent (or there is no move at all and the rules say that player loses).
 The example: a pile of `n` stones, each turn a player removes a number of stones from a given set of allowed amounts, and the player who cannot move loses. Label each pile size win or lose, working upward from the smallest.
 --build
-1. State: `win[s]` is true if the player to move, facing a pile of `s` stones, can force a win.
-2. Transition: `win[s] = true` if some allowed removal `m <= s` has `win[s - m]` false. That is, there is a move that hands the opponent a losing position.
-3. Base case: `win[0] = false`. With no stones the player to move cannot move and loses.
+1. State: `win[s]` is 1 if the player to move, facing a pile of `s` stones, can force a win, and 0 if not. The table comes from the piece `newTable` (`new_table` in Python), which allocates `n + 1` cells filled with one start value, here 0 for "losing".
+2. Transition: `win[s] = 1` if some allowed removal `m <= s` has `win[s - m]` equal to 0. That is, there is a move that hands the opponent a losing position.
+3. Base case: `win[0] = 0`. With no stones the player to move cannot move and loses. The table already starts at 0.
 4. Order to fill: `s` from 1 to `n`; every move goes to a smaller pile.
 5. Read the answer: `win[n]` tells whether the first player wins.
 --think
@@ -2086,26 +2119,29 @@ The example: a pile of `n` stones, each turn a player removes a number of stones
 Time O(n times number of allowed moves). Space O(n).
 --java
 static boolean firstPlayerWins(int n, int[] moves) {
-    boolean[] win = new boolean[n + 1];          // win[0] = false: cannot move
+    long[] win = newTable(n, 0);                 // piece: win[0] = 0, cannot move
     for (int s = 1; s <= n; s++)
         for (int m : moves)
-            if (m <= s && !win[s - m]) { win[s] = true; break; }  // hand over a loss
-    return win[n];
+            if (m <= s && win[s - m] == 0) { win[s] = 1; break; }  // hand over a loss
+    return win[n] == 1;
 }
 --py
 def first_player_wins(n, moves):
-    win = [False] * (n + 1)                      # win[0] = False: cannot move
+    win = new_table(n, 0)                        # piece: win[0] = 0, cannot move
     for s in range(1, n + 1):
-        win[s] = any(m <= s and not win[s - m] for m in moves)    # hand over a loss
-    return win[n]
+        if any(m <= s and win[s - m] == 0 for m in moves):         # hand over a loss
+            win[s] = 1
+    return win[n] == 1
 --cpp
 bool firstPlayerWins(int n, const vector<int>& moves) {
-    vector<char> win(n + 1, 0);                  // win[0] = 0: cannot move
+    vector<long long> win = newTable(n, 0);      // piece: win[0] = 0, cannot move
     for (int s = 1; s <= n; s++)
         for (int m : moves)
-            if (m <= s && !win[s - m]) { win[s] = 1; break; }     // hand over a loss
-    return win[n];
+            if (m <= s && win[s - m] == 0) { win[s] = 1; break; }  // hand over a loss
+    return win[n] == 1;
 }
+--uses
+u-table
 
 ### mqdp
 --idea
@@ -2384,11 +2420,11 @@ Rerooting computes, for every node of a tree, an answer as if that node were the
 The example: for every node, the sum of distances from it to all other nodes. With root 0, `down[v]` is the sum of distances from `v` to the nodes in its own subtree. Moving the root from parent `p` to child `v`: the `size[v]` nodes in `v`'s subtree get one step closer, and the other `n - size[v]` nodes get one step further.
 --build
 Small steps:
-1. Root the tree at node 0 and get a parent-before-child order (breadth-first), and each node's parent.
-2. State (first pass): `size[v]` is the number of nodes in the subtree of `v`; `down[v]` is the sum of distances from `v` to the nodes in its subtree.
-3. First pass, children before parents (reverse order): `size[p] += size[v]` and `down[p] += down[v] + size[v]` (each of the `size[v]` nodes is one step further from `p` than from `v`).
+1. Run the piece `dfs(v, p)` from node 0 (call `dfs(0, -1)`). It gives every node an entry number `tin` and an exit number `tout` from one counter. Nodes sorted by `tin` come parents before children, and the subtree of `v` holds `(tout[v] - tin[v] + 1) / 2` nodes. The parent of `v` is its one neighbour `w` whose interval contains `v`'s: `tin[w] < tin[v]` and `tout[v] < tout[w]`.
+2. State (first pass): `size[v]` is the number of nodes in the subtree of `v` (read from `tin` and `tout`); `down[v]` is the sum of distances from `v` to the nodes in its subtree.
+3. First pass, children before parents (reverse `tin` order): `down[p] += down[v] + size[v]` (each of the `size[v]` nodes is one step further from `p` than from `v`).
 4. State (second pass): `ans[v]` is the sum of distances from `v` to all `n` nodes. Base case: `ans[0] = down[0]`.
-5. Second pass, parents before children (the order itself): `ans[v] = ans[p] - size[v] + (n - size[v])`, which is `ans[p] + n - 2 * size[v]`. The first `size[v]` nodes got closer by 1, the remaining `n - size[v]` got further by 1.
+5. Second pass, parents before children (the `tin` order itself): `ans[v] = ans[p] - size[v] + (n - size[v])`, which is `ans[p] + n - 2 * size[v]`. The first `size[v]` nodes got closer by 1, the remaining `n - size[v]` got further by 1.
 6. Read the answer: the array `ans`.
 What must hold: the combine step must be reversible. Here the answer is a sum, so "remove the child's part" is a subtraction. When the answer is a max (for example the longest path from each node), you cannot subtract; instead keep, for each node, the best and second-best child contributions, or prefix and suffix maxima over the children, so "everything except this child" is available in O(1).
 --think
@@ -2400,24 +2436,30 @@ What must hold: the combine step must be reversible. Here the answer is a sum, s
 --cost
 Time O(n). Space O(n).
 --java
+static List<List<Integer>> adj;
+static int[] tin, tout;
+static int timer;
+// the piece dfs(v, p) numbers each node on entry (tin) and on exit (tout) from one counter
+
 static long[] sumDistances(int n, int[][] edges) {
-    List<List<Integer>> adj = new ArrayList<>();
+    adj = new ArrayList<>();
     for (int i = 0; i < n; i++) adj.add(new ArrayList<>());
     for (int[] e : edges) { adj.get(e[0]).add(e[1]); adj.get(e[1]).add(e[0]); }
-    int[] parent = new int[n], order = new int[n];
+    tin = new int[n]; tout = new int[n]; timer = 0;
+    dfs(0, -1);                                  // piece: entry and exit times
+    int[] at = new int[2 * n], order = new int[n], parent = new int[n];
+    Arrays.fill(at, -1);
+    for (int v = 0; v < n; v++) at[tin[v]] = v;
+    int cnt = 0;
+    for (int t = 0; t < 2 * n; t++) if (at[t] >= 0) order[cnt++] = at[t];   // parents before children
     parent[0] = -1;
-    int head = 0, tail = 0;
-    order[tail++] = 0;
-    while (head < tail) {                        // parents before children
-        int u = order[head++];
-        for (int v : adj.get(u))
-            if (v != parent[u]) { parent[v] = u; order[tail++] = v; }
-    }
+    for (int v = 1; v < n; v++)
+        for (int w : adj.get(v))
+            if (tin[w] < tin[v] && tout[v] < tout[w]) parent[v] = w;       // the neighbour above v
     long[] size = new long[n], down = new long[n], ans = new long[n];
-    Arrays.fill(size, 1);
+    for (int v = 0; v < n; v++) size[v] = (tout[v] - tin[v] + 1) / 2;      // nodes in v's subtree
     for (int i = n - 1; i > 0; i--) {            // pass 1: children before parents
         int v = order[i], p = parent[v];
-        size[p] += size[v];
         down[p] += down[v] + size[v];
     }
     ans[0] = down[0];
@@ -2428,41 +2470,50 @@ static long[] sumDistances(int n, int[][] edges) {
     return ans;
 }
 --py
+adj, tin, tout, timer = [], [], [], 0
+# the piece dfs(v, p) numbers each node on entry (tin) and on exit (tout) from one counter
+
 def sum_distances(n, edges):
+    global adj, tin, tout, timer
     adj = [[] for _ in range(n)]
     for a, b in edges:
         adj[a].append(b)
         adj[b].append(a)
+    tin, tout, timer = [0] * n, [0] * n, 0
+    dfs(0, -1)                                   # piece: entry and exit times
+    order = sorted(range(n), key=lambda v: tin[v])           # parents before children
     parent = [-1] * n
-    order = [0]
-    for u in order:                              # parents before children
-        for v in adj[u]:
-            if v != parent[u]:
-                parent[v] = u
-                order.append(v)
-    size, down, ans = [1] * n, [0] * n, [0] * n
+    for v in range(1, n):
+        parent[v] = next(w for w in adj[v] if tin[w] < tin[v] and tout[v] < tout[w])   # neighbour above v
+    size = [(tout[v] - tin[v] + 1) // 2 for v in range(n)]   # nodes in v's subtree
+    down, ans = [0] * n, [0] * n
     for v in reversed(order[1:]):                # pass 1: children before parents
-        p = parent[v]
-        size[p] += size[v]
-        down[p] += down[v] + size[v]
+        down[parent[v]] += down[v] + size[v]
     ans[0] = down[0]
     for v in order[1:]:                          # pass 2: parents before children
         ans[v] = ans[parent[v]] + n - 2 * size[v]
     return ans
 --cpp
+vector<vector<int>> adj;
+vector<int> tin, tout;
+int timer;
+// the piece dfs(v, p) numbers each node on entry (tin) and on exit (tout) from one counter
+
 vector<long long> sumDistances(int n, const vector<pair<int, int>>& edges) {
-    vector<vector<int>> adj(n);
+    adj.assign(n, {});
     for (auto& e : edges) { adj[e.first].push_back(e.second); adj[e.second].push_back(e.first); }
-    vector<int> parent(n, -1), order = {0};
-    for (size_t idx = 0; idx < order.size(); idx++) {      // parents before children
-        int u = order[idx];
-        for (int v : adj[u])
-            if (v != parent[u]) { parent[v] = u; order.push_back(v); }
-    }
-    vector<long long> size(n, 1), down(n, 0), ans(n, 0);
+    tin.assign(n, 0); tout.assign(n, 0); timer = 0;
+    dfs(0, -1);                                  // piece: entry and exit times
+    vector<int> order(n), parent(n, -1);
+    iota(order.begin(), order.end(), 0);
+    sort(order.begin(), order.end(), [&](int a, int b) { return tin[a] < tin[b]; });  // parents before children
+    for (int v = 1; v < n; v++)
+        for (int w : adj[v])
+            if (tin[w] < tin[v] && tout[v] < tout[w]) parent[v] = w;       // the neighbour above v
+    vector<long long> size(n), down(n, 0), ans(n, 0);
+    for (int v = 0; v < n; v++) size[v] = (tout[v] - tin[v] + 1) / 2;      // nodes in v's subtree
     for (int i = n - 1; i > 0; i--) {            // pass 1: children before parents
         int v = order[i], p = parent[v];
-        size[p] += size[v];
         down[p] += down[v] + size[v];
     }
     ans[0] = down[0];
@@ -2472,6 +2523,8 @@ vector<long long> sumDistances(int n, const vector<pair<int, int>>& edges) {
     }
     return ans;
 }
+--uses
+u-entry
 
 ### dpopt
 --idea
@@ -3102,6 +3155,7 @@ Small steps:
 3. Transition for bit `i`: for every `mask` that has bit `i` set, `f[mask] += f[mask without bit i]`. The first part `f[mask]` counts subsets that keep bit `i` on, the added part counts subsets that turn it off. The test and the removal are the code pieces `getBit` and `clearBit`.
 4. Order to fill: bits `i` from 0 to `n - 1` in the outer loop, masks in any order in the inner loop (the value read, the mask without bit `i`, is never changed during bit `i`'s pass, because it has bit `i` clear).
 5. Read the answer: `f[mask]` for every mask, after all bits are done.
+6. Check it against the slow way: for every `mask`, add `a[0]` and then `a[sub]` for each `sub` in the piece `submasks(mask)`. It costs 3 to the power `n`, so use it only to test small inputs.
 Variants: sum over supersets (flip the test: if bit `i` is clear, `f[mask] += f[mask with bit i]`), and other operations such as max, or counting, in place of the sum (anything with an order-free combine, `+`, `max`, `or`). For inclusion-exclusion, subtract instead of add.
 --think
 - Signal: "for every mask, combine over its submasks (or supermasks)", counting pairs with `a AND b = c` or with `a AND b = a`, "the number of elements that are subsets of x". If the naive solution enumerates submasks of every mask, the cost is 3 to the `n`, and SOS reduces it to `n * 2^n`.
@@ -3121,6 +3175,14 @@ static long[] sumOverSubsets(long[] a, int n) {
                 f[mask] += f[clearBit(mask, i)]; // add the subsets with bit i off
     return f;
 }
+static long[] sumOverSubsetsSlow(long[] a, int n) {   // reference, 3^n
+    long[] f = new long[1 << n];
+    for (int mask = 0; mask < (1 << n); mask++) {
+        f[mask] = a[0];                          // the empty subset
+        for (int sub : submasks(mask)) f[mask] += a[sub];   // code piece: non-empty submasks
+    }
+    return f;
+}
 --py
 def sum_over_subsets(a, n):
     f = list(a)                                  # before any bit: only s = mask
@@ -3128,6 +3190,11 @@ def sum_over_subsets(a, n):
         for mask in range(1 << n):
             if get_bit(mask, i):                 # code piece: is bit i set?
                 f[mask] += f[clear_bit(mask, i)] # add the subsets with bit i off
+    return f
+def sum_over_subsets_slow(a, n):                # reference, 3^n
+    f = [0] * (1 << n)
+    for mask in range(1 << n):
+        f[mask] = a[0] + sum(a[sub] for sub in submasks(mask))   # code piece: non-empty submasks
     return f
 --cpp
 vector<long long> sumOverSubsets(vector<long long> a, int n) {
@@ -3138,8 +3205,17 @@ vector<long long> sumOverSubsets(vector<long long> a, int n) {
                 f[mask] += f[clearBit(mask, i)]; // add the subsets with bit i off
     return f;
 }
+vector<long long> sumOverSubsetsSlow(const vector<long long>& a, int n) {   // reference, 3^n
+    vector<long long> f(1 << n);
+    for (int mask = 0; mask < (1 << n); mask++) {
+        f[mask] = a[0];                          // the empty subset
+        for (int sub : submasks(mask)) f[mask] += a[sub];   // code piece: non-empty submasks
+    }
+    return f;
+}
 --uses
 u-bit
+u-submask
 
 ### profile
 --idea

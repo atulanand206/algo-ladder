@@ -1056,67 +1056,57 @@ Multi-source BFS answers "how far is each node from its nearest source", where t
 
 Imagine several fires starting at the same moment: the time a spot burns is the distance to the nearest fire. One pass handles any number of sources.
 --build
-1. Make `dist` filled with `-1`.
-2. For every source `s`, set `dist[s] = 0` and push it. All sources go in before the first pop.
-3. Run the usual BFS: pop `v`, and for each neighbour `w` with `dist[w] == -1`, set `dist[w] = dist[v] + 1` and push.
-4. When the queue empties, `dist[v]` is the distance from `v` to its nearest source, or `-1` if no source reaches it.
-5. Invariant: the queue is sorted by distance, as in normal BFS, because all the initial nodes have the same distance 0. The proof of correctness is identical.
-6. If you also need to know which source is nearest, store `owner[w] = owner[v]` when you set the distance.
+1. Add one virtual node, number `n`, and give it an edge to every source. Call the new adjacency `g`: it is `adj` plus one extra row that lists the sources. The real edges do not change.
+2. Call the piece `bfs(g, n)` (from `u-bfsloop`). It runs the usual BFS from the virtual node and returns `d`, the fewest edges from the virtual node to each node, `-1` if unreachable.
+3. All sources are one edge from the virtual node, so they all get `d = 1` and enter the queue together. This is the same as pushing every source at distance 0 before the first pop.
+4. The virtual edge cost one extra step for everyone, so subtract it: `dist[v] = d[v] - 1` for every real node, and keep `-1` as `-1`.
+5. `dist[v]` is now the distance from `v` to its nearest source, or `-1` if no source reaches it.
+6. Invariant: the queue is sorted by distance, as in normal BFS, because all the sources are at the same distance from the virtual node. The proof of correctness is identical.
+7. The piece returns distances only. If you also need to know which source is nearest, write the loop yourself and copy `owner[w] = owner[v]` when you set a distance.
 --think
 - Signal: "distance to the nearest X", "time for everything to spread", "rotting oranges", "nearest gate for every room", "walls and gates", "for each cell, closest 1".
-- A trick to see why it works: add one imaginary super-source joined to all real sources with zero-cost edges. A normal BFS from the super-source is this algorithm.
+- Why it works: the virtual node is a super-source joined to all real sources. A normal BFS from it is this algorithm. Its edges count one step each here, so the code subtracts one at the end.
 - Reversing the question helps. If asked "for each source, how far is the nearest target", run the search from the targets instead, since there are fewer of them or it becomes one pass.
 - For weighted edges, the same trick works with Dijkstra: push all sources at distance 0.
 - Pitfalls: pushing sources one at a time with a BFS between them (that is the slow wrong version), and forgetting that unreachable nodes stay `-1`.
 --cost
-Time O(V + E), the same as a single BFS no matter how many sources. Space O(V).
+Time O(V + E), the same as a single BFS no matter how many sources. Space O(V): the extra row and the distance array.
+--uses
+u-bfsloop
 --java
 // returns dist[v] = fewest edges from v to the nearest source, -1 if none reaches it
+// bfs(adj, s) comes from the code piece
 static int[] multiSourceBfs(List<List<Integer>> adj, int[] sources) {
-    int[] dist = new int[adj.size()];
-    Arrays.fill(dist, -1);
-    ArrayDeque<Integer> q = new ArrayDeque<>();
-    for (int s : sources) {
-        if (dist[s] == -1) { dist[s] = 0; q.add(s); }   // all sources start at 0
-    }
-    while (!q.isEmpty()) {
-        int v = q.poll();
-        for (int w : adj.get(v))
-            if (dist[w] == -1) { dist[w] = dist[v] + 1; q.add(w); }
-    }
+    int n = adj.size();
+    List<List<Integer>> g = new ArrayList<>(adj);          // same rows, plus one more
+    List<Integer> start = new ArrayList<>();
+    for (int s : sources) start.add(s);
+    g.add(start);                                          // virtual node n points at every source
+    int[] d = bfs(g, n);                                   // piece: distances from the virtual node
+    int[] dist = new int[n];
+    for (int v = 0; v < n; v++) dist[v] = d[v] > 0 ? d[v] - 1 : -1;   // drop the extra step
     return dist;
 }
 --py
-from collections import deque
+from collections import deque     # the bfs piece uses it
 
 def multi_source_bfs(adj, sources):
     """dist[v] = fewest edges from v to the nearest source, -1 if none reaches it."""
-    dist = [-1] * len(adj)
-    q = deque()
-    for s in sources:
-        if dist[s] == -1:
-            dist[s] = 0                   # all sources start at 0
-            q.append(s)
-    while q:
-        v = q.popleft()
-        for w in adj[v]:
-            if dist[w] == -1:
-                dist[w] = dist[v] + 1
-                q.append(w)
-    return dist
+    n = len(adj)
+    g = adj + [list(sources)]             # virtual node n points at every source
+    d = bfs(g, n)                         # piece: distances from the virtual node
+    return [x - 1 if x > 0 else -1 for x in d[:n]]   # drop the extra step
 --cpp
 // dist[v] = fewest edges from v to the nearest source, -1 if none reaches it
+// bfs(adj, s) comes from the code piece
 vector<int> multiSourceBfs(const vector<vector<int>>& adj, const vector<int>& sources) {
-    vector<int> dist(adj.size(), -1);
-    queue<int> q;
-    for (int s : sources)
-        if (dist[s] == -1) { dist[s] = 0; q.push(s); }   // all sources start at 0
-    while (!q.empty()) {
-        int v = q.front(); q.pop();
-        for (int w : adj[v])
-            if (dist[w] == -1) { dist[w] = dist[v] + 1; q.push(w); }
-    }
-    return dist;
+    int n = adj.size();
+    vector<vector<int>> g = adj;
+    g.push_back(sources);                                  // virtual node n points at every source
+    vector<int> d = bfs(g, n);                             // piece: distances from the virtual node
+    d.pop_back();                                          // forget the virtual node itself
+    for (int& x : d) x = x > 0 ? x - 1 : -1;               // drop the extra step
+    return d;
 }
 ### sp01
 --idea
@@ -3829,11 +3819,11 @@ Boruvka's algorithm builds a minimum spanning tree (the cheapest set of edges jo
 
 Why the chosen edges are safe: the cheapest edge leaving any group of nodes always belongs to some minimum spanning tree (the cut property, as in Kruskal and Prim). The only danger is a tie creating a cycle, such as three components each choosing a different edge of the same weight. Breaking ties by edge index makes all weights effectively distinct, which rules out cycles.
 --build
-1. Keep a disjoint set union (DSU, see `dsu`): `find(x)` gives the leader of the component of `x`. Set `comps = n` and `total = 0`.
+1. Keep a disjoint set union (DSU, see `dsu`) in two arrays `p` and `sz`. The code pieces give `find(x)` (the leader of the component of `x`, piece `u-find`) and `union(a, b)` (merge two components by size, piece `u-dsuunion`; it is `unite` in C++). Set `comps = n` and `total = 0`.
 2. Repeat while `comps > 1`: make `cheapest[r] = -1` for every leader `r`.
-3. For each edge `i = (u, v, w)`: let `ru = find(u)`, `rv = find(v)`. Skip it if they are equal (it is inside one component). Otherwise, if `cheapest[ru]` is empty or the pair `(w, i)` is smaller than the pair of the current choice, set `cheapest[ru] = i`; do the same for `rv`. Comparing `(w, i)` is the tie-break.
+3. For each edge `i = (u, v, w)`: let `ru = find(u)`, `rv = find(v)` (piece calls). Skip it if they are equal (it is inside one component). Otherwise, if `cheapest[ru]` is empty or the pair `(w, i)` is smaller than the pair of the current choice, set `cheapest[ru] = i`; do the same for `rv`. Comparing `(w, i)` is the tie-break.
 4. If no component found an outgoing edge, the graph is disconnected: stop and report that.
-5. For each leader `r` with a chosen edge `i`: recompute `ru`, `rv` with `find` (earlier merges this round may have joined them). If they differ, merge them, add `w` to `total`, and subtract one from `comps`.
+5. For each leader `r` with a chosen edge `i`: recompute `ru`, `rv` with `find` (earlier merges this round may have joined them). If they differ, call the piece `union(ru, rv)`, add `w` to `total`, and subtract one from `comps`.
 6. When `comps == 1`, `total` is the weight of the minimum spanning tree.
 7. Invariant: at every point the chosen edges form a forest that lies inside one minimum spanning tree. The check in step 5 skips an edge whose ends were already joined, so no cycle is created.
 --think
@@ -3844,60 +3834,60 @@ Why the chosen edges are safe: the cheapest edge leaving any group of nodes alwa
 - Pitfalls: not re-running `find` before merging in step 5 (a cycle sneaks in), forgetting the tie-break, and detecting a disconnected graph (no component has an outgoing edge, so the loop would never end).
 --cost
 Time O(E log V), space O(V + E).
+--uses
+u-find
+u-dsuunion
 --java
-// edges[i] = {u, v, w}; returns the MST weight, or -1 if the graph is not connected
-static long boruvka(int n, int[][] edges) {
-    int[] parent = new int[n];
-    for (int i = 0; i < n; i++) parent[i] = i;
-    int comps = n;
-    long total = 0;
-    while (comps > 1) {
-        int[] cheapest = new int[n];
-        Arrays.fill(cheapest, -1);
-        for (int i = 0; i < edges.length; i++) {
-            int ru = findRoot(parent, edges[i][0]), rv = findRoot(parent, edges[i][1]);
-            if (ru == rv) continue;                              // inside one component
-            for (int r : new int[]{ru, rv}) {
-                int c = cheapest[r];
-                if (c == -1 || edges[i][2] < edges[c][2] || (edges[i][2] == edges[c][2] && i < c)) cheapest[r] = i;
-            }
-        }
-        boolean any = false;
-        for (int r = 0; r < n; r++) {
-            if (cheapest[r] == -1) continue;
-            int[] e = edges[cheapest[r]];
-            int ru = findRoot(parent, e[0]), rv = findRoot(parent, e[1]);
-            if (ru == rv) continue;                              // joined earlier this round
-            parent[ru] = rv;
-            total += e[2];
-            comps--;
-            any = true;
-        }
-        if (!any) return -1;                                     // no edge leaves any component
-    }
-    return total;
-}
+class Boruvka {
+    int[] p, sz;                                   // the arrays the DSU pieces work on
+    // find(x) and union(a, b) come from the code pieces
 
-static int findRoot(int[] parent, int x) {
-    while (parent[x] != x) { parent[x] = parent[parent[x]]; x = parent[x]; }
-    return x;
+    // edges[i] = {u, v, w}; returns the MST weight, or -1 if the graph is not connected
+    long boruvka(int n, int[][] edges) {
+        p = new int[n]; sz = new int[n];
+        for (int i = 0; i < n; i++) { p[i] = i; sz[i] = 1; }
+        int comps = n;
+        long total = 0;
+        while (comps > 1) {
+            int[] cheapest = new int[n];
+            Arrays.fill(cheapest, -1);
+            for (int i = 0; i < edges.length; i++) {
+                int ru = find(edges[i][0]), rv = find(edges[i][1]);      // piece
+                if (ru == rv) continue;                                  // inside one component
+                for (int r : new int[]{ru, rv}) {
+                    int c = cheapest[r];
+                    if (c == -1 || edges[i][2] < edges[c][2] || (edges[i][2] == edges[c][2] && i < c)) cheapest[r] = i;
+                }
+            }
+            boolean any = false;
+            for (int r = 0; r < n; r++) {
+                if (cheapest[r] == -1) continue;
+                int[] e = edges[cheapest[r]];
+                int ru = find(e[0]), rv = find(e[1]);                    // piece
+                if (ru == rv) continue;                                  // joined earlier this round
+                union(ru, rv);                                           // piece
+                total += e[2];
+                comps--;
+                any = true;
+            }
+            if (!any) return -1;                                         // no edge leaves any component
+        }
+        return total;
+    }
 }
 --py
+p, sz = [], []                                    # the lists the DSU pieces work on
+# find(x) and union(a, b) come from the code pieces
+
 def boruvka(n, edges):
     """edges is a list of (u, v, w). Returns the MST weight, or -1 if the graph is not connected."""
-    parent = list(range(n))
-
-    def find(x):
-        while parent[x] != x:
-            parent[x] = parent[parent[x]]
-            x = parent[x]
-        return x
-
+    global p, sz
+    p, sz = list(range(n)), [1] * n
     comps, total = n, 0
     while comps > 1:
         cheapest = [-1] * n
         for i, (u, v, w) in enumerate(edges):
-            ru, rv = find(u), find(v)
+            ru, rv = find(u), find(v)                     # piece
             if ru == rv:
                 continue                                  # inside one component
             for r in (ru, rv):
@@ -3909,10 +3899,10 @@ def boruvka(n, edges):
             if cheapest[r] == -1:
                 continue
             u, v, w = edges[cheapest[r]]
-            ru, rv = find(u), find(v)
+            ru, rv = find(u), find(v)                     # piece
             if ru == rv:
                 continue                                  # joined earlier this round
-            parent[ru] = rv
+            union(ru, rv)                                 # piece
             total += w
             comps -= 1
             merged = True
@@ -3920,22 +3910,20 @@ def boruvka(n, edges):
             return -1                                     # no edge leaves any component
     return total
 --cpp
-int findRootB(vector<int>& parent, int x) {
-    while (parent[x] != x) { parent[x] = parent[parent[x]]; x = parent[x]; }
-    return x;
-}
+vector<int> p, sz;                                       // the arrays the DSU pieces work on
+// find(x) and unite(a, b) come from the code pieces
 
 // edges[i] = {u, v, w}; returns the MST weight, or -1 if the graph is not connected
 long long boruvka(int n, const vector<array<int,3>>& edges) {
-    vector<int> parent(n);
-    iota(parent.begin(), parent.end(), 0);
+    p.resize(n); sz.assign(n, 1);
+    iota(p.begin(), p.end(), 0);
     int comps = n;
     long long total = 0;
     while (comps > 1) {
         vector<int> cheapest(n, -1);
         for (int i = 0; i < (int)edges.size(); i++) {
-            int ru = findRootB(parent, edges[i][0]), rv = findRootB(parent, edges[i][1]);
-            if (ru == rv) continue;                              // inside one component
+            int ru = find(edges[i][0]), rv = find(edges[i][1]);      // piece
+            if (ru == rv) continue;                                  // inside one component
             for (int r : {ru, rv}) {
                 int c = cheapest[r];
                 if (c == -1 || make_pair(edges[i][2], i) < make_pair(edges[c][2], c)) cheapest[r] = i;   // tie-break by index
@@ -3945,14 +3933,14 @@ long long boruvka(int n, const vector<array<int,3>>& edges) {
         for (int r = 0; r < n; r++) {
             if (cheapest[r] == -1) continue;
             auto& e = edges[cheapest[r]];
-            int ru = findRootB(parent, e[0]), rv = findRootB(parent, e[1]);
-            if (ru == rv) continue;                              // joined earlier this round
-            parent[ru] = rv;
+            int ru = find(e[0]), rv = find(e[1]);                    // piece
+            if (ru == rv) continue;                                  // joined earlier this round
+            unite(ru, rv);                                           // piece
             total += e[2];
             comps--;
             merged = true;
         }
-        if (!merged) return -1;                                  // no edge leaves any component
+        if (!merged) return -1;                                      // no edge leaves any component
     }
     return total;
 }
@@ -4235,10 +4223,10 @@ How the chains are chosen: for each node, its heavy child is the child with the 
 --build
 1. Root the tree. With a BFS order record `parent[v]` and `depth[v]`.
 2. Process nodes in reverse BFS order. Each node adds its size to its parent's `size`. While doing so keep `heavy[p]`, the child of `p` with the largest `size`.
-3. Assign array positions. Go through nodes in BFS order. A node `v` starts a chain if it is the root or not the heavy child of its parent. For a chain start, walk down `u = v, heavy[v], heavy[heavy[v]], ...`: set `head[u] = v` and `pos[u] = next free position`, counting up. Each chain gets one block of consecutive positions, with the top first.
-4. Put the node values in a segment tree (or Fenwick tree) at `pos[v]`. A point update changes one cell.
-5. To query a path from `u` to `v`: while `head[u] != head[v]`, take the one whose chain head is deeper (say `u`). Query the range `pos[head[u]] .. pos[u]` (the part of the chain from its top down to `u`), then jump `u = parent[head[u]]`.
-6. Now `u` and `v` are on the same chain. Let `u` be the shallower one and query `pos[u] .. pos[v]`.
+3. Assign array positions. Go through nodes in BFS order. A node `v` starts a chain if it is the root or not the heavy child of its parent. For a chain start, walk down `u = v, heavy[v], heavy[heavy[v]], ...` and give each node `head[u] = v` and the next free position `pos[u]`. Each chain gets one unbroken run of positions.
+4. Put the node values in a segment tree `t` of size `2n` at `pos[v]` and build it bottom up. The segment tree comes from the code pieces: `update(i, v)` (piece `u-segupd`) changes one cell, and `query(l, r)` (piece `u-segq`) sums positions `l .. r-1`. A change to node `v` is `update(pos[v], x)`. The pieces work on `n` and `t` and use `int` sums.
+5. To query a path from `u` to `v`: while `head[u] != head[v]`, take the one whose chain head is deeper (say `u`). Call `query(pos[head[u]], pos[u] + 1)`, which covers the part of the chain from its top down to `u`. Add it to the answer and jump `u = parent[head[u]]`.
+6. Now `u` and `v` are on the same chain. Let `u` be the shallower one and call `query(pos[u], pos[v] + 1)`.
 7. Invariant: each loop pass removes one chain from the path, and the part of the path already counted is exactly the part below the new `u`. At most `log n` passes occur by the heavy-edge argument.
 8. The node where the loop ends (the shallower of `u` and `v`) is the LCA, so HLD also answers LCA queries without a lifting table.
 --think
@@ -4250,13 +4238,17 @@ How the chains are chosen: for each node, its heavy child is the child with the 
 - Pitfalls: querying chains in the wrong direction (always pick the deeper chain head), forgetting that `head` and not the current node decides the range start, and using plain recursion for the sizes on deep trees.
 --cost
 Build O(n). Path query or point update O(log squared n). Space O(n).
+--uses
+u-segupd
+u-segq
 --java
-static class Hld {
+class Hld {
     int n;
     int[] parent, depth, head, pos, heavy, size;
-    long[] t;                                              // segment tree over positions (sums)
+    int[] t;                                               // segment tree over positions (sums), used by the pieces
+    // update(i, v) and query(l, r) come from the code pieces
 
-    Hld(List<List<Integer>> adj, long[] vals, int root) {
+    Hld(List<List<Integer>> adj, int[] vals, int root) {
         n = adj.size();
         parent = new int[n]; depth = new int[n]; head = new int[n]; pos = new int[n];
         heavy = new int[n]; size = new int[n];
@@ -4280,114 +4272,83 @@ static class Hld {
             if (parent[v] == -1 || heavy[parent[v]] != v)
                 for (int u = v; u != -1; u = heavy[u]) { head[u] = v; pos[u] = cur++; }
         }
-        t = new long[2 * n];
+        t = new int[2 * n];
         for (int v = 0; v < n; v++) t[n + pos[v]] = vals[v];
         for (int i = n - 1; i >= 1; i--) t[i] = t[2 * i] + t[2 * i + 1];
     }
 
-    void update(int v, long x) {                           // set the value of node v
-        int i = pos[v] + n;
-        t[i] = x;
-        for (i >>= 1; i >= 1; i >>= 1) t[i] = t[2 * i] + t[2 * i + 1];
-    }
+    void setValue(int v, int x) { update(pos[v], x); }     // piece: point update
 
-    long rangeSum(int l, int r) {                          // positions l .. r-1
-        long s = 0;
-        for (l += n, r += n; l < r; l >>= 1, r >>= 1) {
-            if ((l & 1) == 1) s += t[l++];
-            if ((r & 1) == 1) s += t[--r];
-        }
-        return s;
-    }
-
-    long pathSum(int u, int v) {
-        long s = 0;
+    int pathSum(int u, int v) {
+        int s = 0;
         while (head[u] != head[v]) {
             if (depth[head[u]] < depth[head[v]]) { int x = u; u = v; v = x; }   // deeper chain first
-            s += rangeSum(pos[head[u]], pos[u] + 1);
+            s += query(pos[head[u]], pos[u] + 1);          // piece: top of the chain down to u
             u = parent[head[u]];                           // jump over the chain
         }
         if (depth[u] > depth[v]) { int x = u; u = v; v = x; }
-        return s + rangeSum(pos[u], pos[v] + 1);           // same chain now
+        return s + query(pos[u], pos[v] + 1);              // piece: same chain now
     }
 }
 --py
-class Hld:
-    def __init__(self, adj, vals, root=0):
-        n = self.n = len(adj)
-        self.parent = parent = [-1] * n
-        self.depth = depth = [0] * n
-        order = [root]
-        for v in order:                                    # BFS order
-            for w in adj[v]:
-                if w != parent[v]:
-                    parent[w] = v
-                    depth[w] = depth[v] + 1
-                    order.append(w)
-        size = [1] * n
-        heavy = [-1] * n
-        for v in reversed(order[1:]):                      # sizes and heavy children, leaves first
-            p = parent[v]
-            size[p] += size[v]
-            if heavy[p] == -1 or size[v] > size[heavy[p]]:
-                heavy[p] = v
-        self.head = head = [0] * n
-        self.pos = pos = [0] * n
-        cur = 0
-        for v in order:                                    # lay each chain out contiguously
-            if parent[v] == -1 or heavy[parent[v]] != v:
-                u = v
-                while u != -1:
-                    head[u], pos[u] = v, cur
-                    cur += 1
-                    u = heavy[u]
-        self.t = t = [0] * (2 * n)                         # segment tree over positions (sums)
-        for v in range(n):
-            t[n + pos[v]] = vals[v]
-        for i in range(n - 1, 0, -1):
-            t[i] = t[2 * i] + t[2 * i + 1]
+n, t = 0, []                                               # the segment tree the pieces work on
+parent, depth, head, pos = [], [], [], []
+# update(i, v) and query(l, r) come from the code pieces
 
-    def update(self, v, x):                                # set the value of node v
-        i = self.pos[v] + self.n
-        self.t[i] = x
-        i >>= 1
-        while i >= 1:
-            self.t[i] = self.t[2 * i] + self.t[2 * i + 1]
-            i >>= 1
+def build_hld(adj, vals, root=0):
+    global n, t, parent, depth, head, pos
+    n = len(adj)
+    parent, depth = [-1] * n, [0] * n
+    order = [root]
+    for v in order:                                        # BFS order
+        for w in adj[v]:
+            if w != parent[v]:
+                parent[w] = v
+                depth[w] = depth[v] + 1
+                order.append(w)
+    size = [1] * n
+    heavy = [-1] * n
+    for v in reversed(order[1:]):                          # sizes and heavy children, leaves first
+        p = parent[v]
+        size[p] += size[v]
+        if heavy[p] == -1 or size[v] > size[heavy[p]]:
+            heavy[p] = v
+    head, pos = [0] * n, [0] * n
+    cur = 0
+    for v in order:                                        # lay each chain out contiguously
+        if parent[v] == -1 or heavy[parent[v]] != v:
+            u = v
+            while u != -1:
+                head[u], pos[u] = v, cur
+                cur += 1
+                u = heavy[u]
+    t = [0] * (2 * n)
+    for v in range(n):
+        t[n + pos[v]] = vals[v]
+    for i in range(n - 1, 0, -1):
+        t[i] = t[2 * i] + t[2 * i + 1]
 
-    def range_sum(self, l, r):                             # positions l .. r-1
-        s, t, n = 0, self.t, self.n
-        l += n
-        r += n
-        while l < r:
-            if l & 1:
-                s += t[l]
-                l += 1
-            if r & 1:
-                r -= 1
-                s += t[r]
-            l >>= 1
-            r >>= 1
-        return s
+def set_value(v, x):
+    update(pos[v], x)                                      # piece: point update
 
-    def path_sum(self, u, v):
-        head, pos, depth, parent = self.head, self.pos, self.depth, self.parent
-        s = 0
-        while head[u] != head[v]:
-            if depth[head[u]] < depth[head[v]]:
-                u, v = v, u                                # deeper chain first
-            s += self.range_sum(pos[head[u]], pos[u] + 1)
-            u = parent[head[u]]                            # jump over the chain
-        if depth[u] > depth[v]:
-            u, v = v, u
-        return s + self.range_sum(pos[u], pos[v] + 1)      # same chain now
+def path_sum(u, v):
+    s = 0
+    while head[u] != head[v]:
+        if depth[head[u]] < depth[head[v]]:
+            u, v = v, u                                    # deeper chain first
+        s += query(pos[head[u]], pos[u] + 1)               # piece: top of the chain down to u
+        u = parent[head[u]]                                # jump over the chain
+    if depth[u] > depth[v]:
+        u, v = v, u
+    return s + query(pos[u], pos[v] + 1)                   # piece: same chain now
 --cpp
 struct Hld {
     int n;
     vector<int> parent, depth, head, pos, heavy, size;
-    vector<long long> t;                                   // segment tree over positions (sums)
+    vector<int> t;                                         // segment tree over positions (sums), used by the pieces
+    // update(i, v) and query(l, r) come from the code pieces
 
-    Hld(const vector<vector<int>>& adj, const vector<long long>& vals, int root = 0) {
+    Hld(const vector<vector<int>>& adj, const vector<int>& vals, int root = 0) {
         n = adj.size();
         parent.assign(n, -1); depth.assign(n, 0); head.assign(n, 0); pos.assign(n, 0);
         heavy.assign(n, -1); size.assign(n, 1);
@@ -4411,30 +4372,17 @@ struct Hld {
         for (int i = n - 1; i >= 1; i--) t[i] = t[2 * i] + t[2 * i + 1];
     }
 
-    void update(int v, long long x) {                      // set the value of node v
-        int i = pos[v] + n;
-        t[i] = x;
-        for (i >>= 1; i >= 1; i >>= 1) t[i] = t[2 * i] + t[2 * i + 1];
-    }
+    void setValue(int v, int x) { update(pos[v], x); }     // piece: point update
 
-    long long rangeSum(int l, int r) const {               // positions l .. r-1
-        long long s = 0;
-        for (l += n, r += n; l < r; l >>= 1, r >>= 1) {
-            if (l & 1) s += t[l++];
-            if (r & 1) s += t[--r];
-        }
-        return s;
-    }
-
-    long long pathSum(int u, int v) const {
-        long long s = 0;
+    int pathSum(int u, int v) {
+        int s = 0;
         while (head[u] != head[v]) {
             if (depth[head[u]] < depth[head[v]]) swap(u, v);        // deeper chain first
-            s += rangeSum(pos[head[u]], pos[u] + 1);
+            s += query(pos[head[u]], pos[u] + 1);          // piece: top of the chain down to u
             u = parent[head[u]];                           // jump over the chain
         }
         if (depth[u] > depth[v]) swap(u, v);
-        return s + rangeSum(pos[u], pos[v] + 1);           // same chain now
+        return s + query(pos[u], pos[v] + 1);              // piece: same chain now
     }
 };
 ### centroid

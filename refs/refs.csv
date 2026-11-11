@@ -1,0 +1,330 @@
+topic,site,url,title
+array,visualgo,https://visualgo.net/en/array,Array
+hash,visualgo,https://visualgo.net/en/hashtable,"Hash Table (Closed Addressing: Separate Chaining and Open Addressing: Linear Probing, Quadratic Probing, Double Hashing)"
+hash,usaco-guide,https://usaco.guide/bronze/intro-sets,Introduction to Sets & Maps
+hset,usaco-guide,https://usaco.guide/bronze/intro-sets,Introduction to Sets & Maps
+hset,visualgo,https://visualgo.net/en/hashtable,"Hash Table (Closed Addressing: Separate Chaining and Open Addressing: Linear Probing, Quadratic Probing, Double Hashing)"
+stack,usaco-guide,https://usaco.guide/gold/stacks,Stacks
+queue,visualgo,https://visualgo.net/en/list,"Linked List (Single, Doubly), Stack, Queue, Deque"
+deque,visualgo,https://visualgo.net/en/list,"Linked List (Single, Doubly), Stack, Queue, Deque"
+linked,visualgo,https://visualgo.net/en/list,"Linked List (Single, Doubly), Stack, Queue, Deque"
+dll,visualgo,https://visualgo.net/en/list,"Linked List (Single, Doubly), Stack, Queue, Deque"
+bitset,usaco-guide,https://usaco.guide/plat/bitsets,(Optional) Bitsets
+heap,visualgo,https://visualgo.net/en/heap,Binary Heap (Priority Queue)
+heap,usaco-guide,https://usaco.guide/silver/priority-queues,Priority Queues
+bst,visualgo,https://visualgo.net/en/bst,"Binary Search Tree, AVL Tree"
+dsu,cp-algorithms,https://cp-algorithms.com/data_structures/disjoint_set_union.html,Disjoint Set Union
+dsu,usaco-guide,https://usaco.guide/gold/dsu,Disjoint Set Union
+dsu,visualgo,https://visualgo.net/en/ufds,Union-Find Disjoint Sets (UFDS)
+mono,usaco-guide,https://usaco.guide/gold/stacks,Stacks
+tmap,usaco-guide,https://usaco.guide/gold/intro-sorted-sets,More Operations on Sorted Sets
+multiset,usaco-guide,https://usaco.guide/gold/intro-sorted-sets,More Operations on Sorted Sets
+fenwick,cp-algorithms,https://cp-algorithms.com/data_structures/fenwick.html,Fenwick Tree
+fenwick,usaco-guide,https://usaco.guide/gold/PURS,Point Update Range Sum
+fenwick,visualgo,https://visualgo.net/en/fenwicktree,Binary Indexed (Fenwick) Tree
+fenwick2d,usaco-guide,https://usaco.guide/plat/2DRQ,2D Range Queries
+fenwick2d,cp-algorithms,https://cp-algorithms.com/data_structures/fenwick.html,Fenwick Tree
+sparse,cp-algorithms,https://cp-algorithms.com/data_structures/sparse-table.html,Sparse Table
+segment,cp-algorithms,https://cp-algorithms.com/data_structures/segment_tree.html,Segment Tree
+segment,usaco-guide,https://usaco.guide/gold/PURS,Point Update Range Sum
+segment,visualgo,https://visualgo.net/en/segmenttree,Segment Tree
+wdsu,cp-algorithms,https://cp-algorithms.com/data_structures/disjoint_set_union.html,Disjoint Set Union
+avl,visualgo,https://visualgo.net/en/bst,"Binary Search Tree, AVL Tree"
+ostat,usaco-guide,https://usaco.guide/gold/PURS,Point Update Range Sum
+sqrt,cp-algorithms,https://cp-algorithms.com/data_structures/sqrt_decomposition.html,Sqrt Decomposition
+sqrt,usaco-guide,https://usaco.guide/plat/sqrt,Square Root Decomposition
+lazy,usaco-guide,https://usaco.guide/plat/RURQ,Range Update Range Query
+lazy,cp-algorithms,https://cp-algorithms.com/data_structures/segment_tree.html,Segment Tree
+treap,cp-algorithms,https://cp-algorithms.com/data_structures/treap.html,Treap
+treap,usaco-guide,https://usaco.guide/adv/treaps,Treaps
+persist,usaco-guide,https://usaco.guide/adv/persistent,Persistent Data Structures
+dynseg,usaco-guide,https://usaco.guide/plat/sparse-segtree,Sparse Segment Trees
+beats,usaco-guide,https://usaco.guide/adv/segtree-beats,Segment Tree Beats
+linkcut,usaco-guide,https://usaco.guide/adv/link-cut-tree,Link Cut Tree
+lichao,cp-algorithms,https://cp-algorithms.com/geometry/convex_hull_trick.html,Convex hull trick and Li Chao tree
+lichao,usaco-guide,https://usaco.guide/adv/line-container,LineContainer
+wavelet,usaco-guide,https://usaco.guide/adv/wavelet,Wavelet Tree
+sorting,visualgo,https://visualgo.net/en/sorting,"Sorting (Bubble, Selection, Insertion, Merge, Quick, Counting, Radix)"
+sorting,usaco-guide,https://usaco.guide/bronze/intro-sorting,Introduction to Sorting
+bubble,visualgo,https://visualgo.net/en/sorting,"Sorting (Bubble, Selection, Insertion, Merge, Quick, Counting, Radix)"
+selection,visualgo,https://visualgo.net/en/sorting,"Sorting (Bubble, Selection, Insertion, Merge, Quick, Counting, Radix)"
+insertion,visualgo,https://visualgo.net/en/sorting,"Sorting (Bubble, Selection, Insertion, Merge, Quick, Counting, Radix)"
+stable,usaco-guide,https://usaco.guide/silver/sorting-custom,Custom Comparators and Coordinate Compression
+merge-sort,visualgo,https://visualgo.net/en/sorting,"Sorting (Bubble, Selection, Insertion, Merge, Quick, Counting, Radix)"
+quick-sort,visualgo,https://visualgo.net/en/sorting,"Sorting (Bubble, Selection, Insertion, Merge, Quick, Counting, Radix)"
+heap-sort,visualgo,https://visualgo.net/en/heap,Binary Heap (Priority Queue)
+counting-sort,visualgo,https://visualgo.net/en/sorting,"Sorting (Bubble, Selection, Insertion, Merge, Quick, Counting, Radix)"
+radix-sort,visualgo,https://visualgo.net/en/sorting,"Sorting (Bubble, Selection, Insertion, Merge, Quick, Counting, Radix)"
+quickselect,cp-algorithms,https://cp-algorithms.com/sequences/k-th.html,K-th order statistic in O(N)
+tim,other,https://github.com/python/cpython/blob/main/Objects/listsort.txt,cpython/Objects/listsort.txt at main · python/cpython · GitHub
+binary-search,cp-algorithms,https://cp-algorithms.com/num_methods/binary_search.html,Binary Search
+binary-search,usaco-guide,https://usaco.guide/silver/binary-search-sorted-array,Binary Search on a Sorted Array
+binary-search,usaco-guide,https://usaco.guide/silver/binary-search,Binary Search
+ternary,cp-algorithms,https://cp-algorithms.com/num_methods/ternary_search.html,Ternary Search
+ternary,usaco-guide,https://usaco.guide/gold/ternary-search,Optimizing Unimodal Functions
+bs-answer,usaco-guide,https://usaco.guide/silver/binary-search,Binary Search
+bs-answer,cp-algorithms,https://cp-algorithms.com/num_methods/binary_search.html,Binary Search
+bs-greedy,usaco-guide,https://usaco.guide/silver/binary-search,Binary Search
+bigo,usaco-guide,https://usaco.guide/bronze/time-comp,Time Complexity
+recursion,visualgo,https://visualgo.net/en/recursion,Recursion Tree and DAG (Dynamic Programming/DP)
+backtrack,visualgo,https://visualgo.net/en/recursion,Recursion Tree and DAG (Dynamic Programming/DP)
+backtrack,usaco-guide,https://usaco.guide/bronze/complete-rec,Complete Search with Recursion
+subsets,usaco-guide,https://usaco.guide/bronze/complete-rec,Complete Search with Recursion
+brute,usaco-guide,https://usaco.guide/bronze/intro-complete,Basic Complete Search
+prefix,usaco-guide,https://usaco.guide/silver/prefix-sums,Introduction to Prefix Sums
+diffarr,usaco-guide,https://usaco.guide/silver/prefix-sums,Introduction to Prefix Sums
+prefix2d,usaco-guide,https://usaco.guide/silver/more-prefix-sums,More on Prefix Sums
+twop,usaco-guide,https://usaco.guide/silver/two-pointers,Two Pointers
+window,usaco-guide,https://usaco.guide/gold/sliding-window,Sliding Window
+windeque,usaco-guide,https://usaco.guide/gold/sliding-window,Sliding Window
+windeque,cp-algorithms,https://cp-algorithms.com/data_structures/stack_queue_modification.html,Minimum Stack / Minimum Queue
+fastslow,cp-algorithms,https://cp-algorithms.com/others/tortoise_and_hare.html,Tortoise and Hare Algorithm (Linked List cycle detection)
+fastslow,visualgo,https://visualgo.net/en/cyclefinding,Cycle-Finding (Floyd/Tortoise-Hare Algorithm)
+greedy,usaco-guide,https://usaco.guide/bronze/intro-greedy,Introduction to Greedy Algorithms
+greedy,usaco-guide,https://usaco.guide/silver/greedy-sorting,Greedy Algorithms with Sorting
+bits,cp-algorithms,https://cp-algorithms.com/algebra/bit-manipulation.html,Bit manipulation
+bits,usaco-guide,https://usaco.guide/silver/intro-bitwise,Intro to Bitwise Operators
+bits,visualgo,https://visualgo.net/en/bitmask,Bitmask (Bit Manipulation)
+bittricks,cp-algorithms,https://cp-algorithms.com/algebra/bit-manipulation.html,Bit manipulation
+subsetenum,cp-algorithms,https://cp-algorithms.com/algebra/all-submasks.html,Enumerating submasks of a bitmask
+subsetenum,visualgo,https://visualgo.net/en/bitmask,Bitmask (Bit Manipulation)
+gray,cp-algorithms,https://cp-algorithms.com/algebra/gray-code.html,Gray code
+xortricks,usaco-guide,https://usaco.guide/silver/intro-bitwise,Intro to Bitwise Operators
+meet,usaco-guide,https://usaco.guide/gold/meet-in-the-middle,(Optional) Meet In The Middle
+coord,usaco-guide,https://usaco.guide/silver/sorting-custom,Custom Comparators and Coordinate Compression
+sweep,usaco-guide,https://usaco.guide/plat/sweep-line,Sweep Line
+smalllarge,usaco-guide,https://usaco.guide/plat/merging,Small-To-Large Merging
+random,usaco-guide,https://usaco.guide/adv/random,Randomness
+simulate,usaco-guide,https://usaco.guide/bronze/simulation,Simulation
+graph-rep,usaco-guide,https://usaco.guide/bronze/intro-graphs,Introduction to Graphs
+graph-rep,visualgo,https://visualgo.net/en/graphds,"Graph Data Structures (Adjacency Matrix, Adjacency List, Edge List)"
+adjmat,visualgo,https://visualgo.net/en/graphds,"Graph Data Structures (Adjacency Matrix, Adjacency List, Edge List)"
+bfs,cp-algorithms,https://cp-algorithms.com/graph/breadth-first-search.html,Breadth First Search
+bfs,usaco-guide,https://usaco.guide/silver/graph-traversal,Graph Traversal
+bfs,visualgo,https://visualgo.net/en/dfsbfs,Graph Traversal (Depth/Breadth First Search)
+dfs,cp-algorithms,https://cp-algorithms.com/graph/depth-first-search.html,Depth First Search
+dfs,usaco-guide,https://usaco.guide/silver/graph-traversal,Graph Traversal
+dfs,visualgo,https://visualgo.net/en/dfsbfs,Graph Traversal (Depth/Breadth First Search)
+gridbfs,usaco-guide,https://usaco.guide/gold/unweighted-shortest-paths,Shortest Paths with Unweighted Edges
+floodfill,usaco-guide,https://usaco.guide/silver/flood-fill,Flood Fill
+components,cp-algorithms,https://cp-algorithms.com/graph/search-for-connected-components.html,Finding Connected Components
+treetrav,usaco-guide,https://usaco.guide/silver/intro-tree,Introduction to Tree Algorithms
+cycleund,cp-algorithms,https://cp-algorithms.com/graph/finding-cycle.html,Checking a graph for acyclicity and finding a cycle in O(M)
+cycledir,cp-algorithms,https://cp-algorithms.com/graph/finding-cycle.html,Checking a graph for acyclicity and finding a cycle in O(M)
+bipartite,cp-algorithms,https://cp-algorithms.com/graph/bipartite-check.html,Bipartite Graph Check
+topo,cp-algorithms,https://cp-algorithms.com/graph/topological-sort.html,Topological Sorting
+topo,usaco-guide,https://usaco.guide/gold/toposort,Topological Sort
+kahn,usaco-guide,https://usaco.guide/gold/toposort,Topological Sort
+sp01,cp-algorithms,https://cp-algorithms.com/graph/01_bfs.html,0-1 BFS
+dijkstra,cp-algorithms,https://cp-algorithms.com/graph/dijkstra.html,Dijkstra - finding shortest paths from given vertex
+dijkstra,cp-algorithms,https://cp-algorithms.com/graph/dijkstra_sparse.html,Dijkstra on sparse graphs
+dijkstra,usaco-guide,https://usaco.guide/gold/shortest-paths,Shortest Paths with Non-Negative Edge Weights
+bellman,cp-algorithms,https://cp-algorithms.com/graph/bellman_ford.html,Bellman-Ford - finding shortest paths with negative weights
+bellman,visualgo,https://visualgo.net/en/sssp,"Single-Source Shortest Paths (Dijkstra/+ve Weighted, BFS/Unweighted, Bellman-Ford, DFS/Tree, Dynamic Programming/DAG)"
+bellman,usaco-guide,https://usaco.guide/adv/sp-neg,Shortest Paths with Negative Edge Weights
+spfa,cp-algorithms,https://cp-algorithms.com/graph/bellman_ford.html,Bellman-Ford - finding shortest paths with negative weights
+negcycle,cp-algorithms,https://cp-algorithms.com/graph/finding-negative-cycle-in-graph.html,Finding a Negative Cycle in the Graph
+floyd,cp-algorithms,https://cp-algorithms.com/graph/all-pair-shortest-path-floyd-warshall.html,Floyd-Warshall - finding all shortest paths
+floyd,usaco-guide,https://usaco.guide/gold/shortest-paths,Shortest Paths with Non-Negative Edge Weights
+mst,cp-algorithms,https://cp-algorithms.com/graph/mst_kruskal.html,Minimum Spanning Tree - Kruskal
+mst,usaco-guide,https://usaco.guide/gold/mst,Minimum Spanning Trees
+mst,visualgo,https://visualgo.net/en/mst,"Minimum Spanning Tree (Prim&#39;s, Kruskal&#39;s)"
+prim,cp-algorithms,https://cp-algorithms.com/graph/mst_prim.html,Minimum Spanning Tree - Prim's Algorithm
+prim,visualgo,https://visualgo.net/en/mst,"Minimum Spanning Tree (Prim&#39;s, Kruskal&#39;s)"
+euler,usaco-guide,https://usaco.guide/gold/tree-euler,(Optional) Euler Tour Technique
+lca,cp-algorithms,https://cp-algorithms.com/graph/lca_binary_lifting.html,Lowest Common Ancestor - Binary Lifting
+lca,usaco-guide,https://usaco.guide/plat/binary-jump,Binary Jumping
+kthanc,usaco-guide,https://usaco.guide/plat/binary-jump,Binary Jumping
+lcaeuler,usaco-guide,https://usaco.guide/gold/lca-euler,(Optional) LCA with Euler Tour
+lcaeuler,cp-algorithms,https://cp-algorithms.com/graph/lca.html,Lowest Common Ancestor - O(sqrt(N)) and O(log N) with O(N) preprocessing
+treematch,visualgo,https://visualgo.net/en/mvc,"Minimum Vertex Cover (Bruteforce, Approximation, DP, Greedy)"
+scc,cp-algorithms,https://cp-algorithms.com/graph/strongly-connected-components.html,Strongly Connected Components and Condensation Graph
+scc,usaco-guide,https://usaco.guide/adv/SCC,Strongly Connected Components
+kosaraju,cp-algorithms,https://cp-algorithms.com/graph/strongly-connected-components.html,Strongly Connected Components and Condensation Graph
+condense,cp-algorithms,https://cp-algorithms.com/graph/strongly-connected-components.html,Strongly Connected Components and Condensation Graph
+eulerpath,cp-algorithms,https://cp-algorithms.com/graph/euler_path.html,Finding the Eulerian path in O(M)
+eulerpath,usaco-guide,https://usaco.guide/adv/eulerian-tours,Eulerian Tours
+hierholzer,cp-algorithms,https://cp-algorithms.com/graph/euler_path.html,Finding the Eulerian path in O(M)
+funcgraph,usaco-guide,https://usaco.guide/silver/func-graphs,Introduction to Functional Graphs
+funcgraph,visualgo,https://visualgo.net/en/cyclefinding,Cycle-Finding (Floyd/Tortoise-Hare Algorithm)
+flow,cp-algorithms,https://cp-algorithms.com/graph/edmonds_karp.html,Maximum flow - Ford-Fulkerson and Edmonds-Karp
+flow,visualgo,https://visualgo.net/en/maxflow,"Network Flow (Max Flow, Min Cut)"
+flow,usaco-guide,https://usaco.guide/adv/max-flow,Maximum Flow
+mincut,usaco-guide,https://usaco.guide/adv/min-cut,Minimum Cut
+mincut,cp-algorithms,https://cp-algorithms.com/graph/stoer_wagner_mincut.html,Minimum cut - Stoer-Wagner algorithm
+matching,cp-algorithms,https://cp-algorithms.com/graph/kuhn_maximum_bipartite_matching.html,Kuhn's Algorithm - Maximum Bipartite Matching
+matching,visualgo,https://visualgo.net/en/matching,Graph Matching (Maximum Cardinality Bipartite Matching/MCBM)
+mst2,cp-algorithms,https://cp-algorithms.com/graph/second_best_mst.html,Second best Minimum Spanning Tree - Using Kruskal and Lowest Common Ancestor
+lcatarjan,cp-algorithms,https://cp-algorithms.com/graph/lca_tarjan.html,Lowest Common Ancestor - Tarjan's off-line algorithm
+hld,cp-algorithms,https://cp-algorithms.com/graph/hld.html,Heavy-light decomposition
+hld,usaco-guide,https://usaco.guide/plat/hld,Heavy-Light Decomposition
+centroid,cp-algorithms,https://cp-algorithms.com/graph/centroid_decomposition.html,Centroid decomposition
+centroid,usaco-guide,https://usaco.guide/plat/centroid,Centroid Decomposition
+vtree,usaco-guide,https://usaco.guide/plat/VT,Virtual Tree
+tarjan,cp-algorithms,https://cp-algorithms.com/graph/strongly-connected-components.html,Strongly Connected Components and Condensation Graph
+bridges,cp-algorithms,https://cp-algorithms.com/graph/bridge-searching.html,Finding bridges in a graph in O(N+M)
+bridges,cp-algorithms,https://cp-algorithms.com/graph/cutpoints.html,Finding articulation points in a graph in O(N+M)
+bcc,usaco-guide,https://usaco.guide/adv/BCC-2CC,BCCs and 2CCs
+twosat,cp-algorithms,https://cp-algorithms.com/graph/2SAT.html,2-SAT
+dinic,cp-algorithms,https://cp-algorithms.com/graph/dinic.html,Maximum flow - Dinic's algorithm
+pushrelabel,cp-algorithms,https://cp-algorithms.com/graph/push-relabel.html,Maximum flow - Push-relabel algorithm
+pushrelabel,cp-algorithms,https://cp-algorithms.com/graph/push-relabel-faster.html,Maximum flow - Push-relabel algorithm improved
+mcmf,cp-algorithms,https://cp-algorithms.com/graph/min_cost_flow.html,Minimum-cost flow
+mcmf,usaco-guide,https://usaco.guide/adv/min-cost-flow,Minimum Cost Flow
+lowerflow,cp-algorithms,https://cp-algorithms.com/graph/flow_with_demands.html,Flows with demands
+lowerflow,usaco-guide,https://usaco.guide/adv/flow-lb,Flow with Lower Bounds
+hopcroft,visualgo,https://visualgo.net/en/matching,Graph Matching (Maximum Cardinality Bipartite Matching/MCBM)
+hungarian,cp-algorithms,https://cp-algorithms.com/graph/hungarian-algorithm.html,Hungarian Algorithm
+blossom,visualgo,https://visualgo.net/en/matching,Graph Matching (Maximum Cardinality Bipartite Matching/MCBM)
+planar,usaco-guide,https://usaco.guide/adv/eulers-formula,Euler's Formula
+memo,cp-algorithms,https://cp-algorithms.com/dynamic_programming/intro-to-dp.html,Introduction to Dynamic Programming
+memo,usaco-guide,https://usaco.guide/gold/intro-dp,Introduction to DP
+dp1,cp-algorithms,https://cp-algorithms.com/dynamic_programming/intro-to-dp.html,Introduction to Dynamic Programming
+dp1,usaco-guide,https://usaco.guide/gold/intro-dp,Introduction to DP
+dp2,usaco-guide,https://usaco.guide/gold/paths-grids,Paths on Grids
+minpath,usaco-guide,https://usaco.guide/gold/paths-grids,Paths on Grids
+knapsack,cp-algorithms,https://cp-algorithms.com/dynamic_programming/knapsack.html,Knapsack Problem
+knapsack,usaco-guide,https://usaco.guide/gold/knapsack,Knapsack DP
+unbounded,cp-algorithms,https://cp-algorithms.com/dynamic_programming/knapsack.html,Knapsack Problem
+subsetsum,cp-algorithms,https://cp-algorithms.com/dynamic_programming/knapsack.html,Knapsack Problem
+countpaths,usaco-guide,https://usaco.guide/gold/paths-grids,Paths on Grids
+lis,cp-algorithms,https://cp-algorithms.com/dynamic_programming/longest_increasing_subsequence.html,Longest increasing subsequence
+lis,usaco-guide,https://usaco.guide/gold/lis,Longest Increasing Subsequence
+lisfast,cp-algorithms,https://cp-algorithms.com/dynamic_programming/longest_increasing_subsequence.html,Longest increasing subsequence
+boundedk,cp-algorithms,https://cp-algorithms.com/dynamic_programming/knapsack.html,Knapsack Problem
+interval,usaco-guide,https://usaco.guide/gold/dp-ranges,Range DP
+bitmask,usaco-guide,https://usaco.guide/gold/dp-bitmasks,Bitmask DP
+tspdp,visualgo,https://visualgo.net/en/tsp,Metric No-Repeat Traveling Salesperson Problem
+tspdp,usaco-guide,https://usaco.guide/gold/dp-bitmasks,Bitmask DP
+treedp,usaco-guide,https://usaco.guide/gold/dp-trees,DP on Trees - Introduction
+treedp,usaco-guide,https://usaco.guide/adv/comb-sub,DP on Trees - Combining Subtrees
+gamedp,cp-algorithms,https://cp-algorithms.com/game_theory/games_on_graphs.html,Games on arbitrary graphs
+digit,usaco-guide,https://usaco.guide/gold/digit-dp,Digit DP
+reroot,usaco-guide,https://usaco.guide/gold/all-roots,DP on Trees - Solving For All Roots
+dpopt,usaco-guide,https://usaco.guide/adv/dp-more,Additional DP Optimizations and Techniques
+dcopt,cp-algorithms,https://cp-algorithms.com/dynamic_programming/divide-and-conquer-dp.html,Divide and Conquer DP
+dcopt,usaco-guide,https://usaco.guide/plat/DC-DP,Divide & Conquer - DP
+knuth,cp-algorithms,https://cp-algorithms.com/dynamic_programming/knuth-optimization.html,Knuth's Optimization
+cht,cp-algorithms,https://cp-algorithms.com/geometry/convex_hull_trick.html,Convex hull trick and Li Chao tree
+cht,usaco-guide,https://usaco.guide/plat/convex-hull-trick,Convex Hull Trick
+aliens,usaco-guide,https://usaco.guide/adv/lagrange,Lagrangian Relaxation
+matdp,usaco-guide,https://usaco.guide/plat/matrix-expo,Matrix Exponentiation
+sos,usaco-guide,https://usaco.guide/plat/dp-sos,Sum over Subsets DP
+profile,cp-algorithms,https://cp-algorithms.com/dynamic_programming/profile-dynamics.html,"Dynamic Programming on Broken Profile. Problem ""Parquet"""
+profile,usaco-guide,https://usaco.guide/adv/dp-broken-profile,DP on Broken Profile
+modular,usaco-guide,https://usaco.guide/gold/modular,Modular Arithmetic
+gcd,cp-algorithms,https://cp-algorithms.com/algebra/euclid-algorithm.html,Euclidean algorithm for computing the greatest common divisor
+divisibility,usaco-guide,https://usaco.guide/gold/divisibility,Divisibility
+primality,cp-algorithms,https://cp-algorithms.com/algebra/primality_tests.html,Primality tests
+extgcd,cp-algorithms,https://cp-algorithms.com/algebra/extended-euclid-algorithm.html,Extended Euclidean Algorithm
+extgcd,usaco-guide,https://usaco.guide/adv/extend-euclid,Extended Euclidean Algorithm
+sieve,cp-algorithms,https://cp-algorithms.com/algebra/sieve-of-eratosthenes.html,Sieve of Eratosthenes
+linsieve,cp-algorithms,https://cp-algorithms.com/algebra/prime-sieve-linear.html,Linear Sieve
+factor,cp-algorithms,https://cp-algorithms.com/algebra/factorization.html,Integer factorization
+spf,cp-algorithms,https://cp-algorithms.com/algebra/prime-sieve-linear.html,Linear Sieve
+divisors,cp-algorithms,https://cp-algorithms.com/algebra/divisors.html,Number of divisors / sum of divisors
+phi,cp-algorithms,https://cp-algorithms.com/algebra/phi-function.html,Euler's totient function
+modpow,cp-algorithms,https://cp-algorithms.com/algebra/binary-exp.html,Binary Exponentiation
+modpow,cp-algorithms,https://cp-algorithms.com/algebra/module-inverse.html,Modular Inverse
+modinv,cp-algorithms,https://cp-algorithms.com/algebra/module-inverse.html,Modular Inverse
+fermat,cp-algorithms,https://cp-algorithms.com/algebra/module-inverse.html,Modular Inverse
+ncr,cp-algorithms,https://cp-algorithms.com/combinatorics/binomial-coefficients.html,Binomial Coefficients
+ncr,usaco-guide,https://usaco.guide/gold/combo,Combinatorics
+stars,cp-algorithms,https://cp-algorithms.com/combinatorics/stars_and_bars.html,Stars and bars
+bigint,cp-algorithms,https://cp-algorithms.com/algebra/big-integer.html,Arbitrary-Precision Arithmetic
+segsieve,cp-algorithms,https://cp-algorithms.com/algebra/sieve-of-eratosthenes.html,Sieve of Eratosthenes
+crt,cp-algorithms,https://cp-algorithms.com/algebra/chinese-remainder-theorem.html,Chinese Remainder Theorem
+lincong,cp-algorithms,https://cp-algorithms.com/algebra/linear_congruence_equation.html,Linear Congruence Equation
+millerrabin,cp-algorithms,https://cp-algorithms.com/algebra/primality_tests.html,Primality tests
+lucas,cp-algorithms,https://cp-algorithms.com/combinatorics/binomial-coefficients.html,Binomial Coefficients
+comb,usaco-guide,https://usaco.guide/gold/combo,Combinatorics
+factmod,cp-algorithms,https://cp-algorithms.com/algebra/factorial-modulo.html,Factorial modulo p
+catalan,cp-algorithms,https://cp-algorithms.com/combinatorics/catalan-numbers.html,Catalan Numbers
+catalan,usaco-guide,https://usaco.guide/adv/catalan,Catalan Numbers
+inclexcl,cp-algorithms,https://cp-algorithms.com/combinatorics/inclusion-exclusion.html,The Inclusion-Exclusion Principle
+inclexcl,usaco-guide,https://usaco.guide/plat/PIE,Inclusion-Exclusion Principle
+matexp,usaco-guide,https://usaco.guide/plat/matrix-expo,Matrix Exponentiation
+fibfast,cp-algorithms,https://cp-algorithms.com/algebra/fibonacci-numbers.html,Fibonacci Numbers
+gauss,cp-algorithms,https://cp-algorithms.com/linear_algebra/linear-system-gauss.html,Gauss & System of Linear Equations
+game,usaco-guide,https://usaco.guide/adv/game-theory,Game Theory
+nim,cp-algorithms,https://cp-algorithms.com/game_theory/sprague-grundy-nim.html,Sprague-Grundy theorem. Nim
+josephus,cp-algorithms,https://cp-algorithms.com/others/josephus_problem.html,Josephus problem
+dirichlet,usaco-guide,https://usaco.guide/adv/prefix-sums-nt-1,Prefix Sums of Number-Theoretic Functions (Part 1)
+bsgs,cp-algorithms,https://cp-algorithms.com/algebra/discrete-log.html,Discrete Log
+primroot,cp-algorithms,https://cp-algorithms.com/algebra/primitive-root.html,Primitive Root
+pollard,cp-algorithms,https://cp-algorithms.com/algebra/factorization.html,Integer factorization
+burnside,cp-algorithms,https://cp-algorithms.com/combinatorics/burnside.html,Burnside's lemma / Pólya enumeration theorem
+polya,cp-algorithms,https://cp-algorithms.com/combinatorics/burnside.html,Burnside's lemma / Pólya enumeration theorem
+det,cp-algorithms,https://cp-algorithms.com/linear_algebra/determinant-gauss.html,Gauss & Determinant
+xorbasis,usaco-guide,https://usaco.guide/adv/xor-basis,XOR Basis
+fft,cp-algorithms,https://cp-algorithms.com/algebra/fft.html,Fast Fourier transform
+fft,usaco-guide,https://usaco.guide/adv/fft,Introduction to Fast Fourier Transform
+ntt,cp-algorithms,https://cp-algorithms.com/algebra/fft.html,Fast Fourier transform
+polyops,cp-algorithms,https://cp-algorithms.com/algebra/polynomial.html,Operations on polynomials and series
+min25,usaco-guide,https://usaco.guide/adv/prefix-sums-nt-2,Prefix Sums of Number-Theoretic Functions (Part 2)
+grundy,cp-algorithms,https://cp-algorithms.com/game_theory/sprague-grundy-nim.html,Sprague-Grundy theorem. Nim
+sternb,cp-algorithms,https://cp-algorithms.com/others/stern_brocot_tree_farey_sequences.html,The Stern-Brocot Tree and Farey Sequences
+contfrac,cp-algorithms,https://cp-algorithms.com/algebra/continued-fractions.html,Continued fractions
+geom,cp-algorithms,https://cp-algorithms.com/geometry/basic-geometry.html,Basic Geometry
+geom,usaco-guide,https://usaco.guide/plat/geo-pri,Geometry Primitives
+dotcross,cp-algorithms,https://cp-algorithms.com/geometry/basic-geometry.html,Basic Geometry
+dotcross,usaco-guide,https://usaco.guide/plat/geo-pri,Geometry Primitives
+orient,cp-algorithms,https://cp-algorithms.com/geometry/oriented-triangle-area.html,Oriented area of a triangle
+seginter,cp-algorithms,https://cp-algorithms.com/geometry/check-segments-intersection.html,Check if two segments intersect
+seginter,cp-algorithms,https://cp-algorithms.com/geometry/segments-intersection.html,Intersection of Segments
+lineinter,cp-algorithms,https://cp-algorithms.com/geometry/lines-intersection.html,Intersection Point of Lines
+polyarea,cp-algorithms,https://cp-algorithms.com/geometry/area-of-simple-polygon.html,Finding area of simple polygon in O(N)
+manhattan,cp-algorithms,https://cp-algorithms.com/geometry/manhattan-distance.html,Manhattan Distance
+hull,cp-algorithms,https://cp-algorithms.com/geometry/convex-hull.html,Convex hull construction
+hull,usaco-guide,https://usaco.guide/plat/convex-hull,Convex Hull
+hull,visualgo,https://visualgo.net/en/convexhull,Convex Hull
+circle,cp-algorithms,https://cp-algorithms.com/geometry/circle-line-intersection.html,Circle-Line Intersection
+circle,cp-algorithms,https://cp-algorithms.com/geometry/circle-circle-intersection.html,Circle-Circle Intersection
+picks,cp-algorithms,https://cp-algorithms.com/geometry/picks-theorem.html,Pick's Theorem - area of lattice polygons
+lattice,cp-algorithms,https://cp-algorithms.com/geometry/lattice-points.html,Lattice points of non-lattice polygon
+closest,cp-algorithms,https://cp-algorithms.com/geometry/nearest_points.html,Finding the nearest pair of points
+hpi,cp-algorithms,https://cp-algorithms.com/geometry/halfplane-intersection.html,Half-plane intersection - S&I Algorithm in O(N log N)
+mec,cp-algorithms,https://cp-algorithms.com/geometry/enclosing-circle.html,Minimum Enclosing Circle
+sweepseg,cp-algorithms,https://cp-algorithms.com/geometry/intersecting_segments.html,Search for a pair of intersecting segments
+voronoi,cp-algorithms,https://cp-algorithms.com/geometry/delaunay.html,Delaunay triangulation and Voronoi diagram
+delaunay,cp-algorithms,https://cp-algorithms.com/geometry/delaunay.html,Delaunay triangulation and Voronoi diagram
+strparse,cp-algorithms,https://cp-algorithms.com/string/expression_parsing.html,Expression parsing
+hashing,cp-algorithms,https://cp-algorithms.com/string/string-hashing.html,String Hashing
+hashing,usaco-guide,https://usaco.guide/gold/hashing,Hashing
+rabinkarp,cp-algorithms,https://cp-algorithms.com/string/rabin-karp.html,Rabin-Karp for String Matching
+kmp,cp-algorithms,https://cp-algorithms.com/string/prefix-function.html,Prefix function - Knuth-Morris-Pratt
+kmp,usaco-guide,https://usaco.guide/adv/string-search,String Searching
+zfunc,cp-algorithms,https://cp-algorithms.com/string/z-function.html,Z-function
+border,cp-algorithms,https://cp-algorithms.com/string/prefix-function.html,Prefix function - Knuth-Morris-Pratt
+manacher,cp-algorithms,https://cp-algorithms.com/string/manacher.html,Manacher's Algorithm - Finding all sub-palindromes in O(N)
+commonsub,cp-algorithms,https://cp-algorithms.com/string/suffix-array.html,Suffix Array
+aho,cp-algorithms,https://cp-algorithms.com/string/aho_corasick.html,Aho-Corasick algorithm
+suffix,cp-algorithms,https://cp-algorithms.com/string/suffix-array.html,Suffix Array
+suffix,usaco-guide,https://usaco.guide/adv/suffix-array,Suffix Array
+suffix,visualgo,https://visualgo.net/en/suffixarray,Suffix Array
+lcp,cp-algorithms,https://cp-algorithms.com/string/suffix-array.html,Suffix Array
+sam,cp-algorithms,https://cp-algorithms.com/string/suffix-automaton.html,Suffix Automaton
+sam,usaco-guide,https://usaco.guide/adv/string-suffix,String Suffix Structures
+suftree,cp-algorithms,https://cp-algorithms.com/string/suffix-tree-ukkonen.html,Suffix Tree
+suftree,visualgo,https://visualgo.net/en/suffixtree,Suffix Tree
+eertree,usaco-guide,https://usaco.guide/adv/string-suffix,String Suffix Structures
+duval,cp-algorithms,https://cp-algorithms.com/string/lyndon_factorization.html,Lyndon factorization
+distinctsubstr,cp-algorithms,https://cp-algorithms.com/string/suffix-array.html,Suffix Array
+distinctsubstr,cp-algorithms,https://cp-algorithms.com/string/suffix-automaton.html,Suffix Automaton
+anneal,cp-algorithms,https://cp-algorithms.com/num_methods/simulated_annealing.html,Simulated Annealing
+gradient,other,https://arxiv.org/abs/1412.6980,Adam: A Method for Stochastic Optimization
+dbindex,other,https://www.postgresql.org/docs/current/indexes.html,PostgreSQL: Chapter 11. Indexes
+queryplan,other,https://www.postgresql.org/docs/current/using-explain.html,PostgreSQL: 14.1. Using EXPLAIN
+txn,other,https://www.postgresql.org/docs/current/mvcc-intro.html,PostgreSQL: 13.1. Introduction
+merkle,other,https://www.rfc-editor.org/rfc/rfc6962,RFC 6962: Certificate Transparency
+routing,other,https://www.rfc-editor.org/rfc/rfc2328,RFC 2328: OSPF Version 2
+routing,other,https://www.rfc-editor.org/rfc/rfc4271,RFC 4271: A Border Gateway Protocol 4 (BGP-4)
+tcp,other,https://www.rfc-editor.org/rfc/rfc9293,RFC 9293: Transmission Control Protocol (TCP)
+pkg,other,https://github.com/dart-lang/pub/blob/master/doc/solver.md,pub/doc/solver.md at master · dart-lang/pub · GitHub
+git,other,https://git-scm.com/book/en/v2/Git-Internals-Git-Objects,Git - Git Objects
+compress,other,https://www.rfc-editor.org/rfc/rfc1951,RFC 1951: DEFLATE Compressed Data Format Specification version 1.3
+rsa,other,https://www.rfc-editor.org/rfc/rfc8017,RFC 8017: PKCS #1: RSA Cryptography Specifications Version 2.2
+cryptohash,other,https://www.rfc-editor.org/rfc/rfc8018,RFC 8018: PKCS #5: Password-Based Cryptography Specification Version 2.1
+dh,other,https://www.rfc-editor.org/rfc/rfc7748,RFC 7748: Elliptic Curves for Security
+llm,other,https://arxiv.org/abs/1706.03762,Attention Is All You Need
+tokenizer,other,https://arxiv.org/abs/1508.07909,Neural Machine Translation of Rare Words with Subword Units

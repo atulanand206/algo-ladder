@@ -90,13 +90,13 @@ def parse_snips():
     for f in sorted(glob.glob(os.path.join(here,"snips","*.txt"))):
         for blk in open(f).read().split("### ")[1:]:
             head,_,body=blk.partition("\n")
-            parts=re.split(r"^--(java|py|cpp)\n",body,flags=re.M)
-            out[head.strip()]={parts[i]:parts[i+1].rstrip("\n") for i in range(1,len(parts),2)}   # later files override
+            parts=re.split(r"^--(java|py|cpp|go)\n",body,flags=re.M)
+            out.setdefault(head.strip(),{}).update({parts[i]:parts[i+1].rstrip("\n") for i in range(1,len(parts),2)})   # later files override per language
     return out
 put("snips",parse_snips())
 # Lessons: lessons/*.txt blocks "### id" with sections --idea --build --think --cost --java --py --cpp.
 # One small JSON file per topic, loaded only when a topic is opened; lessons-index.json lists which topics have one.
-SECS=("idea","build","think","cost","uses","java","py","cpp")
+SECS=("idea","build","think","cost","uses","java","py","cpp","go")
 def parse_lessons():
     out={}
     for f in sorted(glob.glob(os.path.join(here,"lessons","*.txt"))):
@@ -115,6 +115,11 @@ def _first(t,pre=""):
         l=l.strip()
         if l.startswith("- "):return l[2:]
     return t.strip().split("\n")[0] if t.strip() else ""
+_refs={}
+_rp=os.path.join(here,"refs","refs.csv")
+if os.path.exists(_rp):
+    for _r in csv.DictReader(open(_rp)):_refs.setdefault(_r["topic"].strip(),[]).append([_r["site"].strip(),_r["url"].strip(),_r["title"].strip()])
+put("refs",_refs)
 put("signals",{k:[_first(v.get("think","")) [:260],(v.get("idea","").split("\n")[0])[:200]] for k,v in LES.items()})
 import shutil
 if os.path.isdir(os.path.join(here,"static")):

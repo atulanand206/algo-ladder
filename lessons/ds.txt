@@ -1909,10 +1909,10 @@ A multiset is an ordered set that allows repeats. You can put the number 5 in th
 Think of a sorted bag of marbles. You can ask for the lightest marble, the heaviest, or the next heavier one than a given weight, and you can take out one marble of a chosen weight. The classic use is a sliding window: add the new item, remove the one that left, and read the min or max.
 --build
 1. Store counts, not copies: a sorted map from `value` to `count`. This is the same as a tree-based ordered map.
-2. `add(x)`: `count[x]++` (create the key if missing).
-3. `removeOne(x)`: `count[x]--`; if it reaches 0, delete the key. If `x` is absent, do nothing (or report an error).
+2. `add(x)`: `count[x] = getOrDefault(count, x, 0) + 1` (create the key if missing).
+3. `removeOne(x)`: read `c = getOrDefault(count, x, 0)`; if `c` is 0 the value is absent. Otherwise `count[x]--`; if it reaches 0, delete the key. If `x` is absent, do nothing (or report an error).
 4. `min()` is the first key, `max()` is the last key.
-5. `contains(x)`: `count[x] > 0`. `countOf(x)`: read the count.
+5. `contains(x)`: `count[x] > 0`. `countOf(x)`: read the count with `getOrDefault(count, x, 0)` (code piece `u-hget`), which gives 0 for a missing key. `add` and `removeOne` read the old count the same way.
 6. `ceiling(x)` and `floor(x)` work exactly as in an ordered set, on the keys.
 7. Sliding window median or max of width `k`: add `a[i]`; once `i >= k`, `removeOne(a[i - k])`; read `max()` or the middle element.
 --think
@@ -1922,24 +1922,26 @@ Think of a sorted bag of marbles. You can ask for the lightest marble, the heavi
 - Pitfalls in C++: `s.erase(value)` removes all copies of that value; to remove only one, use `s.erase(s.find(value))`. In Java `TreeMap.merge` with a lambda that returns null removes the key, which is a handy trick. Remember `size()` is the number of copies, not distinct values.
 --cost
 Add, remove one, min, max, floor, ceiling: O(log n). Space O(n) for distinct values (with counts).
+--uses
+u-hget
 --java
 // multiset of ints as a TreeMap of value -> count
 static class MultiSet {
     java.util.TreeMap<Integer, Integer> cnt = new java.util.TreeMap<>();
     int size = 0;
 
-    void add(int x) { cnt.merge(x, 1, Integer::sum); size++; }
+    void add(int x) { cnt.put(x, getOrDefault(cnt, x, 0) + 1); size++; }
 
     boolean removeOne(int x) {
-        Integer c = cnt.get(x);
-        if (c == null) return false;
+        int c = getOrDefault(cnt, x, 0);                 // piece u-hget
+        if (c == 0) return false;
         if (c == 1) cnt.remove(x); else cnt.put(x, c - 1);
         size--;
         return true;
     }
     int min() { return cnt.firstKey(); }
     int max() { return cnt.lastKey(); }
-    int countOf(int x) { return cnt.getOrDefault(x, 0); }
+    int countOf(int x) { return getOrDefault(cnt, x, 0); }
 }
 
 // max of every window of width k
@@ -1957,25 +1959,30 @@ static int[] windowMax(int[] a, int k) {
 import bisect
 
 class MultiSet:
-    """Sorted list with repeats allowed. Insert and delete shift the list, which is fine up to ~10^5 items."""
+    """Counts in a dict plus a sorted list of the distinct values, for min and max."""
     def __init__(self):
-        self.a = []
+        self.cnt, self.keys = {}, []
 
     def add(self, x):
-        bisect.insort(self.a, x)
+        c = get_or_default(self.cnt, x, 0)            # piece u-hget
+        if c == 0:
+            bisect.insort(self.keys, x)               # a new distinct value
+        self.cnt[x] = c + 1
 
     def remove_one(self, x):
-        i = bisect.bisect_left(self.a, x)
-        if i < len(self.a) and self.a[i] == x:
-            self.a.pop(i)
-            return True
-        return False
+        c = get_or_default(self.cnt, x, 0)
+        if c == 0:
+            return False
+        if c == 1:
+            del self.cnt[x]
+            self.keys.pop(bisect.bisect_left(self.keys, x))
+        else:
+            self.cnt[x] = c - 1
+        return True
 
-    def min(self): return self.a[0]
-    def max(self): return self.a[-1]
-
-    def count_of(self, x):
-        return bisect.bisect_right(self.a, x) - bisect.bisect_left(self.a, x)
+    def min(self): return self.keys[0]
+    def max(self): return self.keys[-1]
+    def count_of(self, x): return get_or_default(self.cnt, x, 0)
 
 def window_max(a, k):
     ms, res = MultiSet(), []
@@ -1987,28 +1994,34 @@ def window_max(a, k):
             res.append(ms.max())
     return res
 --cpp
-// std::multiset keeps sorted copies. Remove ONE copy with erase(find(x)), never erase(x).
-bool removeOne(multiset<int>& ms, int x) {
-    auto it = ms.find(x);
-    if (it == ms.end()) return false;
-    ms.erase(it);                              // only this one copy
-    return true;
-}
+// multiset of ints as a map of value -> count (sorted by value)
+struct MultiSet {
+    map<int, int> cnt;
+
+    void add(int x) { cnt[x] = getOrDefault(cnt, x, 0) + 1; }
+
+    bool removeOne(int x) {                    // remove ONE copy
+        int c = getOrDefault(cnt, x, 0);       // piece u-hget
+        if (c == 0) return false;
+        if (c == 1) cnt.erase(x); else cnt[x] = c - 1;
+        return true;
+    }
+    int min() const { return cnt.begin()->first; }
+    int max() const { return cnt.rbegin()->first; }
+    int countOf(int x) const { return getOrDefault(cnt, x, 0); }
+};
 
 // max of every window of width k
 vector<int> windowMax(const vector<int>& a, int k) {
-    multiset<int> ms;
+    MultiSet ms;
     vector<int> res;
     for (int i = 0; i < (int)a.size(); i++) {
-        ms.insert(a[i]);
-        if (i >= k) removeOne(ms, a[i - k]);   // the item that just left the window
-        if (i >= k - 1) res.push_back(*ms.rbegin());   // largest key
+        ms.add(a[i]);
+        if (i >= k) ms.removeOne(a[i - k]);   // the item that just left the window
+        if (i >= k - 1) res.push_back(ms.max());
     }
     return res;
 }
-
-// how many copies of x are stored
-int countOf(const multiset<int>& ms, int x) { return ms.count(x); }
 
 ### lru
 --idea

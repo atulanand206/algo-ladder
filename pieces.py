@@ -10,5 +10,6 @@ if __name__=="__main__":
     if not ps: print("no code pieces are linked to this topic")
     for p in ps:
         print(f"\n[{p}] {by[p]['label']}: {by[p]['d']}")
-        for l in ("java","py","cpp"): print(f"  {l}: calls it as {sorted(method_names(S[p][l],l))}")
+        for l in ("java","py","cpp","go"):
+            if l in S[p]: print(f"  {l}: calls it as {sorted(method_names(S[p][l],l))}")
         print("  python version:\n    "+S[p]["py"].replace("\n","\n    "))

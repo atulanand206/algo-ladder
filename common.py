@@ -6,13 +6,17 @@ def parse_snips():
     for f in sorted(glob.glob(os.path.join(here,"snips","*.txt"))):
         for blk in open(f).read().split("### ")[1:]:
             head,_,body=blk.partition("\n")
-            parts=re.split(r"^--(java|py|cpp)\n",body,flags=re.M)
-            out[head.strip()]={parts[i]:parts[i+1].rstrip("\n") for i in range(1,len(parts),2)}   # later files override
+            parts=re.split(r"^--(java|py|cpp|go)\n",body,flags=re.M)
+            out.setdefault(head.strip(),{}).update({parts[i]:parts[i+1].rstrip("\n") for i in range(1,len(parts),2)})   # later files override per language
     return out
 _KW={"if","for","while","switch","return","else","catch","sizeof","new"}
 def method_names(code,lang):
     """Names of the methods (and classes) a piece of code defines."""
     names=set()
+    if lang=="go":
+        names|=set(re.findall(r"^func\s+(?:\(\s*\w+\s+\*?\w+\s*\)\s*)?(\w+)\s*[\(\[]",code,flags=re.M))
+        names|=set(re.findall(r"^type\s+(\w+)\s+(?:struct|interface)",code,flags=re.M))
+        return names
     if lang=="py":
         names|=set(re.findall(r"^\s*def\s+(\w+)\s*\(",code,flags=re.M))
         names|=set(re.findall(r"^\s*class\s+(\w+)",code,flags=re.M))

@@ -750,6 +750,7 @@ Example, `n = 12`. i = 2 is prime, list = [2]; mark 2*2 = 4. i = 3 is prime, lis
 3. For each prime `p` in `primes` in increasing order, while `p <= lp[i]` and `i * p <= n`: set `lp[i * p] = p`.
 4. Why stop at `p <= lp[i]`: the number `i * p` has smallest prime factor `p` only if `p` is at most `lp[i]`. If `p` were bigger than `lp[i]`, the smaller prime `lp[i]` would be the real smallest factor, and that composite will be reached later from a different `i` (namely `i * p / lp[i]`). So every composite is written once.
 5. To factor `x` afterwards: repeat `p = lp[x]`, record `p`, set `x = x / p`, until `x == 1`.
+6. Self-check: the simple sieve in the piece `buildSpf` (`build_spf` in Python) fills the same table by letting every prime write over all its multiples, so some numbers are written many times. `matchesSimpleSieve(n)` returns true when both tables are equal. The linear sieve gets the same `lp` while writing each composite exactly once.
 --think
 - Signal: you need smallest prime factors, or multiplicative functions (totient, Mobius, divisor count) for every number up to about 1e7 in one pass.
 - Decide between the plain sieve (simple, fine for primes only) and this one (needed when each composite must be processed with its smallest prime factor, e.g. computing `phi` for all `n`).
@@ -774,6 +775,11 @@ static int[] linearSieve(int n) {
     }
     return lp;
 }
+
+// the linear sieve must give the same table as the simple sieve (piece u-spf)
+static boolean matchesSimpleSieve(int n) {
+    return Arrays.equals(linearSieve(n), buildSpf(n));
+}
 --py
 def linear_sieve(n):
     """Return lp, the smallest prime factor of each number up to n (primes have lp[i] == i)."""
@@ -788,6 +794,10 @@ def linear_sieve(n):
                 break
             lp[i * p] = p
     return lp
+
+def matches_simple_sieve(n):
+    """The linear sieve must give the same table as the simple sieve (piece u-spf)."""
+    return linear_sieve(n) == build_spf(n)
 --cpp
 // returns lp[], the smallest prime factor of every number up to n (primes are those with lp[i] == i)
 vector<int> linearSieve(int n) {
@@ -801,6 +811,14 @@ vector<int> linearSieve(int n) {
     }
     return lp;
 }
+
+// the linear sieve must give the same table as the simple sieve (piece u-spf)
+bool matchesSimpleSieve(int n) {
+    return linearSieve(n) == buildSpf(n);
+}
+--uses
+u-spf
+
 ### factor
 --idea
 Prime factorisation writes a number as a product of primes: `360 = 2^3 * 3^2 * 5`. Every whole number above 1 has exactly one such form (the fundamental theorem of arithmetic), so the factorisation is like the number's fingerprint. Once you have it, many questions (how many divisors, what is the gcd with another number, is it a perfect square) become simple reads of the exponents.
@@ -1319,6 +1337,7 @@ Pascal's rule: `C(n, k) = C(n-1, k-1) + C(n-1, k)`. Reason: take a special item.
 3. Use symmetry `C(n, k) = C(n, n - k)` first: replace `k` by `min(k, n - k)` to make fewer steps.
 4. Overflow: the product `r * (n - k + i)` is at most about `C(n, k) * n`. This fits in a signed 64-bit integer for `n` up to about 60 or when the final answer is below roughly `1e17`. Beyond that use a modulus or big integers.
 5. `C(n, k) = 0` when `k < 0` or `k > n`.
+6. Large `n` with a prime modulus `M`: `C(n, k) = n! / (k! (n-k)!)`, so keep `f[i] = i!` and `inv[i] = 1 / i!` modulo `M`. `initFactorials(n)` builds both tables with the piece `buildFactorials`, and then `ncr(n, k)` (code piece `u-ncr`) is three table reads and two multiplications. `binomialRow(n)` calls `ncr` for every `k` to get a whole row of Pascal's triangle in O(n), which the table method could not do for `n` near a million.
 --think
 - Signal: "choose", "subsets of size k", "paths in a grid" (`C(r + c, r)`), "committees", "number of ways to pick".
 - Decide how large `n` is. Up to about 5000 and need all values: Pascal table. Up to 1e6 or more with a prime modulus: factorials with inverses. Huge `n`, tiny prime modulus: Lucas theorem.
@@ -1348,6 +1367,22 @@ static long[][] pascal(int n, long m) {
     }
     return c;
 }
+
+static final long M = 1_000_000_007L;
+static long[] f, inv;                            // f[i] = i!, inv[i] = 1 / i!, both modulo M
+// the piece ncr(n, k) = f[n] * inv[k] * inv[n - k] mod M reads these tables
+static void initFactorials(int n) {
+    long[][] t = buildFactorials(n, M);          // piece u-fact
+    f = t[0]; inv = t[1];
+}
+
+// C(n, 0), ..., C(n, n) modulo M
+static long[] binomialRow(int n) {
+    initFactorials(n);
+    long[] row = new long[n + 1];
+    for (int k = 0; k <= n; k++) row[k] = ncr(n, k);   // piece u-ncr
+    return row;
+}
 --py
 def choose(n, k):
     """Exact C(n, k)."""
@@ -1367,6 +1402,19 @@ def pascal(n, m):
         for j in range(1, i + 1):
             c[i][j] = (c[i - 1][j - 1] + c[i - 1][j]) % m   # take it, or leave it
     return c
+
+M = 1_000_000_007
+f, inv = [], []                                  # f[i] = i!, inv[i] = 1 / i!, both modulo M
+# the piece ncr(n, k) = f[n] * inv[k] * inv[n - k] % M reads these tables
+
+def init_factorials(n):
+    global f, inv
+    f, inv = build_factorials(n, M)              # piece u-fact
+
+def binomial_row(n):
+    """C(n, 0), ..., C(n, n) modulo M."""
+    init_factorials(n)
+    return [ncr(n, k) for k in range(n + 1)]     # piece u-ncr
 --cpp
 // exact C(n, k); safe while the answer times n stays below 9.2e18
 long long choose(int n, int k) {
@@ -1388,6 +1436,26 @@ vector<vector<long long>> pascal(int n, long long m) {
     }
     return c;
 }
+
+const long long M = 1'000'000'007;
+vector<long long> f, inv;                        // f[i] = i!, inv[i] = 1 / i!, both modulo M
+// the piece ncr(n, k) = f[n] * inv[k] * inv[n - k] % M reads these tables
+void initFactorials(int n) {
+    auto t = buildFactorials(n, M);              // piece u-fact
+    f = t.first; inv = t.second;
+}
+
+// C(n, 0), ..., C(n, n) modulo M
+vector<long long> binomialRow(int n) {
+    initFactorials(n);
+    vector<long long> row(n + 1);
+    for (int k = 0; k <= n; k++) row[k] = ncr(n, k);   // piece u-ncr
+    return row;
+}
+--uses
+u-ncr
+u-fact
+
 ### stars
 --idea
 Stars and bars counts the ways to split `n` identical items into `k` groups (groups may be empty). Draw the `n` items as stars in a row and place `k - 1` bars between them to cut the row into `k` groups. Each arrangement of stars and bars is one split, and every split is exactly one arrangement.
@@ -1398,6 +1466,7 @@ Example: split 5 identical sweets among 3 children (some may get none). A row ha
 3. Lower bounds `xi >= li`: subtract all the lower bounds from `n` first, then count non-negative solutions of the reduced total.
 4. Upper bounds `xi <= u` (same `u` for all): use inclusion-exclusion. Count all solutions, subtract those where some chosen `j` variables break the bound (force `xi >= u + 1`, so subtract `j*(u+1)` from `n`), alternating signs: `sum over j of (-1)^j * C(k, j) * C(n - j*(u+1) + k - 1, k - 1)`.
 5. Skip a term when `n - j*(u + 1)` is negative, since that count is 0.
+6. Counts grow fast, so every answer is taken modulo the prime `M = 1,000,000,007`. Call `initFactorials(maxN)` once, with `maxN` at least `n + k`: it builds the factorial tables with the piece `buildFactorials`. Every `C(a, b)` above is then one call to the piece `ncr`.
 --think
 - Signal: "number of non-negative integer solutions", "distribute identical objects", "number of ways to write n as an ordered sum of k parts", "multiset of size k from m types" (`C(k + m - 1, m - 1)`).
 - Decide whether the items are identical and the boxes are distinguishable. If boxes are identical too, it is integer partitions, not stars and bars. If items are different, it is `k^n` or Stirling numbers.
@@ -1407,80 +1476,83 @@ Example: split 5 identical sweets among 3 children (some may get none). A row ha
 --cost
 Each count is one binomial: O(k) here. The bounded version is O(k) terms times a binomial each.
 --java
-static long choose(int n, int k) {
-    if (k < 0 || k > n) return 0;
-    k = Math.min(k, n - k);
-    long r = 1;
-    for (int i = 1; i <= k; i++) r = r * (n - k + i) / i;
-    return r;
+static final long M = 1_000_000_007L;
+static long[] f, inv;                            // f[i] = i!, inv[i] = 1 / i!, both modulo M
+// the piece ncr(n, k) = f[n] * inv[k] * inv[n - k] mod M reads these tables
+static void initFactorials(int maxN) {
+    long[][] t = buildFactorials(maxN, M);       // piece u-fact
+    f = t[0]; inv = t[1];
 }
 
 // x1+...+xk = n, each xi >= 0
-static long stars(int n, int k) { return choose(n + k - 1, k - 1); }
+static long stars(int n, int k) { return ncr(n + k - 1, k - 1); }
 
 // x1+...+xk = n, each xi >= 1
-static long starsPositive(int n, int k) { return n < k ? 0 : choose(n - 1, k - 1); }
+static long starsPositive(int n, int k) { return n < k ? 0 : ncr(n - 1, k - 1); }
 
 // x1+...+xk = n, each 0 <= xi <= u  (inclusion-exclusion over how many break the bound)
 static long starsBounded(int n, int k, int u) {
     long ans = 0;
     for (int j = 0; j <= k && (long) j * (u + 1) <= n; j++) {
-        long term = choose(k, j) * stars(n - j * (u + 1), k);
-        ans += (j % 2 == 0) ? term : -term;
+        long term = ncr(k, j) * stars(n - j * (u + 1), k) % M;
+        ans = (ans + (j % 2 == 0 ? term : M - term)) % M;   // alternate the sign
     }
     return ans;
 }
 --py
-def choose(n, k):
-    if k < 0 or k > n:
-        return 0
-    k = min(k, n - k)
-    r = 1
-    for i in range(1, k + 1):
-        r = r * (n - k + i) // i
-    return r
+M = 1_000_000_007
+f, inv = [], []                                  # f[i] = i!, inv[i] = 1 / i!, both modulo M
+# the piece ncr(n, k) = f[n] * inv[k] * inv[n - k] % M reads these tables
+
+def init_factorials(max_n):
+    global f, inv
+    f, inv = build_factorials(max_n, M)          # piece u-fact
 
 def stars(n, k):
     """x1+...+xk = n with each xi >= 0."""
-    return choose(n + k - 1, k - 1)
+    return ncr(n + k - 1, k - 1)
 
 def stars_positive(n, k):
     """x1+...+xk = n with each xi >= 1."""
-    return 0 if n < k else choose(n - 1, k - 1)
+    return 0 if n < k else ncr(n - 1, k - 1)
 
 def stars_bounded(n, k, u):
     """x1+...+xk = n with each 0 <= xi <= u (inclusion-exclusion)."""
     ans = 0
     j = 0
     while j <= k and j * (u + 1) <= n:
-        term = choose(k, j) * stars(n - j * (u + 1), k)
-        ans += term if j % 2 == 0 else -term
+        term = ncr(k, j) * stars(n - j * (u + 1), k) % M
+        ans = (ans + (term if j % 2 == 0 else M - term)) % M   # alternate the sign
         j += 1
     return ans
 --cpp
-long long choose(int n, int k) {
-    if (k < 0 || k > n) return 0;
-    k = min(k, n - k);
-    long long r = 1;
-    for (int i = 1; i <= k; i++) r = r * (n - k + i) / i;
-    return r;
+const long long M = 1'000'000'007;
+vector<long long> f, inv;                        // f[i] = i!, inv[i] = 1 / i!, both modulo M
+// the piece ncr(n, k) = f[n] * inv[k] * inv[n - k] % M reads these tables
+void initFactorials(int maxN) {
+    auto t = buildFactorials(maxN, M);           // piece u-fact
+    f = t.first; inv = t.second;
 }
 
 // x1+...+xk = n, each xi >= 0
-long long stars(int n, int k) { return choose(n + k - 1, k - 1); }
+long long stars(int n, int k) { return ncr(n + k - 1, k - 1); }
 
 // x1+...+xk = n, each xi >= 1
-long long starsPositive(int n, int k) { return n < k ? 0 : choose(n - 1, k - 1); }
+long long starsPositive(int n, int k) { return n < k ? 0 : ncr(n - 1, k - 1); }
 
 // x1+...+xk = n, each 0 <= xi <= u  (inclusion-exclusion over how many break the bound)
 long long starsBounded(int n, int k, int u) {
     long long ans = 0;
     for (int j = 0; j <= k && (long long)j * (u + 1) <= n; j++) {
-        long long term = choose(k, j) * stars(n - j * (u + 1), k);
-        ans += (j % 2 == 0) ? term : -term;
+        long long term = ncr(k, j) * stars(n - j * (u + 1), k) % M;
+        ans = (ans + (j % 2 == 0 ? term : M - term)) % M;   // alternate the sign
     }
     return ans;
 }
+--uses
+u-ncr
+u-fact
+
 ### prob
 --idea
 Probability measures how likely an event is, as a number from 0 (never) to 1 (always). When all outcomes are equally likely, `P(event) = (outcomes in the event) / (all outcomes)`. Two fair dice give 36 equally likely pairs, and 6 of them sum to 7, so `P(sum = 7) = 6/36 = 1/6`.
@@ -1491,6 +1563,7 @@ Three rules carry most problems. Complement: `P(not A) = 1 - P(A)`, handy for "a
 3. Divide: `P = favourable / total`. Keep fractions exact when you can, or use modular inverse when the answer is requested modulo a prime.
 4. For "at least one", compute the complement. `P(at least one success in n tries) = 1 - (1 - p)^n`, valid because "no success in all `n` independent tries" multiplies.
 5. For sums of dice use DP: `dp[s]` is the probability that the total so far is `s`. For each die, a new array where `next[s + f] += dp[s] / 6` for faces `f = 1..6`. This is valid because the die faces are independent and equally likely.
+6. When the answer is wanted as a fraction modulo a prime `M`, count with the piece `ncr` and divide with a modular inverse. The chance of exactly `j` heads in `n` fair tosses is `C(n, j) / 2^n`, so `fairCoinExactly` multiplies `ncr(n, j)` by the inverse of 2 `n` times. `initFactorials(maxN)` builds the tables with the piece `buildFactorials` and must be called first.
 --think
 - Signal: "probability that", "chance of", "at least", "none of", "exactly k".
 - First decide whether outcomes are equally likely. Mistake number one is treating `{sum = 7}` and `{sum = 12}` as equally likely just because they are outcomes.
@@ -1518,6 +1591,20 @@ static double diceProb(int n, int target) {
     }
     return target < 0 || target > 6 * n ? 0 : dp[target];
 }
+
+static final long M = 1_000_000_007L;
+static long[] f, inv;                            // f[i] = i!, inv[i] = 1 / i!, both modulo M
+static void initFactorials(int maxN) {
+    long[][] t = buildFactorials(maxN, M);       // piece u-fact
+    f = t[0]; inv = t[1];
+}
+
+// chance of exactly j heads in n fair tosses, as a fraction modulo M: C(n, j) / 2^n
+static long fairCoinExactly(int n, int j) {
+    long inv2 = (M + 1) / 2, p = 1;              // inv2 is the inverse of 2 modulo M
+    for (int i = 0; i < n; i++) p = p * inv2 % M;
+    return ncr(n, j) * p % M;                    // piece u-ncr
+}
 --py
 def at_least_one(p, n):
     """Chance of at least one success in n independent tries, each with chance p."""
@@ -1534,6 +1621,20 @@ def dice_prob(n, target):
                 nxt[s + f] += dp[s] / 6   # each face has chance 1/6
         dp = nxt
     return 0.0 if target < 0 or target > 6 * n else dp[target]
+
+M = 1_000_000_007
+f, inv = [], []                                  # f[i] = i!, inv[i] = 1 / i!, both modulo M
+
+def init_factorials(max_n):
+    global f, inv
+    f, inv = build_factorials(max_n, M)          # piece u-fact
+
+def fair_coin_exactly(n, j):
+    """Chance of exactly j heads in n fair tosses, as a fraction modulo M: C(n, j) / 2^n."""
+    inv2, p = (M + 1) // 2, 1                    # inv2 is the inverse of 2 modulo M
+    for _ in range(n):
+        p = p * inv2 % M
+    return ncr(n, j) * p % M                     # piece u-ncr
 --cpp
 // probability of at least one success in n independent tries, each with chance p
 double atLeastOne(double p, int n) {
@@ -1553,6 +1654,24 @@ double diceProb(int n, int target) {
     }
     return (target < 0 || target > 6 * n) ? 0.0 : dp[target];
 }
+
+const long long M = 1'000'000'007;
+vector<long long> f, inv;                        // f[i] = i!, inv[i] = 1 / i!, both modulo M
+void initFactorials(int maxN) {
+    auto t = buildFactorials(maxN, M);           // piece u-fact
+    f = t.first; inv = t.second;
+}
+
+// chance of exactly j heads in n fair tosses, as a fraction modulo M: C(n, j) / 2^n
+long long fairCoinExactly(int n, int j) {
+    long long inv2 = (M + 1) / 2, p = 1;         // inv2 is the inverse of 2 modulo M
+    for (int i = 0; i < n; i++) p = p * inv2 % M;
+    return ncr(n, j) * p % M;                    // piece u-ncr
+}
+--uses
+u-ncr
+u-fact
+
 ### bayes
 --idea
 Conditional probability `P(A | B)` ("A given B") is the chance of `A` once you know `B` happened: `P(A | B) = P(A and B) / P(B)`. Knowing `B` shrinks the world to just the outcomes where `B` holds, and you ask what share of that smaller world is also `A`. Bayes' rule flips the direction: `P(A | B) = P(B | A) * P(A) / P(B)`.
@@ -5193,6 +5312,7 @@ Example: Fibonacci, `P(x) = x^2 - x - 1`, so `x^2 = x + 1`. Then `x^4 = (x + 1)^
 5. Fast power on `n`: while `n > 0`: if the lowest bit is set, `result = mulmod(result, base)`; then `base = mulmod(base, base)`; shift `n`. This is the same repeated squaring as numbers, with polynomial product in place of the number product.
 6. Answer: `sum over i of result[i] * init[i]`, reduced modulo `M`. This is valid because `x^n = sum result[i] x^i` (mod `P`) and a recurrence's solution space respects the same rule: replacing `x^i` by `a(i)` is linear and `P(x)` maps to zero.
 7. If `n < k` return `init[n]` directly.
+8. Self-check against the matrix way: `kitamasaSlow` puts `c` in the top row of a `k` by `k` companion matrix (ones just below the diagonal), raises it to the power `n - k + 1` with the piece `matPow` (`mat_pow` in Python), and reads `a(n)` from the top row. It costs `k^3 log n`, which is the price Kitamasa avoids.
 --think
 - Signal: "n-th term of a recurrence" with `n` up to 1e18 and order `k` in the range 50 to 2000 (too large for matrices), often after finding the recurrence with Berlekamp-Massey.
 - Decide: `k` up to about 40: matrix exponentiation is simpler. `k` in the hundreds or thousands: Kitamasa, and with NTT-based polynomial multiplication it improves to `k log k log n`.
@@ -5235,6 +5355,19 @@ static long kitamasa(long[] c, long[] init, long n) {
     for (int i = 0; i < k; i++) ans = (ans + result[i] * (init[i] % M)) % M;
     return ans;
 }
+
+// the matrix way, O(k^3 log n): a(n) is read from the companion matrix raised to a power
+static long kitamasaSlow(long[] c, long[] init, long n) {
+    int k = c.length;
+    if (n < k) return init[(int) n] % M;
+    long[][] comp = new long[k][k];
+    for (int j = 0; j < k; j++) comp[0][j] = c[j] % M;         // new term from the last k terms
+    for (int i = 1; i < k; i++) comp[i][i - 1] = 1;            // slide the window down by one
+    long[][] pw = matPow(comp, n - k + 1, M);                  // piece u-matpow
+    long ans = 0;
+    for (int j = 0; j < k; j++) ans = (ans + pw[0][j] * (init[k - 1 - j] % M)) % M;
+    return ans;
+}
 --py
 M = 1_000_000_007
 
@@ -5265,6 +5398,18 @@ def kitamasa(c, init, n):
         base = mulmod(base, base, c)                   # next power of two
         n >>= 1
     return sum(result[i] * (init[i] % M) for i in range(k)) % M
+
+def kitamasa_slow(c, init, n):
+    """The matrix way, O(k^3 log n): a(n) is read from the companion matrix raised to a power."""
+    k = len(c)
+    if n < k:
+        return init[n] % M
+    comp = [[0] * k for _ in range(k)]
+    comp[0] = [x % M for x in c]                       # new term from the last k terms
+    for i in range(1, k):
+        comp[i][i - 1] = 1                             # slide the window down by one
+    pw = mat_pow(comp, n - k + 1, M)                   # piece u-matpow
+    return sum(pw[0][j] * (init[k - 1 - j] % M) for j in range(k)) % M
 --cpp
 const long long M = 1000000007LL;
 
@@ -5300,6 +5445,22 @@ long long kitamasa(const vector<long long>& c, const vector<long long>& init, lo
     for (int i = 0; i < k; i++) ans = (ans + result[i] * (init[i] % M)) % M;
     return ans;
 }
+
+// the matrix way, O(k^3 log n): a(n) is read from the companion matrix raised to a power
+long long kitamasaSlow(const vector<long long>& c, const vector<long long>& init, long long n) {
+    int k = c.size();
+    if (n < k) return init[n] % M;
+    Mat comp(k, vector<long long>(k, 0));
+    for (int j = 0; j < k; j++) comp[0][j] = c[j] % M;         // new term from the last k terms
+    for (int i = 1; i < k; i++) comp[i][i - 1] = 1;            // slide the window down by one
+    Mat pw = matPow(comp, n - k + 1, M);                       // piece u-matpow
+    long long ans = 0;
+    for (int j = 0; j < k; j++) ans = (ans + pw[0][j] * (init[k - 1 - j] % M)) % M;
+    return ans;
+}
+--uses
+u-matpow
+
 ### gaussmod2
 --idea
 Gaussian elimination over GF(2) solves systems where every unknown is 0 or 1 and all arithmetic is modulo 2: addition is XOR, and multiplication is AND. Such systems model switches and lamps (flip a switch, the lights it controls toggle), parity checks, and "which subset of these items XORs to a target". Because each row is a string of bits, a whole equation fits in one integer (a bitmask), and adding two equations is a single XOR.
