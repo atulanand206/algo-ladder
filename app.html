@@ -344,11 +344,12 @@ const resumeTarget=()=>{if(!LY||GS.view==='order')return null;const O=buildOrder
    (navigator.clipboard?navigator.clipboard.writeText(out):Promise.reject()).then(()=>{m.textContent=(b.id==='pgl'?'Link':'Code')+' copied.'}).catch(()=>{inp.hidden=false;inp.value=out;inp.select();m.textContent='Copy this '+(b.id==='pgl'?'link':'code')+'.'});return}
   if(inp.hidden){inp.hidden=false;inp.focus();m.textContent='Paste the code or link, then press Restore again.';return}
   try{const r=applyProg(inp.value);render();return}catch(x){m.textContent='That code did not work. Check it was copied in full.'}return}
-  if(b.dataset.lockback){GS.read=null;openPop(GS.sel);return}if(b.dataset.lockgo){const t=b.dataset.lockgo;GS.lock=false;GS.read=null;select(t,true);return}if(b.id==='px'){clear();return}if(b.id==='pw'){setPopW(popWide()?370:Math.min(760,Math.round(innerWidth*.6)));openPop(GS.sel);return}if(b.dataset.known){toggle('t_'+b.dataset.known);return}if(b.dataset.lang){GS.lang=b.dataset.lang;openPop(GS.sel);return}if(b.dataset.prob){GS.pcard=GS.pcard===b.dataset.prob?null:b.dataset.prob;openPop(GS.sel);document.querySelectorAll('[data-demo]').forEach(i=>demoRun(i.dataset.demo));return}if(b.dataset.jump){select(b.dataset.jump,true);return}if(b.dataset.mode){GS.mode=b.dataset.mode;style();openPop(GS.sel);if(GS.focus)build()}});
+  if(b.dataset.lockback){GS.read=null;openPop(GS.sel);return}if(b.dataset.lockgo){const t=b.dataset.lockgo;setLock(false);select(t,true);return}if(b.id==='px'){clear();return}if(b.id==='pw'){setPopW(popWide()?370:Math.min(760,Math.round(innerWidth*.6)));openPop(GS.sel);return}if(b.dataset.known){toggle('t_'+b.dataset.known);return}if(b.dataset.lang){GS.lang=b.dataset.lang;openPop(GS.sel);return}if(b.dataset.prob){GS.pcard=GS.pcard===b.dataset.prob?null:b.dataset.prob;openPop(GS.sel);document.querySelectorAll('[data-demo]').forEach(i=>demoRun(i.dataset.demo));return}if(b.dataset.jump){select(b.dataset.jump,true);return}if(b.dataset.mode){GS.mode=b.dataset.mode;style();openPop(GS.sel);if(GS.focus)build()}});
  $('gchips').addEventListener('click',e=>{const b=e.target.closest('.gc');if(b)setView(b.dataset.view)});
  const ga=$('gall');ga.onclick=()=>{GS.all=!GS.all;ga.textContent=GS.all?'Hide links':'Show all links';style()};
  $('zi').onclick=()=>_gs.zoom(1.3);$('zo').onclick=()=>_gs.zoom(1/1.3);$('zf').onclick=()=>fit(true);
-  $('zlk').onclick=()=>{if(!GS.sel&&!GS.lock)return;GS.lock=!GS.lock;GS.read=null;openPop(GS.sel||GS.hov)};
+  const LKK='algo-ladder-lock',setLock=v=>{GS.lock=v;GS.read=null;try{if(v)localStorage.setItem(LKK,JSON.stringify({view:GS.view,sel:GS.sel,focus:!!GS.focus}));else localStorage.removeItem(LKK)}catch(e){}};
+  $('zlk').onclick=()=>{if(!GS.sel&&!GS.lock)return;setLock(!GS.lock);openPop(GS.sel||GS.hov)};
   const fsEl=$('cv'),gsEl=$('gs'),canFS=!!(fsEl.requestFullscreen&&document.fullscreenEnabled),fsBtn=$('zfs');
   const soft=on=>{gsEl.classList.toggle('cvonly',on);fsBtn.textContent=on?'Exit full screen':'Full screen';fsBtn.classList.toggle('fsx',on);setTimeout(()=>{if(S.view==='graph'&&LY){fit(true);drawMini()}},60)};
   const toggleFS=()=>{if(document.fullscreenElement)document.exitFullscreen();else if(gsEl.classList.contains('cvonly'))soft(false);else{const t=setTimeout(()=>{if(!document.fullscreenElement)soft(true)},500);fsEl.requestFullscreen().then(()=>clearTimeout(t)).catch(()=>{clearTimeout(t);soft(true)})}};
@@ -357,7 +358,9 @@ const resumeTarget=()=>{if(!LY||GS.view==='order')return null;const O=buildOrder
    document.addEventListener('fullscreenchange',()=>{fsBtn.textContent=document.fullscreenElement?'Exit full screen':'Full screen';setTimeout(()=>{if(S.view==='graph'&&LY){fit(true);drawMini()}},60)})}
  const q=$('gq');q.addEventListener('input',()=>{GS.q=q.value;style()});q.addEventListener('keydown',e=>{if(e.key==='Enter'){GS.q=q.value;const f=style();if(f)select(f,true);else{const m=G.find(n=>n.label.toLowerCase().includes(q.value.trim().toLowerCase()));if(m)select(m.id,true)}}});
  window.addEventListener('resize',()=>{if(S.view==='graph'&&LY){fit(true);drawMini()}});
- build();empty();if(GS.sel)openPop(GS.sel);if(S.hashA&&S.hashA.sel)applyHash(Object.assign({},S.hashA,{view:GS.view}));replaceH();
+ build();empty();if(GS.sel)openPop(GS.sel);if(S.hashA&&S.hashA.sel)applyHash(Object.assign({},S.hashA,{view:GS.view}));
+  try{const L=JSON.parse(localStorage.getItem(LKK)||'null');if(L&&by[L.sel]){const h=S.hashA;if(!h||!h.sel||(h.sel===L.sel&&(!h.view||h.view===L.view))){applyHash({view:L.view,sel:L.sel,focus:L.focus});GS.lock=true;openPop(L.sel)}else setLock(false)}}catch(e){}
+  replaceH();
 }
 document.addEventListener('keydown',e=>{if(S.view!=='graph'||!window._gs)return;const inp=e.target&&e.target.tagName==='INPUT';
  if(e.key==='Escape'){if(inp){e.target.blur();return}if(GS.sel)_gs.clear();return}
