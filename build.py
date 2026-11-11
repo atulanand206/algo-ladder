@@ -76,6 +76,14 @@ if os.path.exists(os.path.join(here,"problems","none.txt")):
             _a,_,_b=_l.strip().partition(" ");_none[_a]=_b.strip().rstrip(".")
 put("problems",dict(problems=_full["problems"],unmatched=_full["unmatched"],none=_none))
 put("explain",dict(explain=_full["explain"]))
+# Append-only id order: progress codes index into this list, so existing ids must never move. Commit ids-order.txt.
+_op=os.path.join(here,"ids-order.txt")
+_order=[l.strip() for l in open(_op)] if os.path.exists(_op) else []
+_seen=set(_order)
+for _k in sorted([n["id"] for n in _full["graph"]]+["p_"+p["id"] for p in _full["problems"]]):
+    if _k not in _seen:_order.append(_k);_seen.add(_k)
+open(_op,"w").write("\n".join(_order)+"\n")
+put("order",_order)
 import glob
 def parse_snips():
     out={}

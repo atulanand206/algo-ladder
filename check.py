@@ -55,3 +55,8 @@ _ex=set(l.split()[0] for l in open("problems/none.txt") if l.strip() and not l.s
 _idea=[n["id"] for n in graph if n["col"]>=2 and n["id"] not in _ex]
 if _idea:
     print(sum(1 for i in _idea if _cnt.get(i,0)>=3),"of",len(_idea),"topics have 3 or more problems;",sum(1 for i in _idea if not _cnt.get(i)),"have none (excused in problems/none.txt: "+str(len(_ex))+")")
+
+_ord=set(open("ids-order.txt").read().split()) if os.path.exists("ids-order.txt") else set()
+_need=[n["id"] for n in graph]+["p_"+p["id"] for p in _P]
+_miss=[k for k in _need if k not in _ord]
+if _miss:print("ERROR ids-order.txt is missing",len(_miss),"ids; run build.py and commit ids-order.txt");sys.exit(1)
