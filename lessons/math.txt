@@ -73,6 +73,26 @@ long long oddSubarrays(const vector<int>& a) {
     }
     return ans;
 }
+--go
+// always in 0..m-1, even for negative a
+func mod(a, m int) int {
+    return ((a % m) + m) % m
+}
+
+func isOdd(n int) bool {
+    return n&1 != 0 // safe for negatives
+}
+
+func oddSubarrays(a []int) int {
+    cnt := [2]int{1, 0} // empty prefix is even
+    p, ans := 0, 0
+    for _, x := range a {
+        p ^= x & 1       // parity of the running total
+        ans += cnt[p^1]  // earlier prefixes of opposite parity
+        cnt[p]++
+    }
+    return ans
+}
 ### modular
 --idea
 Modular arithmetic works on a clock. With modulus `m` you only keep the remainder after dividing by `m`, so numbers wrap around: on a 12 hour clock, 10 + 5 is 3. The notation `a ≡ b (mod m)` means `a` and `b` leave the same remainder. Problems ask for answers "modulo 1,000,000,007" because the true answer is too large to print, and the remainder is enough.
@@ -184,6 +204,37 @@ vector<int> prefixMod(const vector<int>& a) {
 int rangeSum(const vector<int>& p, int l, int r) {   // sum of a[l..r] mod M
     return subMod(p[r + 1], p[l], M);                // the raw difference may be negative
 }
+--go
+const M = 1_000_000_007
+
+// a * b mod m for m up to about 9e18; the 128-bit product never overflows
+func mulMod(a, b, m int) int {
+    hi, lo := bits.Mul64(uint64(a%m), uint64(b%m))
+    _, r := bits.Div64(hi, lo, uint64(m)) // hi < m, so Div64 cannot panic
+    return int(r)
+}
+
+// c[0] + c[1]x + ... at x, mod M (Horner); coefficients and x are already in 0..M-1
+func evalPoly(c []int, x int) int {
+    r := 0
+    for i := len(c) - 1; i >= 0; i-- {
+        r = addMod(r*x%M, c[i], M) // multiply, reduce, then add
+    }
+    return r
+}
+
+func prefixMod(a []int) []int {
+    p := make([]int, len(a)+1)
+    for i, x := range a {
+        p[i+1] = addMod(p[i], x, M)
+    }
+    return p
+}
+
+// sum of a[l..r] mod M
+func rangeSum(p []int, l, r int) int {
+    return subMod(p[r+1], p[l], M) // the raw difference may be negative
+}
 ### gcd
 --idea
 The greatest common divisor `gcd(a, b)` is the largest number that divides both `a` and `b`. The least common multiple `lcm(a, b)` is the smallest positive number that both divide. They are linked by `gcd(a, b) * lcm(a, b) = a * b`. Picture tiling a `48 x 18` floor with square tiles: the biggest square tile with no cutting is `gcd = 6` wide.
@@ -269,6 +320,36 @@ long long lcmAll(const vector<long long>& arr) {
     for (long long x : arr) l = lcm(l, x);
     return l;
 }
+--go
+func gcd(a, b int) int {
+    if a < 0 {
+        a = -a
+    }
+    if b < 0 {
+        b = -b
+    }
+    for b != 0 {
+        a, b = b, a%b // (a, b) -> (b, a mod b)
+    }
+    return a
+}
+
+func gcdAll(arr []int) int {
+    g := 0
+    for _, x := range arr {
+        g = gcd(g, x)
+    }
+    return g
+}
+
+// lcm of positive numbers; each step calls the lcm piece
+func lcmAll(arr []int) int {
+    l := 1
+    for _, x := range arr {
+        l = lcm(l, x)
+    }
+    return l
+}
 ### divisibility
 --idea
 A number `a` is divisible by `b` when dividing leaves remainder 0, written `b | a`. Divisibility rules let you decide this by looking at digits, without dividing. They work because 10 leaves a fixed remainder mod the divisor, so each digit only contributes its own remainder.
@@ -339,6 +420,25 @@ bool by11(const string& s) {
         sign = -sign;
     }
     return alt % 11 == 0;
+}
+--go
+// is the decimal string s divisible by m? (m below about 9e17)
+func divisible(s string, m int) bool {
+    r := 0
+    for i := 0; i < len(s); i++ {
+        r = (r*10 + int(s[i]-'0')) % m // append one digit
+    }
+    return r == 0
+}
+
+// divisibility by 11: alternating digit sum
+func by11(s string) bool {
+    alt, sign := 0, 1
+    for i := len(s) - 1; i >= 0; i-- {
+        alt += sign * int(s[i]-'0')
+        sign = -sign
+    }
+    return alt%11 == 0
 }
 ### primality
 --idea
@@ -413,6 +513,33 @@ int nextPrime(int n) {
     n++;
     while (!isPrime(n)) n++;
     return n;
+}
+--go
+func isPrimeFast(n int) bool {
+    if n < 2 {
+        return false
+    }
+    if n < 4 {
+        return true // 2 and 3
+    }
+    if n%2 == 0 || n%3 == 0 {
+        return false
+    }
+    for i := 5; i <= n/i; i += 6 { // i*i <= n without overflow
+        if n%i == 0 || n%(i+2) == 0 { // candidates 6k-1 and 6k+1
+            return false
+        }
+    }
+    return true
+}
+
+// smallest prime strictly above n, using the isPrime piece
+func nextPrime(n int) int {
+    n++
+    for !isPrime(n) {
+        n++
+    }
+    return n
 }
 ### bases
 --idea
@@ -515,6 +642,50 @@ long long readDigitsInBase(long long n, int b) {
     for (int d : digits(n)) v = v * b + d;     // digits() gives the most significant first
     return v;
 }
+--go
+const digitChars = "0123456789abcdefghijklmnopqrstuvwxyz"
+
+func toBase(n, b int) string {
+    if n == 0 {
+        return "0"
+    }
+    neg := n < 0
+    if neg {
+        n = -n
+    }
+    var out []byte
+    for ; n > 0; n /= b {
+        out = append(out, digitChars[n%b]) // lowest digit first
+    }
+    if neg {
+        out = append(out, '-')
+    }
+    for i, j := 0, len(out)-1; i < j; i, j = i+1, j-1 {
+        out[i], out[j] = out[j], out[i]
+    }
+    return string(out)
+}
+
+func fromBase(s string, b int) int {
+    v := 0
+    for _, ch := range s {
+        d := int(ch - '0')
+        if ch >= 'a' {
+            d = int(ch-'a') + 10
+        }
+        v = v*b + d // Horner's rule
+    }
+    return v
+}
+
+// read the decimal digits of n as a base-b numeral, e.g. 1011 in base 2 is 11
+func readDigitsInBase(n, b int) int {
+    v := 0
+    for _, d := range digits(n) { // digits() gives the most significant first
+        v = v*b + d
+    }
+    return v
+}
 ### digtricks
 --idea
 Digit tricks use the fact that a number and its digit sum leave the same remainder when divided by 9. The reason: 10 leaves remainder 1 mod 9, so 100, 1000, and so on also leave 1, and `d*10^k` leaves the same remainder as `d`. Repeating the digit sum until one digit is left gives the digital root, which equals `1 + (n - 1) % 9` for `n > 0`.
@@ -599,6 +770,35 @@ int lastDigitPow(long long a, long long b) {
     for (int i = 0; i < e; i++) r = r * d % 10;
     return r;
 }
+--go
+func digitalRoot(n int) int {
+    if n == 0 {
+        return 0
+    }
+    return 1 + (n-1)%9 // sum of digits keeps n mod 9
+}
+
+// the slow, obvious way: keep adding digits until one is left
+func digitalRootSlow(n int) int {
+    for n >= 10 {
+        n = digitSum(n)
+    }
+    return n
+}
+
+// last decimal digit of a^b
+func lastDigitPow(a, b int) int {
+    if b == 0 {
+        return 1
+    }
+    d := a % 10
+    e := (b-1)%4 + 1 // last digits repeat with period dividing 4
+    r := 1
+    for i := 0; i < e; i++ {
+        r = r * d % 10
+    }
+    return r
+}
 ### extgcd
 --idea
 Extended Euclid does more than find `g = gcd(a, b)`. It also finds whole numbers `x` and `y` (they may be negative) with `a*x + b*y = g`. This is called Bezout's identity: the gcd is always a whole-number mix of `a` and `b`. Those coefficients are what you need to divide under a modulus, and to solve equations where only whole numbers are allowed (Diophantine equations).
@@ -674,6 +874,28 @@ long long inverseMod(long long a, long long m) {
     if (g != 1) return -1;
     return ((x % m) + m) % m;                    // x may be negative
 }
+--go
+// one solution (x, y) of a*x + b*y = c (a, b >= 0); ok is false if none exists
+func solveLinear(a, b, c int) (x, y int, ok bool) {
+    g, px, py := extGcd(a, b) // a*px + b*py = g
+    if g == 0 {
+        return 0, 0, c == 0
+    }
+    if c%g != 0 { // g must divide c
+        return 0, 0, false
+    }
+    k := c / g
+    return px * k, py * k, true // scale the identity by c / g
+}
+
+// inverse of a modulo m, or -1 when gcd(a, m) != 1
+func inverseMod(a, m int) int {
+    g, x, _ := extGcd(((a%m)+m)%m, m)
+    if g != 1 {
+        return -1
+    }
+    return ((x % m) + m) % m // x may be negative
+}
 ### sieve
 --idea
 The sieve of Eratosthenes finds every prime up to `n` at once. Write out 2..n. Circle the smallest number not yet crossed out (it is prime), then cross out all of its multiples. Repeat. Whatever is never crossed out is prime, because a composite number always has a smaller prime divisor that crosses it out.
@@ -739,6 +961,29 @@ vector<int> sieve(int n) {
     for (int i = 0; i <= n; i++)
         if (prime[i]) primes.push_back(i);
     return primes;
+}
+--go
+// all primes up to n
+func sieve(n int) []int {
+    prime := filled(n+1, 1) // 1 = maybe prime
+    prime[0] = 0
+    if n >= 1 {
+        prime[1] = 0
+    }
+    for p := 2; p*p <= n; p++ {
+        if prime[p] == 1 {
+            for j := p * p; j <= n; j += p { // smaller multiples already crossed out
+                prime[j] = 0
+            }
+        }
+    }
+    var primes []int
+    for i, f := range prime {
+        if f == 1 {
+            primes = append(primes, i)
+        }
+    }
+    return primes
 }
 ### linsieve
 --idea
@@ -818,7 +1063,31 @@ bool matchesSimpleSieve(int n) {
 }
 --uses
 u-spf
+--go
+// needs the slices package
+// returns lp[], the smallest prime factor of every number up to n (primes are those with lp[i] == i)
+func linearSieve(n int) []int {
+    lp := make([]int, n+1)
+    var primes []int
+    for i := 2; i <= n; i++ {
+        if lp[i] == 0 {
+            lp[i] = i
+            primes = append(primes, i)
+        }
+        for _, p := range primes {
+            if p > lp[i] || i*p > n { // each composite is marked once
+                break
+            }
+            lp[i*p] = p
+        }
+    }
+    return lp
+}
 
+// the linear sieve must give the same table as the simple sieve (piece u-spf)
+func matchesSimpleSieve(n int) bool {
+    return slices.Equal(linearSieve(n), buildSpf(n))
+}
 ### factor
 --idea
 Prime factorisation writes a number as a product of primes: `360 = 2^3 * 3^2 * 5`. Every whole number above 1 has exactly one such form (the fundamental theorem of arithmetic), so the factorisation is like the number's fingerprint. Once you have it, many questions (how many divisors, what is the gcd with another number, is it a perfect square) become simple reads of the exponents.
@@ -870,6 +1139,19 @@ vector<pair<long long, int>> factorPairs(long long n) {
         else res.push_back({p, 1});
     }
     return res;
+}
+--go
+// (prime, exponent) pairs, built from the primes that the factorize piece lists
+func factorPairs(n int) [][2]int {
+    var res [][2]int
+    for _, p := range factorize(n) { // increasing, with repeats
+        if k := len(res) - 1; k >= 0 && res[k][0] == p {
+            res[k][1]++
+        } else {
+            res = append(res, [2]int{p, 1})
+        }
+    }
+    return res
 }
 ### spf
 --idea
@@ -950,6 +1232,30 @@ int divisorCountSpf(int x, const vector<int>& spf) {
         count *= e + 1;
     }
     return count;
+}
+--go
+// primes of x in non-decreasing order, with repeats (spf comes from the buildSpf piece)
+func factorizeSpf(x int, spf []int) []int {
+    var out []int
+    for x > 1 {
+        out = append(out, spf[x])
+        x /= spf[x]
+    }
+    return out
+}
+
+// number of divisors of x: product of (exponent + 1)
+func divisorCountSpf(x int, spf []int) int {
+    count := 1
+    for x > 1 {
+        p, e := spf[x], 0
+        for x%p == 0 { // peel off all copies of p
+            x /= p
+            e++
+        }
+        count *= e + 1
+    }
+    return count
 }
 ### divisors
 --idea
@@ -1050,6 +1356,38 @@ vector<long long> listDivisors(long long n) {
     sort(d.begin(), d.end());
     return d;
 }
+--go
+// number of divisors and sum of divisors
+func divisorStats(n int) (count, sum int) {
+    fs := factorize(n) // primes in increasing order, with repeats
+    count, sum = 1, 1
+    for i := 0; i < len(fs); {
+        p, term, pw, e := fs[i], 1, 1, 0
+        for i < len(fs) && fs[i] == p { // 1 + p + ... + p^e
+            e++
+            pw *= p
+            term += pw
+            i++
+        }
+        count *= e + 1
+        sum *= term
+    }
+    return
+}
+
+func listDivisors(n int) []int {
+    var d []int
+    for i := 1; i*i <= n; i++ {
+        if n%i == 0 {
+            d = append(d, i)
+            if i != n/i {
+                d = append(d, n/i) // the partner
+            }
+        }
+    }
+    sort.Ints(d)
+    return d
+}
 ### phi
 --idea
 Euler's totient `phi(n)` counts the numbers from 1 to `n` that share no factor with `n` except 1 (they are coprime to `n`). For `n = 12` these are 1, 5, 7, 11, so `phi(12) = 4`. It appears whenever you work with remainders: it is the size of the group of numbers you can safely divide by, and Euler's theorem says `a^phi(n) = 1 (mod n)` for coprime `a`.
@@ -1133,6 +1471,35 @@ long long phiDivisorSum(long long n) {
         }
     return s;
 }
+--go
+func phiTable(n int) []int {
+    phi := make([]int, n+1)
+    for i := range phi {
+        phi[i] = i
+    }
+    for i := 2; i <= n; i++ {
+        if phi[i] == i { // untouched, so i is prime
+            for j := i; j <= n; j += i {
+                phi[j] -= phi[j] / i
+            }
+        }
+    }
+    return phi
+}
+
+// sum of phi(d) over all divisors d of n; always equals n
+func phiDivisorSum(n int) int {
+    s := 0
+    for i := 1; i*i <= n; i++ {
+        if n%i == 0 {
+            s += phi(i) // the phi piece
+            if i != n/i {
+                s += phi(n / i)
+            }
+        }
+    }
+    return s
+}
 ### modpow
 --idea
 Fast power computes `b^e mod m` in about `log2(e)` multiplications instead of `e`. This matters because `e` can be 10^18. The idea is repeated squaring: `b^8` is `((b^2)^2)^2`, only three squarings. Any exponent is a sum of powers of two (its binary digits), so `b^e` is a product of the squares `b^1, b^2, b^4, b^8, ...` for the binary digits of `e` that are 1.
@@ -1188,6 +1555,19 @@ long long fastPow(long long b, long long e, long long m) {
         e >>= 1;
     }
     return result;
+}
+--go
+// b^e mod m; every product goes through the mulMod piece
+func fastPow(b, e, m int) int {
+    result := 1 % m
+    b = ((b % m) + m) % m
+    for ; e > 0; e >>= 1 {
+        if e&1 == 1 {
+            result = mulMod(result, b, m) // this bit selects b^(2^k)
+        }
+        b = mulMod(b, b, m) // next power of two
+    }
+    return result
 }
 ### modinv
 --idea
@@ -1282,6 +1662,35 @@ vector<long long> invTable(int n, long long p) {
 long long divModPrime(long long a, long long b, long long p) {
     return a % p * modInverse(b, p) % p;
 }
+--go
+// inverse of a modulo m (any m), or -1 if gcd(a, m) != 1
+func modInv(a, m int) int {
+    oldR, r, oldS, s := ((a%m)+m)%m, m, 1, 0
+    for r != 0 {
+        q := oldR / r
+        oldR, r = r, oldR-q*r // gcd steps on the values
+        oldS, s = s, oldS-q*s // same steps on the coefficients of a
+    }
+    if oldR != 1 {
+        return -1
+    }
+    return ((oldS % m) + m) % m
+}
+
+// inverses of 1..n modulo a prime p (n < p)
+func invTable(n, p int) []int {
+    inv := make([]int, n+1)
+    inv[1] = 1
+    for i := 2; i <= n; i++ {
+        inv[i] = (p - (p/i)*inv[p%i]%p) % p
+    }
+    return inv
+}
+
+// a / b modulo a prime p, using the modInverse piece
+func divModPrime(a, b, p int) int {
+    return a % p * modInverse(b, p) % p
+}
 ### fermat
 --idea
 Fermat's little theorem: if `p` is prime and `a` is not a multiple of `p`, then `a^(p-1) = 1 (mod p)`. Powers of `a` run around a cycle and come back to 1 after `p - 1` steps (or sooner). Euler generalised it: for any modulus `n` and `a` coprime to `n`, `a^phi(n) = 1 (mod n)`.
@@ -1326,6 +1735,17 @@ long long towerPow(long long a, long long b, long long c, long long p) {
     if (a % p == 0) return 0;
     long long e = powMod(b, c, p - 1);                       // exponent only matters mod p-1
     return powMod(a, e, p);
+}
+--go
+func invFermat(a, p int) int { return powMod(a, p-2, p) } // p prime, powMod piece
+
+// a^(b^c) mod p for prime p, b >= 1, c >= 1
+func towerPow(a, b, c, p int) int {
+    if a%p == 0 {
+        return 0
+    }
+    e := powMod(b, c, p-1) // exponent only matters mod p-1
+    return powMod(a, e, p)
 }
 ### ncr
 --idea
@@ -1455,7 +1875,51 @@ vector<long long> binomialRow(int n) {
 --uses
 u-ncr
 u-fact
+--go
+// exact C(n, k); safe while the answer times n stays below 9.2e18
+func choose(n, k int) int {
+    if k < 0 || k > n {
+        return 0
+    }
+    k = min(k, n-k) // use symmetry
+    r := 1
+    for i := 1; i <= k; i++ {
+        r = r * (n - k + i) / i // stays an exact integer: r = C(n-k+i, i)
+    }
+    return r
+}
 
+// Pascal's triangle modulo m, entries c[i][j] for 0 <= j <= i <= n
+func pascal(n, m int) [][]int {
+    c := make([][]int, n+1)
+    for i := range c {
+        c[i] = make([]int, n+1)
+        c[i][0] = 1 % m
+        for j := 1; j <= i; j++ {
+            c[i][j] = (c[i-1][j-1] + c[i-1][j]) % m // take it, or leave it
+        }
+    }
+    return c
+}
+
+const M = 1_000_000_007
+
+var f, inv []int // f[i] = i!, inv[i] = 1 / i!, both modulo M
+
+// the piece ncr(n, k) = f[n] * inv[k] * inv[n-k] mod M reads these tables
+func initFactorials(n int) {
+    f, inv = buildFactorials(n, M) // piece u-fact
+}
+
+// C(n, 0), ..., C(n, n) modulo M
+func binomialRow(n int) []int {
+    initFactorials(n)
+    row := make([]int, n+1)
+    for k := range row {
+        row[k] = ncr(n, k) // piece u-ncr
+    }
+    return row
+}
 ### stars
 --idea
 Stars and bars counts the ways to split `n` identical items into `k` groups (groups may be empty). Draw the `n` items as stars in a row and place `k - 1` bars between them to cut the row into `k` groups. Each arrangement of stars and bars is one split, and every split is exactly one arrangement.
@@ -1552,7 +2016,39 @@ long long starsBounded(int n, int k, int u) {
 --uses
 u-ncr
 u-fact
+--go
+const M = 1_000_000_007
 
+var f, inv []int // f[i] = i!, inv[i] = 1 / i!, both modulo M
+
+// the piece ncr(n, k) = f[n] * inv[k] * inv[n-k] mod M reads these tables
+func initFactorials(maxN int) {
+    f, inv = buildFactorials(maxN, M) // piece u-fact
+}
+
+// x1+...+xk = n, each xi >= 0
+func stars(n, k int) int { return ncr(n+k-1, k-1) }
+
+// x1+...+xk = n, each xi >= 1
+func starsPositive(n, k int) int {
+    if n < k {
+        return 0
+    }
+    return ncr(n-1, k-1)
+}
+
+// x1+...+xk = n, each 0 <= xi <= u (inclusion-exclusion over how many break the bound)
+func starsBounded(n, k, u int) int {
+    ans := 0
+    for j := 0; j <= k && j*(u+1) <= n; j++ {
+        term := ncr(k, j) * stars(n-j*(u+1), k) % M
+        if j%2 == 1 {
+            term = M - term // alternate the sign
+        }
+        ans = (ans + term) % M
+    }
+    return ans
+}
 ### prob
 --idea
 Probability measures how likely an event is, as a number from 0 (never) to 1 (always). When all outcomes are equally likely, `P(event) = (outcomes in the event) / (all outcomes)`. Two fair dice give 36 equally likely pairs, and 6 of them sum to 7, so `P(sum = 7) = 6/36 = 1/6`.
@@ -1671,7 +2167,47 @@ long long fairCoinExactly(int n, int j) {
 --uses
 u-ncr
 u-fact
+--go
+// probability of at least one success in n independent tries, each with chance p
+func atLeastOne(p float64, n int) float64 {
+    return 1 - math.Pow(1-p, float64(n)) // complement of "all fail"
+}
 
+// probability that n fair six-sided dice sum to target
+func diceProb(n, target int) float64 {
+    dp := make([]float64, 6*n+1)
+    dp[0] = 1
+    for d := 1; d <= n; d++ {
+        next := make([]float64, 6*n+1)
+        for s := 0; s <= 6*(d-1); s++ {
+            for face := 1; face <= 6; face++ {
+                next[s+face] += dp[s] / 6 // each face has chance 1/6
+            }
+        }
+        dp = next
+    }
+    if target < 0 || target > 6*n {
+        return 0
+    }
+    return dp[target]
+}
+
+const M = 1_000_000_007
+
+var f, inv []int // f[i] = i!, inv[i] = 1 / i!, both modulo M
+
+func initFactorials(maxN int) {
+    f, inv = buildFactorials(maxN, M) // piece u-fact
+}
+
+// chance of exactly j heads in n fair tosses, as a fraction modulo M: C(n, j) / 2^n
+func fairCoinExactly(n, j int) int {
+    inv2, p := (M+1)/2, 1 // inv2 is the inverse of 2 modulo M
+    for i := 0; i < n; i++ {
+        p = p * inv2 % M
+    }
+    return ncr(n, j) * p % M // piece u-ncr
+}
 ### bayes
 --idea
 Conditional probability `P(A | B)` ("A given B") is the chance of `A` once you know `B` happened: `P(A | B) = P(A and B) / P(B)`. Knowing `B` shrinks the world to just the outcomes where `B` holds, and you ask what share of that smaller world is also `A`. Bayes' rule flips the direction: `P(A | B) = P(B | A) * P(A) / P(B)`.
@@ -1726,6 +2262,21 @@ double posteriorOf(const vector<double>& priors, const vector<double>& like, int
     double total = 0;
     for (size_t j = 0; j < priors.size(); j++) total += priors[j] * like[j];
     return priors[i] * like[i] / total;
+}
+--go
+// chance of disease given a positive test
+func posterior(prior, sensitivity, falsePositive float64) float64 {
+    pPos := sensitivity*prior + falsePositive*(1-prior) // total probability
+    return sensitivity * prior / pPos                    // Bayes' rule
+}
+
+// general form: priors sum to 1, like[i] = P(evidence | hypothesis i); returns P(hypothesis i | evidence)
+func posteriorOf(priors, like []float64, i int) float64 {
+    total := 0.0
+    for j := range priors {
+        total += priors[j] * like[j]
+    }
+    return priors[i] * like[i] / total
 }
 ### kthperm
 --idea
@@ -1834,6 +2385,49 @@ long long permRank(const vector<int>& p) {
     }
     return rank;
 }
+--go
+// k-th (0-based) permutation of 1..n in dictionary order, n <= 20
+func kthPermutation(n int, k int64) []int {
+    fact := make([]int64, n+1)
+    fact[0] = 1
+    for i := 1; i <= n; i++ {
+        fact[i] = fact[i-1] * int64(i)
+    }
+    items := make([]int, n)
+    for i := range items {
+        items[i] = i + 1
+    }
+    res := make([]int, n)
+    for i := 0; i < n; i++ {
+        f := fact[n-1-i] // size of each block of choices
+        idx := int(k / f)
+        res[i] = items[idx]
+        items = append(items[:idx], items[idx+1:]...) // take it out of the pool
+        k %= f                                        // position inside that block
+    }
+    return res
+}
+
+// 0-based rank of a permutation of 1..n
+func permRank(p []int) int64 {
+    n := len(p)
+    fact := make([]int64, n+1)
+    fact[0] = 1
+    for i := 1; i <= n; i++ {
+        fact[i] = fact[i-1] * int64(i)
+    }
+    var rank int64
+    for i := 0; i < n; i++ {
+        smaller := 0
+        for j := i + 1; j < n; j++ {
+            if p[j] < p[i] { // choices skipped over
+                smaller++
+            }
+        }
+        rank += int64(smaller) * fact[n-1-i]
+    }
+    return rank
+}
 ### nextperm
 --idea
 The next permutation is the arrangement that comes right after the current one in dictionary order. Starting from 1 2 3 the next ones are 1 3 2, 2 1 3, 2 3 1, 3 1 2, 3 2 1. Repeating the step visits every ordering once, and from the last one (fully descending) the order wraps back to the first.
@@ -1898,6 +2492,25 @@ bool nextPerm(vector<int>& a) {
     swap(a[i], a[j]);
     reverseRange(a, i + 1, (int)a.size() - 1);    // tail becomes ascending (reverse piece)
     return true;
+}
+--go
+// rearranges a into its next permutation; returns false (and resets to sorted) at the last one
+func nextPermutation(a []int) bool {
+    i := len(a) - 2
+    for i >= 0 && a[i] >= a[i+1] { // find the pivot
+        i--
+    }
+    if i < 0 {
+        reverse(a, 0, len(a)-1) // wrap to the first permutation
+        return false
+    }
+    j := len(a) - 1
+    for a[j] <= a[i] { // smallest tail value above the pivot
+        j--
+    }
+    a[i], a[j] = a[j], a[i]
+    reverse(a, i+1, len(a)-1) // tail becomes ascending (reverse piece)
+    return true
 }
 ### bigint
 --idea
@@ -2004,6 +2617,47 @@ string factorialString(int n) {
     for (int i = 2; i <= n; i++) r = multiplyStrings(r, to_string(i));   // bigMul each time
     return r;
 }
+--go
+// needs strconv. helpers: digits are lowest first
+func toDigits(s string) []int {
+    d := make([]int, len(s))
+    for i := range d {
+        d[i] = int(s[len(s)-1-i] - '0')
+    }
+    return d
+}
+
+func fromDigits(d []int) string {
+    k := len(d) - 1
+    for k > 0 && d[k] == 0 { // strip leading zeros
+        k--
+    }
+    if k < 0 {
+        return "0"
+    }
+    out := make([]byte, 0, k+1)
+    for ; k >= 0; k-- {
+        out = append(out, byte('0'+d[k]))
+    }
+    return string(out)
+}
+
+func addStrings(a, b string) string {
+    return fromDigits(bigAdd(toDigits(a), toDigits(b)))
+}
+
+func multiplyStrings(a, b string) string {
+    return fromDigits(bigMul(toDigits(a), toDigits(b)))
+}
+
+// n! as a decimal string
+func factorialString(n int) string {
+    r := "1"
+    for i := 2; i <= n; i++ {
+        r = multiplyStrings(r, strconv.Itoa(i)) // bigMul each time
+    }
+    return r
+}
 ### segsieve
 --idea
 A segmented sieve finds the primes in a window `[L, R]` when `R` is too large for a full sieve (for example `R = 10^12`) but the window itself is small. The key fact: any composite number up to `R` has a prime factor at most `sqrt(R)`. So first find all primes up to `sqrt(R)` (about `10^6` for `R = 10^12`), then use them to cross out multiples inside the window.
@@ -2085,6 +2739,35 @@ vector<long long> segmentedSieve(long long L, long long R) {
     for (long long x = max(L, 2LL); x <= R; x++)
         if (!comp[x - L]) res.push_back(x);
     return res;
+}
+--go
+// primes in [L, R]
+func segmentedSieve(L, R int) []int {
+    lim := sqrtFloor(R)            // exact integer square root (piece)
+    small := make([]bool, lim+1)   // true = composite, plain sieve up to sqrt(R)
+    var base []int
+    for i := 2; i <= lim; i++ {
+        if !small[i] {
+            base = append(base, i)
+            for j := i * i; j <= lim; j += i {
+                small[j] = true
+            }
+        }
+    }
+    comp := make([]bool, R-L+1)
+    for _, p := range base {
+        start := max(p*p, (L+p-1)/p*p) // first multiple in the window
+        for j := start; j <= R; j += p {
+            comp[j-L] = true
+        }
+    }
+    var res []int
+    for x := max(L, 2); x <= R; x++ {
+        if !comp[x-L] {
+            res = append(res, x)
+        }
+    }
+    return res
 }
 ### mobius
 --idea
@@ -2214,6 +2897,59 @@ long long coprimePairs(int n) {
     }
     return total;
 }
+--go
+// mu(n) from the primes that the factorize piece lists
+func mobius(n int) int {
+    fs := factorize(n) // increasing, with repeats
+    for i := 1; i < len(fs); i++ {
+        if fs[i] == fs[i-1] { // a prime appears twice
+            return 0
+        }
+    }
+    if len(fs)%2 == 0 {
+        return 1
+    }
+    return -1
+}
+
+// mu[1..n] with a linear sieve
+func mobiusTable(n int) []int {
+    mu := make([]int, n+1)
+    comp := make([]bool, n+1)
+    var primes []int
+    if n >= 1 {
+        mu[1] = 1
+    }
+    for i := 2; i <= n; i++ {
+        if !comp[i] {
+            primes = append(primes, i)
+            mu[i] = -1
+        }
+        for _, p := range primes {
+            if i*p > n {
+                break
+            }
+            comp[i*p] = true
+            if i%p == 0 { // repeated prime
+                mu[i*p] = 0
+                break
+            }
+            mu[i*p] = -mu[i] // one more distinct prime
+        }
+    }
+    return mu
+}
+
+// number of pairs (a, b), 1 <= a, b <= n, with gcd(a, b) = 1
+func coprimePairs(n int) int {
+    mu := mobiusTable(n)
+    total := 0
+    for d := 1; d <= n; d++ {
+        q := n / d
+        total += mu[d] * q * q
+    }
+    return total
+}
 ### wilson
 --idea
 Wilson's theorem says: for a prime `p`, `(p - 1)! = -1 (mod p)`, and for a composite number above 4 the factorial `(p - 1)!` leaves remainder 0. So `(n - 1)! mod n` is a primality test with a clean yes or no answer, though it needs about `n` multiplications, which is far too slow for big numbers. Its real value is as a tool for big factorials modulo a prime.
@@ -2282,6 +3018,29 @@ long long factorialNearP(long long n, long long p) {
     auto t = buildFactorials(m, p);            // {m!, inverse factorials}
     long long v = t.second[m];                 // 1 / m!
     return (m % 2 == 0) ? (p - v) % p : v;     // n! = (-1)^(m+1) / m!
+}
+--go
+// Wilson's test: p is prime exactly when (p-1)! = -1 (mod p). Slow, O(p), for p below 3e9.
+func isPrimeWilson(p int) bool {
+    if p < 2 {
+        return false
+    }
+    f := 1
+    for i := 2; i < p; i++ {
+        f = f * i % p
+    }
+    return f == p-1
+}
+
+// n! mod p for prime p and n < p, fast when p - 1 - n is small
+func factorialNearP(n, p int) int {
+    m := p - 1 - n
+    _, inv := buildFactorials(m, p) // inverse factorials, inv[m] = 1 / m!
+    v := inv[m]
+    if m%2 == 0 {
+        return (p - v) % p
+    }
+    return v // n! = (-1)^(m+1) / m!
 }
 ### crt
 --idea
@@ -2368,6 +3127,31 @@ bool crt(const vector<long long>& rs, const vector<long long>& ms, long long& x,
     }
     return true;
 }
+--go
+// merge x = r1 (mod m1) and x = r2 (mod m2); returns {r, lcm}, ok is false if inconsistent
+func crt2(r1, m1, r2, m2 int) (r, l int, ok bool) {
+    g, x, _ := extGcd(m1, m2) // m1*x + m2*y = g
+    if (r2-r1)%g != 0 {       // the two conditions disagree
+        return 0, 0, false
+    }
+    m2g := m2 / g
+    k := (r2 - r1) / g % m2g * x % m2g // solve (m1/g) k = (r2 - r1)/g mod (m2/g)
+    l = m1 / g * m2
+    r = ((r1+m1*k)%l + l) % l
+    return r, l, true
+}
+
+// solve all conditions x = r[i] (mod m[i]); returns x and the lcm of the moduli
+func crt(r, m []int) (x, l int, ok bool) {
+    x, l = 0, 1 // every number satisfies "x = 0 mod 1"
+    for i := range r {
+        x, l, ok = crt2(x, l, ((r[i]%m[i])+m[i])%m[i], m[i])
+        if !ok {
+            return 0, 0, false
+        }
+    }
+    return x, l, true
+}
 ### lincong
 --idea
 A linear congruence is an equation `a * x = b (mod m)`: find all `x` between 0 and `m - 1` where `a*x` and `b` leave the same remainder when divided by `m`. It is "division under a modulus", but now `a` need not have an inverse. The picture: `a*x` walks around a clock with `m` marks in steps of `a`, and you ask which steps land on `b`.
@@ -2427,6 +3211,23 @@ vector<long long> solveCongruence(long long a, long long b, long long m) {
     long long x0 = ((x % mg + mg) % mg) * ((b / g) % mg) % mg;   // base solution
     for (long long k = 0; k < g; k++) res.push_back(x0 + k * mg);   // g solutions, mg apart
     return res;
+}
+--go
+// all x in 0..m-1 with a*x = b (mod m), in increasing order (empty if none)
+func solveCongruence(a, b, m int) []int {
+    a = ((a % m) + m) % m
+    b = ((b % m) + m) % m
+    g, x, _ := extGcd(a, m) // a*x + m*y = g
+    if b%g != 0 {           // no solution
+        return nil
+    }
+    mg := m / g
+    x0 := ((x%mg+mg)%mg) * ((b / g) % mg) % mg // base solution
+    res := make([]int, 0, g)
+    for k := 0; k < g; k++ {
+        res = append(res, x0+k*mg) // g solutions, mg apart
+    }
+    return res
 }
 ### millerrabin
 --idea
@@ -2543,6 +3344,55 @@ bool millerRabin(long long n) {
     }
     return true;
 }
+--go
+// modular power where every product goes through the mulMod piece
+// (the Go piece is exact for n below 2^31; use math/bits for a 128-bit product beyond that)
+func powModBig(b, e, m int) int {
+    r := 1 % m
+    b %= m
+    for ; e > 0; e >>= 1 {
+        if e&1 == 1 {
+            r = mulMod(r, b, m)
+        }
+        b = mulMod(b, b, m)
+    }
+    return r
+}
+
+func millerRabin(n int) bool {
+    if n < 2 {
+        return false
+    }
+    bases := []int{2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37}
+    for _, p := range bases {
+        if n%p == 0 { // small primes and their multiples
+            return n == p
+        }
+    }
+    d, s := n-1, 0
+    for d%2 == 0 { // n - 1 = d * 2^s
+        d /= 2
+        s++
+    }
+    for _, a := range bases {
+        x := powModBig(a, d, n)
+        if x == 1 || x == n-1 { // this base passes
+            continue
+        }
+        witness := true
+        for i := 1; i < s; i++ {
+            x = mulMod(x, x, n) // square again
+            if x == n-1 {
+                witness = false
+                break
+            }
+        }
+        if witness { // a proves n composite
+            return false
+        }
+    }
+    return true
+}
 ### lucas
 --idea
 Lucas' theorem computes `C(n, k) mod p` when `p` is a small prime (say up to a million) but `n` and `k` are enormous (up to 1e18), far beyond any factorial table. Write `n` and `k` in base `p`. Then `C(n, k)` modulo `p` equals the product of the small binomials of matching digits: `C(n_0, k_0) * C(n_1, k_1) * ...`, where `n_i` and `k_i` are the base-`p` digits. If any `k_i` is bigger than `n_i`, that binomial is 0, so the whole answer is 0.
@@ -2615,6 +3465,22 @@ long long lucas(long long n, long long k, long long p) {
         k /= p;
     }
     return res;
+}
+--go
+var M int        // modulus read by the ncr piece
+var f, inv []int // factorial tables read by the ncr piece
+
+// C(n, k) mod a small prime p, for huge n and k
+func lucas(n, k, p int) int {
+    M = p
+    f, inv = buildFactorials(p-1, p) // tables only up to p - 1
+    res := 1
+    for n > 0 || k > 0 {
+        res = res * ncr(n%p, k%p) % p // 0 if a digit of k exceeds that of n
+        n /= p
+        k /= p
+    }
+    return res
 }
 ### comb
 --idea
@@ -2716,6 +3582,40 @@ long long multinomial(const vector<int>& counts) {
 long long gridPaths(int rows, int cols) {
     return ncr(rows + cols, rows);               // choose which steps go down
 }
+--go
+const M = 1_000_000_007 // modulus read by the ncr piece
+
+var f, inv []int // factorial tables read by the ncr piece
+
+func initTables(n int) {
+    f, inv = buildFactorials(n, M) // factorials, inverse factorials
+}
+
+// ordered selections of r from n different items
+func nPr(n, r int) int {
+    if r < 0 || r > n {
+        return 0
+    }
+    return f[n] * inv[n-r] % M
+}
+
+// arrangements of a word whose letters repeat counts[i] times
+func multinomial(counts []int) int {
+    total := 0
+    for _, c := range counts {
+        total += c
+    }
+    r := f[total]
+    for _, c := range counts {
+        r = r * inv[c] % M // divide by each repeated block
+    }
+    return r
+}
+
+// right/down lattice paths across a rows x cols grid
+func gridPaths(rows, cols int) int {
+    return ncr(rows+cols, rows) // choose which steps go down
+}
 ### factmod
 --idea
 Factorials grow absurdly fast, so counting problems ask for `n!` modulo a prime `M`. Two tables, built once, power almost every formula: `fact[i] = i! mod M` and `invFact[i] = 1 / i! mod M`, the inverse factorial. With them, any ratio of factorials becomes a product of table entries, and each answer costs `O(1)`.
@@ -2774,6 +3674,22 @@ vector<long long> inverses(int n, long long M) {
 long long rangeProduct(int l, int r, long long M) {
     auto t = buildFactorials(r, M);
     return t.first[r] * t.second[l - 1] % M;     // r! / (l-1)!
+}
+--go
+// inverses of 1..n modulo prime M, taken from the factorial tables
+func inverses(n, M int) []int {
+    fact, invFact := buildFactorials(n, M)
+    r := make([]int, n+1)
+    for i := 1; i <= n; i++ {
+        r[i] = invFact[i] * fact[i-1] % M // 1/i = (i-1)! / i!
+    }
+    return r
+}
+
+// l * (l+1) * ... * r mod M, for 1 <= l <= r <= n
+func rangeProduct(l, r, M int) int {
+    fact, invFact := buildFactorials(r, M)
+    return fact[r] * invFact[l-1] % M // r! / (l-1)!
 }
 ### catalan
 --idea
@@ -2855,6 +3771,28 @@ vector<long long> catalanDp(int n) {
         for (int j = 0; j < i; j++)
             c[i] = (c[i] + c[j] * c[i - 1 - j]) % M;
     return c;
+}
+--go
+const M = 1_000_000_007 // modulus read by the ncr piece
+
+var f, inv []int // factorial tables read by the ncr piece
+
+// C_n = C(2n, n) - C(2n, n+1) modulo M
+func catalanMod(n int) int {
+    f, inv = buildFactorials(2*n+1, M)
+    return ((ncr(2*n, n)-ncr(2*n, n+1))%M + M) % M // no division by n + 1 needed
+}
+
+// the recurrence: C_i = sum of C_j * C_(i-1-j)
+func catalanDp(n int) []int {
+    c := make([]int, n+1)
+    c[0] = 1
+    for i := 1; i <= n; i++ {
+        for j := 0; j < i; j++ {
+            c[i] = (c[i] + c[j]*c[i-1-j]) % M
+        }
+    }
+    return c
 }
 ### stirling
 --idea
@@ -2951,6 +3889,34 @@ long long stirling1(int n, int k) {
     }
     return dp[k];
 }
+--go
+const M = 1_000_000_007
+
+// S(n, k): ways to split n items into k non-empty unlabelled groups
+func stirling2(n, k int) int {
+    dp := newTable(k, 0) // dp[j] = S(i, j) for the current i
+    dp[0] = 1            // S(0, 0)
+    for i := 1; i <= n; i++ {
+        for j := min(i, k); j >= 1; j-- {
+            dp[j] = (j*dp[j] + dp[j-1]) % M // item i joins a group, or starts one
+        }
+        dp[0] = 0
+    }
+    return dp[k]
+}
+
+// c(n, k): permutations of n items with exactly k cycles
+func stirling1(n, k int) int {
+    dp := newTable(k, 0)
+    dp[0] = 1
+    for i := 1; i <= n; i++ {
+        for j := min(i, k); j >= 1; j-- {
+            dp[j] = ((i-1)*dp[j] + dp[j-1]) % M // inserted after one of i-1 items, or a new cycle
+        }
+        dp[0] = 0
+    }
+    return dp[k]
+}
 ### bell
 --idea
 The Bell number `B(n)` counts all the ways to split `n` different items into groups, with any number of groups (each non-empty, groups unordered). It is the total over every group count, `B(n) = S(n, 1) + S(n, 2) + ... + S(n, n)` using Stirling numbers of the second kind. The values begin `1, 1, 2, 5, 15, 52, 203`. For three items `{1, 2, 3}` the 5 splits are `{123}`, `{1}{23}`, `{2}{13}`, `{3}{12}`, `{1}{2}{3}`.
@@ -3022,6 +3988,24 @@ long long bell(int n) {
         row[i] = cur;
     }
     return row[0];
+}
+--go
+const M = 1_000_000_007
+
+// B(n): number of ways to partition n different items (Bell triangle)
+func bell(n int) int {
+    row := newTable(n, 0)
+    row[0] = 1 // row 0 is [1]
+    for i := 1; i <= n; i++ {
+        cur := row[i-1] // new row starts with the old row's last entry
+        for j := 0; j < i; j++ {
+            old := row[j]
+            row[j] = cur         // write the new entry
+            cur = (cur + old) % M // next entry = left neighbour + above-left
+        }
+        row[i] = cur
+    }
+    return row[0]
 }
 ### derange
 --idea
@@ -3113,6 +4097,35 @@ int derangementsIE(int n) {
         term = term * k % M;                     // n!/(k-1)! = n!/k! * k
     }
     return total;
+}
+--go
+const M = 1_000_000_007
+
+// D(n) by the recurrence D(i) = (i-1) * (D(i-1) + D(i-2))
+func derangements(n int) int {
+    if n == 0 {
+        return 1
+    }
+    prev2, prev1 := 1, 0 // D(0), D(1)
+    for i := 2; i <= n; i++ {
+        cur := (i - 1) * addMod(prev1, prev2, M) % M // addMod piece
+        prev2, prev1 = prev1, cur
+    }
+    return prev1
+}
+
+// D(n) by inclusion-exclusion: sum of (-1)^k * n!/k!
+func derangementsIE(n int) int {
+    total, term := 0, 1 // term is n!/k! for k = n
+    for k := n; k >= 0; k-- {
+        if k%2 == 0 {
+            total = addMod(total, term, M)
+        } else {
+            total = subMod(total, term, M)
+        }
+        term = term * k % M // n!/(k-1)! = n!/k! * k
+    }
+    return total
 }
 ### partitions
 --idea
@@ -3225,6 +4238,48 @@ vector<long long> partitionsPentagonal(int n) {
     }
     return p;
 }
+--go
+const M = 1_000_000_007
+
+// p(n) restricted to parts of size at most k (use k = n for all partitions)
+func partitionsMaxPart(n, k int) int {
+    dp := newTable(n, 0)
+    dp[0] = 1 // the empty sum
+    for s := 1; s <= k; s++ { // part sizes in the outer loop: combinations, not orderings
+        for t := s; t <= n; t++ {
+            dp[t] = (dp[t] + dp[t-s]) % M // upward: a part may repeat
+        }
+    }
+    return dp[n]
+}
+
+func partitions(n int) int { return partitionsMaxPart(n, n) }
+
+// p(0..n) by Euler's pentagonal recurrence
+func partitionsPentagonal(n int) []int {
+    p := newTable(n, 0)
+    p[0] = 1
+    for m := 1; m <= n; m++ {
+        s := 0
+        for k := 1; ; k++ {
+            g1, g2 := k*(3*k-1)/2, k*(3*k+1)/2
+            if g1 > m {
+                break
+            }
+            add := p[m-g1]
+            if g2 <= m {
+                add += p[m-g2]
+            }
+            if k%2 == 1 { // signs + + - - + + ...
+                s += add
+            } else {
+                s -= add
+            }
+        }
+        p[m] = ((s % M) + M) % M
+    }
+    return p
+}
 ### inclexcl
 --idea
 Inclusion-exclusion counts the size of a union by adding the sizes of the sets, subtracting the sizes of pairwise overlaps, adding back triple overlaps, and so on with alternating signs. For two sets `|A ∪ B| = |A| + |B| - |A ∩ B|`: the overlap was counted twice, so remove it once. For three sets: `|A| + |B| + |C| - |A∩B| - |A∩C| - |B∩C| + |A∩B∩C|`.
@@ -3304,6 +4359,38 @@ long long countDivisibleByAny(long long N, const vector<long long>& d) {
         total += (items.size() % 2 == 1) ? cnt : -cnt;   // odd subsets add, even subsets subtract
     }
     return total;
+}
+--go
+func gcd(a, b int) int {
+    if b == 0 {
+        return a
+    }
+    return gcd(b, a%b)
+}
+
+// how many of 1..N are divisible by at least one of d[]
+func countDivisibleByAny(N int, d []int) int {
+    n, total := len(d), 0
+    for mask := 1; mask < 1<<n; mask++ {
+        items := itemsIn(mask, n) // which numbers this subset picks
+        l := 1
+        for _, i := range items {
+            l = l / gcd(l, d[i]) * d[i] // lcm of the chosen numbers
+            if l > N {                  // nothing is divisible by more than N
+                break
+            }
+        }
+        if l > N {
+            continue
+        }
+        cnt := N / l // items divisible by all chosen
+        if len(items)%2 == 1 {
+            total += cnt // odd subsets add
+        } else {
+            total -= cnt // even subsets subtract
+        }
+    }
+    return total
 }
 ### linrec
 --idea
@@ -3416,6 +4503,55 @@ long long nthTermMatrix(const vector<long long>& coef, const vector<long long>& 
         ans = (ans + p[0][j] * (((init[k - 1 - j] % M) + M) % M)) % M;
     return ans;
 }
+--go
+const M = 1_000_000_007
+
+func norm(x int) int { return ((x % M) + M) % M }
+
+// a(n) with a(i) = coef[0]*a(i-1) + ... + coef[k-1]*a(i-k), by direct filling
+func nthTermDp(coef, init []int, n int) int {
+    k := len(coef)
+    a := make([]int, max(n+1, k))
+    for i := 0; i < k; i++ {
+        a[i] = norm(init[i])
+    }
+    for i := k; i <= n; i++ {
+        s := 0
+        for j := 0; j < k; j++ {
+            s = (s + norm(coef[j])*a[i-1-j]) % M
+        }
+        a[i] = s
+    }
+    return a[n]
+}
+
+// the same term through the companion matrix, applied n - k + 1 times with the matMul piece
+func nthTermMatrix(coef, init []int, n int) int {
+    k := len(coef)
+    if n < k {
+        return norm(init[n])
+    }
+    c := make([][]int, k)
+    p := make([][]int, k)
+    for i := range c {
+        c[i], p[i] = make([]int, k), make([]int, k)
+        p[i][i] = 1 // identity
+    }
+    for j := 0; j < k; j++ {
+        c[0][j] = norm(coef[j]) // new term from the window
+    }
+    for i := 1; i < k; i++ {
+        c[i][i-1] = 1 // shift the window down
+    }
+    for step := 0; step < n-k+1; step++ {
+        p = matMul(p, c, M)
+    }
+    ans := 0
+    for j := 0; j < k; j++ { // window is (a(k-1), ..., a(0))
+        ans = (ans + p[0][j]*norm(init[k-1-j])) % M
+    }
+    return ans
+}
 ### matexp
 --idea
 Matrix exponentiation computes `A^n` for a square matrix `A` in about `log2(n)` matrix multiplications, using the same repeated squaring as fast power for numbers. It matters because many processes are "apply the same linear step `n` times": a recurrence, the number of walks in a graph, a Markov chain. If one step is multiplication by a matrix `A`, then `n` steps is multiplication by `A^n`, and `n` can be 10^18.
@@ -3500,6 +4636,37 @@ long long nthTerm(const vector<long long>& coef, const vector<long long>& init, 
 long long countWalks(const Mat& adj, long long len, int s, int t) {
     return matPow(adj, len, M)[s][t];
 }
+--go
+const M = 1_000_000_007
+
+// a(n) for a(i) = coef[0]*a(i-1) + ... + coef[k-1]*a(i-k); n can be up to 1e18
+func nthTerm(coef, init []int, n int) int {
+    k := len(coef)
+    if n < k {
+        return ((init[n] % M) + M) % M
+    }
+    c := make([][]int, k)
+    for i := range c {
+        c[i] = make([]int, k)
+    }
+    for j := 0; j < k; j++ {
+        c[0][j] = ((coef[j] % M) + M) % M // new term from the window
+    }
+    for i := 1; i < k; i++ {
+        c[i][i-1] = 1 // shift the window
+    }
+    p := matPow(c, n-k+1, M) // repeated squaring (piece)
+    ans := 0
+    for j := 0; j < k; j++ { // window is (a(k-1), ..., a(0))
+        ans = (ans + p[0][j]*(((init[k-1-j]%M)+M)%M)) % M
+    }
+    return ans
+}
+
+// number of walks with exactly length edges from vertex s to vertex t (adj[i][j] = 1 if edge i -> j)
+func countWalks(adj [][]int, length, s, t int) int {
+    return matPow(adj, length, M)[s][t]
+}
 ### fibfast
 --idea
 The `n`-th Fibonacci number (0, 1, 1, 2, 3, 5, 8, ...) can be had in about `log2(n)` steps instead of `n`. This allows `n` up to 10^18, with the answer taken modulo a number such as 1,000,000,007, since the true value has hundreds of millions of digits. Two ways: matrix power and fast doubling.
@@ -3580,6 +4747,33 @@ pair<long long, long long> fibPair(long long n) {
 }
 
 long long fib(long long n) { return fibPair(n).first; }
+--go
+const M = 1_000_000_007
+
+// F(n) by the matrix [[1,1],[1,0]]^n, using the matPow piece
+func fibMatrix(n int) int {
+    p := matPow([][]int{{1, 1}, {1, 0}}, n, M)
+    return p[0][1]
+}
+
+// F(n) and F(n+1) by fast doubling
+func fibPair(n int) (int, int) {
+    if n == 0 {
+        return 0, 1
+    }
+    a, b := fibPair(n / 2)          // F(m), F(m+1) for m = n / 2
+    c := a * ((2*b - a + M) % M) % M // F(2m)
+    d := (a*a + b*b) % M             // F(2m+1)
+    if n%2 == 0 {
+        return c, d
+    }
+    return d, (c + d) % M
+}
+
+func fib(n int) int {
+    f, _ := fibPair(n)
+    return f
+}
 ### gauss
 --idea
 Gaussian elimination solves a system of linear equations such as `2x + y = 5` and `x - y = 1`. It rewrites the system step by step into an easier one with the same solutions, using three safe moves: swap two equations, multiply an equation by a non-zero number, and add a multiple of one equation to another. The goal is a staircase shape where each unknown can be read off.
@@ -3705,6 +4899,57 @@ bool gauss(const vector<vector<double>>& a, const vector<double>& b, vector<doub
         if (fabs(s - b[i]) > 1e-6) return false;
     }
     return true;
+}
+--go
+const EPS = 1e-9
+
+// solves A x = b; returns one solution (free unknowns set to 0), ok is false if inconsistent
+func gauss(a [][]float64, b []float64) ([]float64, bool) {
+    n, m := len(a), len(a[0])
+    t := make([][]float64, n) // augmented copy [A | b]
+    for i := range t {
+        t[i] = append(append([]float64(nil), a[i]...), b[i])
+    }
+    where := filled(m, -1) // pivot row of each column
+    for col, row := 0, 0; col < m && row < n; col++ {
+        sel := row
+        for i := row; i < n; i++ {
+            if math.Abs(t[i][col]) > math.Abs(t[sel][col]) { // largest pivot
+                sel = i
+            }
+        }
+        if math.Abs(t[sel][col]) < EPS { // no pivot in this column
+            continue
+        }
+        t[sel], t[row] = t[row], t[sel]
+        where[col] = row
+        for i := 0; i < n; i++ {
+            if i == row {
+                continue
+            }
+            f := t[i][col] / t[row][col]
+            for j := col; j <= m; j++ {
+                t[i][j] -= t[row][j] * f // cancel the column
+            }
+        }
+        row++
+    }
+    x := make([]float64, m)
+    for col := 0; col < m; col++ {
+        if where[col] != -1 {
+            x[col] = t[where[col]][m] / t[where[col]][col]
+        }
+    }
+    for i := 0; i < n; i++ { // check every original equation
+        s := 0.0
+        for j := 0; j < m; j++ {
+            s += a[i][j] * x[j]
+        }
+        if math.Abs(s-b[i]) > 1e-6 {
+            return nil, false
+        }
+    }
+    return x, true
 }
 ### karatsuba
 --idea
@@ -3841,6 +5086,60 @@ vector<int> karatsuba(vector<int> a, vector<int> b) {
     vector<int> z1 = bigSub(bigSub(m, z0), z2);                        // the cross terms
     return trim(bigAdd(bigAdd(z0, shiftDigits(z1, half)), shiftDigits(z2, 2 * half)));
 }
+--go
+func trim(a []int) []int { // drop high zeros, keep one digit
+    k := len(a)
+    for k > 1 && a[k-1] == 0 {
+        k--
+    }
+    return a[:k]
+}
+
+func shift(a []int, k int) []int { // multiply by 10^k (lowest digit first)
+    r := make([]int, len(a)+k)
+    copy(r[k:], a)
+    return r
+}
+
+func bigSub(x, y []int) []int { // x - y, requires x >= y
+    r := make([]int, len(x))
+    borrow := 0
+    for i := range x {
+        d := x[i] - borrow
+        if i < len(y) {
+            d -= y[i]
+        }
+        if d < 0 {
+            d += 10
+            borrow = 1
+        } else {
+            borrow = 0
+        }
+        r[i] = d
+    }
+    return trim(r)
+}
+
+func karatsuba(a, b []int) []int {
+    a, b = trim(a), trim(b)
+    if min(len(a), len(b)) <= 16 {
+        return trim(bigMul(a, b)) // schoolbook piece
+    }
+    half := max(len(a), len(b)) / 2
+    split := func(x []int) ([]int, []int) { // low half and high half
+        if len(x) <= half {
+            return x, []int{0}
+        }
+        return trim(x[:half]), x[half:]
+    }
+    a0, a1 := split(a)
+    b0, b1 := split(b)
+    z0 := karatsuba(a0, b0)
+    z2 := karatsuba(a1, b1)
+    m := karatsuba(bigAdd(a0, a1), bigAdd(b0, b1)) // (a0 + a1)(b0 + b1)
+    z1 := bigSub(bigSub(m, z0), z2)                // the cross terms
+    return trim(bigAdd(bigAdd(z0, shift(z1, half)), shift(z2, 2*half)))
+}
 ### sqrtblocks
 --idea
 The value `floor(n / i)` takes only about `2 * sqrt(n)` different values as `i` runs from 1 to `n`: for `i` up to `sqrt(n)` there are `sqrt(n)` values at most, and for larger `i` the quotient is below `sqrt(n)`. Between those changes `floor(n / i)` stays constant over a whole block of consecutive `i`. So a sum `sum over i of f(i) * floor(n / i)` can be done block by block, by one multiplication per block, in `O(sqrt(n))` instead of `O(n)`.
@@ -3936,6 +5235,31 @@ long long sumDivisorSums(int n) {
     }
     return total;
 }
+--go
+// sum of floor(n / i) for i = 1..limit
+func sumFloor(n, limit int) int {
+    limit = clamp(limit, 0, n) // keeps n / q away from zero
+    total := 0
+    for l := 1; l <= limit; {
+        q := n / l                  // value shared by the whole block
+        r := clamp(n/q, l, limit)   // last i with the same quotient
+        total += q * (r - l + 1)
+        l = r + 1
+    }
+    return total
+}
+
+// sum of i * floor(n / i) for i = 1..n, which is the sum of the divisor sums sigma(1..n)
+func sumDivisorSums(n int) int {
+    total := 0
+    for l := 1; l <= n; {
+        q := n / l
+        r := clamp(n/q, l, n)
+        total += q * ((l + r) * (r - l + 1) / 2) // arithmetic series l..r
+        l = r + 1
+    }
+    return total
+}
 ### expect
 --idea
 The expected value of a random outcome is its long-run average: each possible value times its probability, added up. A fair die gives `(1 + 2 + 3 + 4 + 5 + 6) / 6 = 3.5`. You never roll 3.5, but over thousands of rolls the average approaches it. Expected value is the single number that summarises a random process, and many problems ask for it instead of a full list of probabilities.
@@ -4020,6 +5344,37 @@ double couponCollector(int n) {
     for (int i = 0; i < n; i++) e += (double)n / (n - i);   // wait for the next new type
     return e;
 }
+--go
+// E[X] for outcomes values[i] with probabilities probs[i]
+func expectedValue(values, probs []float64) float64 {
+    e := 0.0
+    for i := range values {
+        e += values[i] * probs[i]
+    }
+    return e
+}
+
+// expected rolls of a fair die until the running sum reaches at least target
+func expectedRollsToReach(target int) float64 {
+    e := make([]float64, target+7) // e[s] = 0 for s >= target
+    for s := target - 1; s >= 0; s-- {
+        sum := 0.0
+        for face := 1; face <= 6; face++ {
+            sum += e[s+face]
+        }
+        e[s] = 1 + sum/6 // one roll, then the average of what follows
+    }
+    return e[0]
+}
+
+// expected draws to see all n types (coupon collector)
+func couponCollector(n int) float64 {
+    e := 0.0
+    for i := 0; i < n; i++ {
+        e += float64(n) / float64(n-i) // wait for the next new type
+    }
+    return e
+}
 ### linearity
 --idea
 Linearity of expectation says: the expected value of a sum is the sum of the expected values, `E[X + Y] = E[X] + E[Y]`, and this holds even when `X` and `Y` depend on each other. This is a huge shortcut. To find the expected count of something, write the count as a sum of 0/1 indicators (one per possible item, equal to 1 if the item occurs), and the expected count is the sum of the probabilities that each item occurs. You never need the full distribution.
@@ -4090,6 +5445,27 @@ double expectedInversions(long long n) { return n * (n - 1) / 4.0; }
 // average number of non-empty bins after throwing k balls into n bins at random
 double expectedOccupiedBins(int n, int k) {
     return n * (1 - pow(1 - 1.0 / n, k));            // each bin is empty with probability (1 - 1/n)^k
+}
+--go
+// harmonic number H(n) = 1 + 1/2 + ... + 1/n
+func harmonic(n int) float64 {
+    h := 0.0
+    for i := 1; i <= n; i++ {
+        h += 1.0 / float64(i)
+    }
+    return h
+}
+
+// average number of left-to-right maxima in a random ordering of n distinct items
+func expectedRecords(n int) float64 { return harmonic(n) }
+
+// average number of inversions (out-of-order pairs) in a random permutation
+func expectedInversions(n int) float64 { return float64(n) * float64(n-1) / 4 }
+
+// average number of non-empty bins after throwing k balls into n bins at random
+func expectedOccupiedBins(n, k int) float64 {
+    // each bin is empty with probability (1 - 1/n)^k
+    return float64(n) * (1 - math.Pow(1-1.0/float64(n), float64(k)))
 }
 ### game
 --idea
@@ -4179,6 +5555,41 @@ int bestDifference(const vector<int>& a) {
         }
     return dp[0][n - 1];
 }
+--go
+// win[i] is true if the player to move wins with a pile of i stones (a move removes one of moves)
+func winTable(n int, moves []int) []bool {
+    win := make([]bool, n+1) // win[0] = false: no move, the player loses
+    for i := 1; i <= n; i++ {
+        for _, m := range moves {
+            if i >= m && !win[i-m] { // a move to a losing position
+                win[i] = true
+                break
+            }
+        }
+    }
+    return win
+}
+
+// best (my total - opponent total) for the player to move; each turn takes a coin from either end
+func bestDifference(a []int) int {
+    n := len(a)
+    if n == 0 {
+        return 0
+    }
+    dp := make([][]int, n)
+    for l := range dp {
+        dp[l] = make([]int, n)
+        dp[l][l] = a[l]
+    }
+    for length := 2; length <= n; length++ {
+        for l := 0; l+length-1 < n; l++ {
+            r := l + length - 1
+            // opponent plays best on the rest
+            dp[l][r] = max(a[l]-dp[l+1][r], a[r]-dp[l][r-1])
+        }
+    }
+    return dp[0][n-1]
+}
 ### nim
 --idea
 Nim is the classic pile game: several piles of stones, players alternate, each turn removes any positive number of stones from one pile, and the player who takes the last stone wins. It looks like it needs a search, but there is a one-line rule. Compute the XOR of all pile sizes (the nim-sum; XOR means add bits without carrying, so `1 XOR 1 = 0`). The player to move loses exactly when the nim-sum is 0, and wins otherwise.
@@ -4262,6 +5673,36 @@ pair<int, int> nimMove(const vector<int>& piles) {
             return {(int)i, piles[i] ^ x};          // new size makes the nim-sum zero
     return {-1, -1};                                // unreachable
 }
+--go
+// the player to move loses exactly when this is true
+func isLosing(piles []int) bool {
+    x := 0
+    for _, p := range piles {
+        x ^= p
+    }
+    return x == 0
+}
+
+// a winning move (pile index, new size); ok is false when the position is already lost
+func nimMove(piles []int) (pile, size int, ok bool) {
+    x := 0
+    for _, p := range piles { // the nim-sum
+        x ^= p
+    }
+    if x == 0 {
+        return 0, 0, false
+    }
+    top := 30
+    for !getBit(x, top) { // highest set bit of the nim-sum
+        top--
+    }
+    for i, p := range piles {
+        if getBit(p, top) { // this pile can be shrunk
+            return i, p ^ x, true // new size makes the nim-sum zero
+        }
+    }
+    return 0, 0, false // unreachable
+}
 ### josephus
 --idea
 The Josephus problem: `n` people stand in a circle numbered 1 to `n`. Starting at person 1, count `k` people (including the start) and remove the one you land on; keep counting from the next person; continue until one person is left. Where should you stand to survive? For `n = 7`, `k = 3`: removal order 3, 6, 2, 7, 5, 1, and person 4 survives.
@@ -4321,6 +5762,24 @@ long long josephusK2(long long n) {
     long long p = 1;
     while (p * 2 <= n) p *= 2;
     return 2 * (n - p) + 1;
+}
+--go
+// survivor (numbered from 1) when every k-th of n people in a circle is removed
+func josephus(n, k int) int {
+    res := 0 // survivor's position in a circle of 1, counted from 0
+    for i := 2; i <= n; i++ {
+        res = (res + k) % i // map the position back into the larger circle
+    }
+    return res + 1
+}
+
+// the same for k = 2 in O(1): 2 * (n - p) + 1 where p is the largest power of 2 not above n
+func josephusK2(n int) int {
+    p := 1
+    for p*2 <= n {
+        p *= 2
+    }
+    return 2*(n-p) + 1
 }
 ### dirichlet
 --idea
@@ -4409,6 +5868,32 @@ long long multiplicativeAt(long long n, function<long long(long long, int)> pp) 
     }
     return r;
 }
+--go
+// h(n) = sum over d | n of f(d) * g(n / d), for n = 1..N (slices indexed from 1)
+func convolve(f, g []int, N int) []int {
+    h := make([]int, N+1)
+    for d := 1; d <= N; d++ {
+        for m := d; m <= N; m += d {
+            h[m] += f[d] * g[m/d] // pair (d, m/d) of divisors of m
+        }
+    }
+    return h
+}
+
+// value at n of a multiplicative function, given its value pp(p, e) at each prime power p^e
+func multiplicativeAt(n int, pp func(p, e int) int) int {
+    fs := factorize(n) // primes in increasing order, with repeats
+    r := 1
+    for i := 0; i < len(fs); {
+        p, e := fs[i], 0
+        for i < len(fs) && fs[i] == p { // group equal primes
+            e++
+            i++
+        }
+        r *= pp(p, e) // one factor per prime power
+    }
+    return r
+}
 ### bsgs
 --idea
 The discrete logarithm problem: given a prime `p`, a base `g` and a target `y`, find `x` with `g^x = y (mod p)`. It is the modular version of "what power gives this number". There is no fast formula, but baby-step giant-step (BSGS) solves it in about `sqrt(p)` steps instead of `p`, by trading memory for time. It is a meet in the middle: split the unknown exponent into two halves and match them through a table.
@@ -4496,6 +5981,31 @@ long long discreteLog(long long g, long long y, long long p) {
     }
     return -1;
 }
+--go
+// smallest x >= 0 with g^x = y (mod p), or -1; p prime below 2^31, gcd(g, p) = 1
+func discreteLog(g, y, p int) int {
+    g %= p
+    y %= p
+    if y == 1 {
+        return 0
+    }
+    m := int(math.Sqrt(float64(p))) + 1 // m * m > p
+    table := map[int]int{}
+    cur := y
+    for j := 0; j < m; j++ { // baby steps: y * g^j
+        table[cur] = j // later j overwrites: gives smallest x
+        cur = cur * g % p
+    }
+    gm := powMod(g, m, p)
+    cur = 1
+    for i := 1; i <= m; i++ { // giant steps: g^(i*m)
+        cur = cur * gm % p
+        if j := getOrDefault(table, cur, -1); j != -1 {
+            return i*m - j
+        }
+    }
+    return -1
+}
 ### primroot
 --idea
 A primitive root modulo `n` is a number `g` whose powers `g^1, g^2, g^3, ...` visit every number coprime to `n` before returning to 1. Modulo 7, the number 3 works: `3, 2, 6, 4, 5, 1`, all six residues. A primitive root acts like a "generator", and it turns multiplication into addition of exponents (like logarithms), which is why it is used in the discrete logarithm and in number theoretic transforms. One exists exactly for `n = 1, 2, 4, p^k, 2*p^k` with `p` an odd prime.
@@ -4580,6 +6090,50 @@ long long primitiveRoot(long long n) {
         if (ok) return g;
     }
     return -1;
+}
+--go
+func gcd(a, b int) int {
+    if b == 0 {
+        return a
+    }
+    return gcd(b, a%b)
+}
+
+// smallest primitive root of n (n below 3e9), or -1 if none exists
+func primitiveRoot(n int) int {
+    if n == 1 {
+        return 0
+    }
+    ph := phi(n) // the phi piece
+    var qs []int // distinct primes of phi(n)
+    t := ph
+    for p := 2; p*p <= t; p++ {
+        if t%p == 0 {
+            qs = append(qs, p)
+            for t%p == 0 {
+                t /= p
+            }
+        }
+    }
+    if t > 1 {
+        qs = append(qs, t)
+    }
+    for g := 1; g < n; g++ {
+        if gcd(g, n) != 1 { // must be a unit
+            continue
+        }
+        ok := true
+        for _, q := range qs {
+            if powMod(g, ph/q, n) == 1 { // order divides phi / q
+                ok = false
+                break
+            }
+        }
+        if ok {
+            return g
+        }
+    }
+    return -1
 }
 ### tonelli
 --idea
@@ -4691,6 +6245,50 @@ long long sqrtMod(long long a, long long p) {
         r = r * b % p;
     }
     return r;
+}
+--go
+// a root x with x^2 = a (mod p), p an odd prime below 3e9, or -1 if none exists
+func sqrtMod(a, p int) int {
+    a %= p
+    if a == 0 {
+        return 0
+    }
+    if p == 2 {
+        return a
+    }
+    if powMod(a, (p-1)/2, p) != 1 { // Euler's criterion: not a square
+        return -1
+    }
+    if p%4 == 3 { // one-line case
+        return powMod(a, (p+1)/4, p)
+    }
+    q, s := p-1, 0
+    for q%2 == 0 { // p - 1 = q * 2^s
+        q /= 2
+        s++
+    }
+    z := 2
+    for powMod(z, (p-1)/2, p) != p-1 { // a non-residue
+        z++
+    }
+    m := s
+    c, t, r := powMod(z, q, p), powMod(a, q, p), powMod(a, (q+1)/2, p)
+    for t != 1 {
+        i, tt := 0, t
+        for tt != 1 { // smallest i with t^(2^i) = 1
+            tt = tt * tt % p
+            i++
+        }
+        b := c
+        for j := 0; j < m-i-1; j++ { // b = c^(2^(m-i-1))
+            b = b * b % p
+        }
+        m = i
+        c = b * b % p
+        t = t * c % p
+        r = r * b % p
+    }
+    return r
 }
 ### pollard
 --idea
@@ -4817,6 +6415,56 @@ vector<long long> pollardFactor(long long n) {
     factorizeInto(n, out);
     sort(out.begin(), out.end());
     return out;
+}
+--go
+func gcd(a, b int) int {
+    if b == 0 {
+        return a
+    }
+    return gcd(b, a%b)
+}
+
+// a non-trivial factor of an odd composite n (the Go mulMod piece is exact for n below 2^31)
+func rho(n int) int {
+    for c := 1; ; c++ {
+        x, y, d := 2, 2, 1
+        for d == 1 {
+            x = (mulMod(x, x, n) + c) % n // tortoise: one step
+            y = (mulMod(y, y, n) + c) % n // hare: two steps
+            y = (mulMod(y, y, n) + c) % n
+            d = gcd(max(x-y, y-x), n)
+        }
+        if d != n { // otherwise retry with a new c
+            return d
+        }
+    }
+}
+
+func factorizeInto(n int, out *[]int) {
+    if n == 1 {
+        return
+    }
+    if millerRabin(n) { // prime: record it
+        *out = append(*out, n)
+        return
+    }
+    d := rho(n)
+    factorizeInto(d, out)
+    factorizeInto(n/d, out)
+}
+
+// all prime factors of n (with repeats), sorted
+func pollardFactor(n int) []int {
+    var out []int
+    for _, p := range []int{2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47} {
+        for n%p == 0 { // tiny factors by trial division
+            out = append(out, p)
+            n /= p
+        }
+    }
+    factorizeInto(n, &out)
+    sort.Ints(out)
+    return out
 }
 ### burnside
 --idea
@@ -4969,6 +6617,78 @@ long long necklaces(int n, long long k) {
     for (int r = 0; r < n; r++) total += ipow(k, std::gcd(r, n));
     return total / n;
 }
+--go
+func gcd(a, b int) int {
+    if b == 0 {
+        return a
+    }
+    return gcd(b, a%b)
+}
+
+func ipow(k, e int) int {
+    r := 1
+    for i := 0; i < e; i++ {
+        r *= k // exact; must fit in an int
+    }
+    return r
+}
+
+// number of cycles of a permutation of 0..n-1
+func cycleCount(p []int) int {
+    seen := make([]bool, len(p))
+    cycles := 0
+    for i := range p {
+        if seen[i] {
+            continue
+        }
+        cycles++
+        for j := i; !seen[j]; j = p[j] { // walk the whole cycle
+            seen[j] = true
+        }
+    }
+    return cycles
+}
+
+// colourings with k colours up to the group (every group element listed as a permutation)
+func orbits(group [][]int, k int) int {
+    total := 0
+    for _, g := range group {
+        total += ipow(k, cycleCount(g)) // arrangements fixed by g
+    }
+    return total / len(group)
+}
+
+func rotations(n int) [][]int {
+    g := make([][]int, n)
+    for r := range g {
+        g[r] = make([]int, n)
+        for i := 0; i < n; i++ {
+            g[r][i] = (i + r) % n
+        }
+    }
+    return g
+}
+
+func rotationsAndReflections(n int) [][]int {
+    g := rotations(n)
+    for r := 0; r < n; r++ {
+        refl := make([]int, n)
+        for i := 0; i < n; i++ {
+            refl[i] = ((r-i)%n + n) % n
+        }
+        g = append(g, refl)
+    }
+    return g
+}
+
+// necklaces with the rotation shortcut: rotation by r has gcd(r, n) cycles
+func necklaces(n, k int) int {
+    total := 0
+    for r := 0; r < n; r++ {
+        total += ipow(k, gcd(r, n))
+    }
+    return total / n
+}
 ### polya
 --idea
 Polya enumeration extends Burnside's lemma to count colourings up to symmetry while keeping track of how many beads get each colour. Burnside gives a single total; Polya gives the answer for each colour-count pattern, by filling in a "cycle index": for each symmetry, a product over its cycles of "all positions of the cycle share one colour", so a cycle of length `L` painted colour `c` contributes `L` beads of colour `c`.
@@ -5067,6 +6787,50 @@ long long necklacesWithBlack(int n, int c) {
     for (int d = 1; d <= g; d++)
         if (g % d == 0) total += phiSmall(d) * chooseExact(n / d, c / d);   // d rotations-worth of cycles
     return total / n;
+}
+--go
+func gcd(a, b int) int {
+    if b == 0 {
+        return a
+    }
+    return gcd(b, a%b)
+}
+
+func phiSmall(n int) int { // Euler's totient by trial division
+    r := n
+    for p := 2; p*p <= n; p++ {
+        if n%p == 0 {
+            for n%p == 0 {
+                n /= p
+            }
+            r -= r / p
+        }
+    }
+    if n > 1 {
+        r -= r / n
+    }
+    return r
+}
+
+func chooseExact(n, k int) int {
+    k = min(k, n-k)
+    r := 1
+    for i := 1; i <= k; i++ {
+        r = r * (n - k + i) / i // stays an exact integer
+    }
+    return r
+}
+
+// necklaces of n beads, black or white, exactly c black, equal under rotation
+func necklacesWithBlack(n, c int) int {
+    g := gcd(n, c) // gcd(n, 0) = n
+    total := 0
+    for d := 1; d <= g; d++ {
+        if g%d == 0 {
+            total += phiSmall(d) * chooseExact(n/d, c/d) // d rotations-worth of cycles
+        }
+    }
+    return total / n
 }
 ### gf
 --idea
@@ -5210,6 +6974,56 @@ vector<long long> binomialSeries(int n) {
     for (int k = 0; k <= n; k++) r[k] = ncr(n, k);
     return r;
 }
+--go
+const M = 1_000_000_007 // modulus read by the ncr piece
+
+var f, inv []int // factorial tables read by the ncr piece
+
+func initTables(n int) {
+    f, inv = buildFactorials(n, M) // factorials, inverse factorials
+}
+
+// product of two series, kept only up to x^limit
+func polyMul(a, b []int, limit int) []int {
+    c := make([]int, limit+1)
+    for i := 0; i < len(a) && i <= limit; i++ {
+        for j := 0; j < len(b) && i+j <= limit; j++ {
+            c[i+j] = (c[i+j] + a[i]*b[j]) % M // exponents add, coefficients multiply
+        }
+    }
+    return c
+}
+
+func polyPow(a []int, e, limit int) []int {
+    r := make([]int, limit+1)
+    r[0] = 1 // the series 1
+    for i := 0; i < e; i++ {
+        r = polyMul(r, a, limit)
+    }
+    return r
+}
+
+// ways to make target from unlimited coins: the coefficient of x^target in the product of 1/(1 - x^c)
+func coinWays(coins []int, target int) int {
+    a := make([]int, target+1)
+    a[0] = 1
+    for _, c := range coins { // multiply by 1/(1 - x^c)
+        for i := c; i <= target; i++ {
+            a[i] = (a[i] + a[i-c]) % M
+        }
+    }
+    return a[target]
+}
+
+// coefficients of (1 + x)^n, read from the binomial tables
+func binomialSeries(n int) []int {
+    initTables(n)
+    r := make([]int, n+1)
+    for k := range r {
+        r[k] = ncr(n, k)
+    }
+    return r
+}
 ### bm
 --idea
 Berlekamp-Massey takes the first terms of a sequence and finds the shortest linear recurrence that produces them: a rule `a(n) = c1 * a(n-1) + c2 * a(n-2) + ... + cL * a(n-L)` with fixed weights. This is a way to guess the rule from data. If a sequence is generated by a recurrence of order `L`, then `2L` terms are enough to recover it, and the recurrence can then be used to jump far ahead (Kitamasa or matrix power). It works over a field, normally integers modulo a prime.
@@ -5299,6 +7113,40 @@ vector<long long> berlekampMassey(const vector<long long>& s, long long p) {
     vector<long long> c(L);
     for (int j = 1; j <= L; j++) c[j - 1] = (p - C[j]) % p;
     return c;
+}
+--go
+// shortest linear recurrence of s modulo a prime p: returns c[0..L-1] with s[i] = sum c[j] * s[i-1-j]
+func berlekampMassey(s []int, p int) []int {
+    n := len(s)
+    C, B := make([]int, n+1), make([]int, n+1)
+    C[0], B[0] = 1, 1
+    L, m, b := 0, 1, 1
+    for i := 0; i < n; i++ {
+        d := 0
+        for j := 0; j <= L; j++ {
+            d = (d + C[j]*(s[i-j]%p)) % p // discrepancy
+        }
+        if d == 0 { // the rule still holds
+            m++
+            continue
+        }
+        coef := d * modInverse(b, p) % p // d / b
+        T := append([]int(nil), C...)
+        for j := 0; j+m <= n; j++ {
+            C[j+m] = ((C[j+m]-coef*B[j])%p + p) % p // cancel d at position i
+        }
+        if 2*L <= i { // the rule grew
+            L = i + 1 - L
+            B, b, m = T, d, 1
+        } else {
+            m++
+        }
+    }
+    c := make([]int, L)
+    for j := 1; j <= L; j++ {
+        c[j-1] = (p - C[j]) % p
+    }
+    return c
 }
 ### kitamasa
 --idea
@@ -5460,7 +7308,79 @@ long long kitamasaSlow(const vector<long long>& c, const vector<long long>& init
 }
 --uses
 u-matpow
+--go
+const M = 1_000_000_007
 
+// u * v modulo P(x) = x^k - c[0] x^(k-1) - ... - c[k-1]
+func mulmod(u, v, c []int) []int {
+    k := len(c)
+    prod := make([]int, 2*k)
+    for i := 0; i < k; i++ {
+        for j := 0; j < k; j++ {
+            prod[i+j] = (prod[i+j] + u[i]*v[j]) % M
+        }
+    }
+    for i := 2*k - 2; i >= k; i-- { // reduce x^i using x^k = c[0] x^(k-1) + ...
+        t := prod[i]
+        if t == 0 {
+            continue
+        }
+        for j := 1; j <= k; j++ {
+            prod[i-j] = (prod[i-j] + t*c[j-1]) % M
+        }
+    }
+    return prod[:k]
+}
+
+// a(n) for a(i) = c[0]*a(i-1) + ... + c[k-1]*a(i-k), given a(0..k-1); n up to 1e18
+func kitamasa(c, init []int, n int) int {
+    k := len(c)
+    if n < k {
+        return init[n] % M
+    }
+    result, base := make([]int, k), make([]int, k)
+    result[0] = 1 // the polynomial 1
+    if k == 1 {
+        base[0] = c[0] % M
+    } else {
+        base[1] = 1 // the polynomial x modulo P
+    }
+    for ; n > 0; n >>= 1 {
+        if n&1 == 1 {
+            result = mulmod(result, base, c)
+        }
+        base = mulmod(base, base, c) // next power of two
+    }
+    ans := 0
+    for i := 0; i < k; i++ {
+        ans = (ans + result[i]*(init[i]%M)) % M
+    }
+    return ans
+}
+
+// the matrix way, O(k^3 log n): a(n) is read from the companion matrix raised to a power
+func kitamasaSlow(c, init []int, n int) int {
+    k := len(c)
+    if n < k {
+        return init[n] % M
+    }
+    comp := make([][]int, k)
+    for i := range comp {
+        comp[i] = make([]int, k)
+    }
+    for j := 0; j < k; j++ {
+        comp[0][j] = c[j] % M // new term from the last k terms
+    }
+    for i := 1; i < k; i++ {
+        comp[i][i-1] = 1 // slide the window down by one
+    }
+    pw := matPow(comp, n-k+1, M) // piece u-matpow
+    ans := 0
+    for j := 0; j < k; j++ {
+        ans = (ans + pw[0][j]*(init[k-1-j]%M)) % M
+    }
+    return ans
+}
 ### gaussmod2
 --idea
 Gaussian elimination over GF(2) solves systems where every unknown is 0 or 1 and all arithmetic is modulo 2: addition is XOR, and multiplication is AND. Such systems model switches and lamps (flip a switch, the lights it controls toggle), parity checks, and "which subset of these items XORs to a target". Because each row is a string of bits, a whole equation fits in one integer (a bitmask), and adding two equations is a single XOR.
@@ -5555,6 +7475,44 @@ int solveGF2(vector<int> rows, int n) {
         if (getBit(rows[i], n)) x = setBit(x, pivotCol[i]);     // pivot unknown equals the right-hand side
     return x;
 }
+--go
+// rows[i]: bits 0..n-1 are coefficients, bit n is the right-hand side (n <= 30).
+// Returns one solution as a bitmask (free unknowns 0); ok is false if the system has no solution.
+func solveGF2(rows []int, n int) (x int, ok bool) {
+    rank := 0
+    pivotCol := make([]int, len(rows))
+    for col := 0; col < n && rank < len(rows); col++ {
+        sel := -1
+        for i := rank; i < len(rows); i++ {
+            if getBit(rows[i], col) { // a row with this column set
+                sel = i
+                break
+            }
+        }
+        if sel == -1 { // free column
+            continue
+        }
+        rows[sel], rows[rank] = rows[rank], rows[sel]
+        for i := range rows {
+            if i != rank && getBit(rows[i], col) {
+                rows[i] ^= rows[rank] // XOR clears the column
+            }
+        }
+        pivotCol[rank] = col
+        rank++
+    }
+    for i := rank; i < len(rows); i++ {
+        if getBit(rows[i], n) { // the equation 0 = 1
+            return 0, false
+        }
+    }
+    for i := 0; i < rank; i++ {
+        if getBit(rows[i], n) { // pivot unknown equals the right-hand side
+            x = setBit(x, pivotCol[i])
+        }
+    }
+    return x, true
+}
 ### det
 --idea
 The determinant of a square matrix is a single number that says, among other things, whether the matrix is invertible (non-zero) and how it scales volume. For a 2 by 2 matrix `[[a, b], [c, d]]` it is `a*d - b*c`; for larger matrices the textbook expansion has `n!` terms, hopeless beyond `n = 10`. Gaussian elimination computes it in `O(n^3)`. The rules: adding a multiple of one row to another leaves the determinant unchanged; swapping two rows flips its sign; and a triangular matrix (zeros below the diagonal) has determinant equal to the product of its diagonal. So eliminate to triangular form, track the swaps, and multiply the diagonal.
@@ -5648,6 +7606,41 @@ long long det(vector<vector<long long>> m, long long p) {
         }
     }
     return result;
+}
+--go
+// determinant of a square matrix modulo a prime p
+func det(a [][]int, p int) int {
+    n := len(a)
+    m := make([][]int, n)
+    for i := range m {
+        m[i] = make([]int, n)
+        for j := range m[i] {
+            m[i][j] = ((a[i][j] % p) + p) % p
+        }
+    }
+    result := 1
+    for col := 0; col < n; col++ {
+        r := col
+        for r < n && m[r][col] == 0 { // find a non-zero pivot
+            r++
+        }
+        if r == n { // singular
+            return 0
+        }
+        if r != col {
+            m[r], m[col] = m[col], m[r]
+            result = (p - result) % p // a swap flips the sign
+        }
+        result = result * m[col][col] % p
+        inv := modInverse(m[col][col], p) // the modInverse piece
+        for i := col + 1; i < n; i++ {
+            f := m[i][col] * inv % p
+            for j := col; j < n; j++ {
+                m[i][j] = ((m[i][j]-f*m[col][j])%p + p) % p // row i -= f * pivot row
+            }
+        }
+    }
+    return result
 }
 ### xorbasis
 --idea
@@ -5757,6 +7750,46 @@ int maxXor(const vector<int>& basis) {
     for (int i = B - 1; i >= 0; i--)
         if ((res ^ basis[i]) > res) res ^= basis[i];         // take it when it raises the value
     return res;
+}
+--go
+const B = 30
+
+// tries to add x to the basis; returns true if the span grew
+func insert(basis []int, x int) bool {
+    for i := B - 1; i >= 0; i-- {
+        if !getBit(x, i) {
+            continue
+        }
+        if basis[i] == 0 { // new leading bit
+            basis[i] = x
+            return true
+        }
+        x ^= basis[i] // cancel bit i, keep going
+    }
+    return false // x was already in the span
+}
+
+func contains(basis []int, x int) bool {
+    for i := B - 1; i >= 0; i-- {
+        if getBit(x, i) {
+            if basis[i] == 0 {
+                return false
+            }
+            x ^= basis[i]
+        }
+    }
+    return true
+}
+
+// the largest XOR of any subset of the inserted numbers
+func maxXor(basis []int) int {
+    res := 0
+    for i := B - 1; i >= 0; i-- {
+        if res^basis[i] > res { // take it when it raises the value
+            res ^= basis[i]
+        }
+    }
+    return res
 }
 ### fwht
 --idea
@@ -5904,6 +7937,63 @@ vector<long long> orConvolve(vector<long long> a, vector<long long> b) {
         for (int mask = 0; mask < n; mask++)
             if (getBit(mask, bit)) a[mask] -= a[clearBit(mask, bit)];   // undo the subset sums
     return a;
+}
+--go
+// in-place Walsh-Hadamard transform (XOR); len(a) must be a power of two
+func fwht(a []int, invert bool) {
+    n := len(a)
+    for bit := 0; 1<<bit < n; bit++ {
+        for mask := 0; mask < n; mask++ {
+            if getBit(mask, bit) { // handle each pair once
+                continue
+            }
+            partner := setBit(mask, bit) // same index with the bit set
+            u, v := a[mask], a[partner]
+            a[mask], a[partner] = u+v, u-v
+        }
+    }
+    if invert {
+        for i := range a {
+            a[i] /= n // exact for integer data
+        }
+    }
+}
+
+func xorConvolve(a, b []int) []int {
+    x, y := append([]int(nil), a...), append([]int(nil), b...)
+    fwht(x, false)
+    fwht(y, false)
+    for i := range x {
+        x[i] *= y[i] // XOR becomes a pointwise product
+    }
+    fwht(x, true)
+    return x
+}
+
+// OR convolution: c[z] = sum of a[x] * b[y] over x | y = z, via subset sums
+func orConvolve(a, b []int) []int {
+    n := len(a)
+    x, y := append([]int(nil), a...), append([]int(nil), b...)
+    for bit := 0; 1<<bit < n; bit++ {
+        for mask := 0; mask < n; mask++ {
+            if getBit(mask, bit) {
+                low := clearBit(mask, bit)
+                x[mask] += x[low]
+                y[mask] += y[low] // sums over all subsets
+            }
+        }
+    }
+    for i := range x {
+        x[i] *= y[i]
+    }
+    for bit := 0; 1<<bit < n; bit++ {
+        for mask := 0; mask < n; mask++ {
+            if getBit(mask, bit) {
+                x[mask] -= x[clearBit(mask, bit)] // undo the subset sums
+            }
+        }
+    }
+    return x
 }
 ### fft
 --idea
@@ -6057,6 +8147,75 @@ vector<long long> multiply(const vector<long long>& a, const vector<long long>& 
     vector<long long> c(need);
     for (int i = 0; i < need; i++) c[i] = llround(fa[i].real());   // exact integers after rounding
     return c;
+}
+--go
+// in-place FFT of (re, im); length must be a power of two. invert = true gives the inverse.
+func fft(re, im []float64, invert bool) {
+    n := len(re)
+    lg := floorLog2(n)
+    for i := 0; i < n; i++ { // bit-reversal permutation
+        r := 0
+        for b := 0; b < lg; b++ {
+            if getBit(i, b) {
+                r = setBit(r, lg-1-b)
+            }
+        }
+        if i < r {
+            re[i], re[r] = re[r], re[i]
+            im[i], im[r] = im[r], im[i]
+        }
+    }
+    for length := 2; length <= n; length <<= 1 {
+        half := length / 2
+        ang := 2 * math.Pi / float64(length)
+        if invert {
+            ang = -ang
+        }
+        for i := 0; i < n; i += length {
+            for j := 0; j < half; j++ {
+                wr, wi := math.Cos(ang*float64(j)), math.Sin(ang*float64(j)) // root of unity
+                p, q := i+j, i+j+half
+                xr := re[q]*wr - im[q]*wi // v = a[q] * w
+                xi := re[q]*wi + im[q]*wr
+                re[q], im[q] = re[p]-xr, im[p]-xi // a[p] - v
+                re[p], im[p] = re[p]+xr, im[p]+xi // a[p] + v
+            }
+        }
+    }
+    if invert {
+        for i := range re {
+            re[i] /= float64(n)
+            im[i] /= float64(n)
+        }
+    }
+}
+
+// product of two integer polynomials (coefficients below about 1e15 in the result)
+func multiply(a, b []int) []int {
+    need, n := len(a)+len(b)-1, 1
+    for n < need { // power of two at least la + lb - 1
+        n <<= 1
+    }
+    ar, ai, br, bi := make([]float64, n), make([]float64, n), make([]float64, n), make([]float64, n)
+    for i, v := range a {
+        ar[i] = float64(v)
+    }
+    for i, v := range b {
+        br[i] = float64(v)
+    }
+    fft(ar, ai, false)
+    fft(br, bi, false)
+    for i := 0; i < n; i++ { // pointwise complex product
+        r := ar[i]*br[i] - ai[i]*bi[i]
+        ai[i] = ar[i]*bi[i] + ai[i]*br[i]
+        ar[i] = r
+    }
+    fft(ar, ai, true)
+    c := make([]int, need)
+    for i := range c {
+        c[i] = int(math.Round(ar[i])) // exact integers after rounding
+    }
+    return c
 }
 ### ntt
 --idea
@@ -6216,6 +8375,69 @@ vector<long long> multiply(const vector<long long>& a, const vector<long long>& 
     ntt(fa, true);
     fa.resize(need);
     return fa;
+}
+--go
+const MOD, G = 998244353, 3
+
+// in-place NTT; len(a) must be a power of two and entries in 0..MOD-1
+func ntt(a []int, invert bool) {
+    n := len(a)
+    if n == 1 {
+        return
+    }
+    lg := floorLog2(n)
+    rev := make([]int, n)
+    for i := 1; i < n; i++ {
+        rev[i] = rev[i>>1]>>1 | (i&1)<<(lg-1) // reversed bits
+    }
+    for i := range a {
+        if i < rev[i] {
+            a[i], a[rev[i]] = a[rev[i]], a[i]
+        }
+    }
+    for length := 2; length <= n; length <<= 1 {
+        w := powMod(G, (MOD-1)/length, MOD) // a primitive len-th root of unity
+        if invert {
+            w = powMod(w, MOD-2, MOD)
+        }
+        for i := 0; i < n; i += length {
+            cur := 1
+            for j := 0; j < length/2; j++ {
+                u, v := a[i+j], a[i+j+length/2]*cur%MOD
+                a[i+j] = (u + v) % MOD
+                a[i+j+length/2] = (u - v + MOD) % MOD
+                cur = cur * w % MOD
+            }
+        }
+    }
+    if invert {
+        nInv := powMod(n, MOD-2, MOD)
+        for i := range a {
+            a[i] = a[i] * nInv % MOD
+        }
+    }
+}
+
+// product of two polynomials modulo MOD
+func multiply(a, b []int) []int {
+    need, n := len(a)+len(b)-1, 1
+    for n < need { // power of two at least la + lb - 1
+        n <<= 1
+    }
+    fa, fb := make([]int, n), make([]int, n)
+    for i, v := range a {
+        fa[i] = ((v % MOD) + MOD) % MOD
+    }
+    for i, v := range b {
+        fb[i] = ((v % MOD) + MOD) % MOD
+    }
+    ntt(fa, false)
+    ntt(fb, false)
+    for i := range fa {
+        fa[i] = fa[i] * fb[i] % MOD // pointwise product
+    }
+    ntt(fa, true)
+    return fa[:need]
 }
 ### polyops
 --idea
@@ -6385,6 +8607,75 @@ vector<long long> polyExp(const vector<long long>& a, int n) {
     }
     return trunc(b, n);
 }
+--go
+// MOD = 998244353 and multiply() come from the NTT topic
+
+func trunc(a []int, n int) []int { // cut or zero-pad to n entries
+    r := make([]int, n)
+    copy(r, a)
+    return r
+}
+
+// 1 / A modulo x^n (needs a[0] != 0); uses multiply from the NTT topic
+func polyInverse(a []int, n int) []int {
+    b := []int{modInverse(a[0], MOD)}
+    for m := 1; m < n; {
+        m <<= 1
+        ab := trunc(multiply(trunc(a, m), b), m) // A * B modulo x^m
+        t := make([]int, m)
+        for i := range t {
+            t[i] = (MOD - ab[i]) % MOD
+        }
+        t[0] = (t[0] + 2) % MOD         // 2 - A*B
+        b = trunc(multiply(b, t), m)    // Newton step: B * (2 - A*B)
+    }
+    return trunc(b, n)
+}
+
+func polyDerivative(a []int) []int {
+    d := make([]int, max(1, len(a)-1))
+    for i := 0; i+1 < len(a); i++ {
+        d[i] = a[i+1] * (i + 1) % MOD
+    }
+    return d
+}
+
+func polyIntegral(a []int) []int {
+    g := make([]int, len(a)+1)
+    for i, v := range a {
+        g[i+1] = v * modInverse(i+1, MOD) % MOD
+    }
+    return g
+}
+
+// ln A modulo x^n (needs a[0] = 1)
+func polyLog(a []int, n int) []int {
+    if n == 1 {
+        return []int{0}
+    }
+    q := multiply(polyDerivative(trunc(a, n)), polyInverse(a, n)) // A' / A
+    return trunc(polyIntegral(trunc(q, n-1)), n)
+}
+
+// exp A modulo x^n (needs a[0] = 0)
+func polyExp(a []int, n int) []int {
+    b := []int{1}
+    for m := 1; m < n; {
+        m <<= 1
+        l := polyLog(trunc(b, m), m) // ln B modulo x^m
+        t := make([]int, m)
+        for i := range t {
+            ai := 0
+            if i < len(a) {
+                ai = a[i]
+            }
+            t[i] = (ai - l[i]%MOD + 2*MOD) % MOD
+        }
+        t[0] = (t[0] + 1) % MOD      // 1 + A - ln B
+        b = trunc(multiply(b, t), m) // Newton step: B * (1 + A - ln B)
+    }
+    return trunc(b, n)
+}
 ### floorsum
 --idea
 The floor sum is `sum over i = 0..n-1 of floor((a*i + b) / m)`: add up the integer parts of points on a line. It appears when counting lattice points (points with whole-number coordinates) under a line, in modular and number theory sums, and in geometry. A direct loop is `O(n)`; a trick that mirrors the Euclidean algorithm for gcd does it in `O(log m)`, so `n` can be 10^9 or more.
@@ -6438,6 +8729,24 @@ long long floorSum(long long n, long long m, long long a, long long b) {
     long long y = a * n + b;
     if (y < m) return ans;                                         // every remaining term is 0
     return ans + floorSum(y / m, a, m, y % m);                     // count the lattice points by rows
+}
+--go
+// sum over i = 0..n-1 of floor((a*i + b) / m), for a, b >= 0 and m > 0
+func floorSum(n, m, a, b int) int {
+    ans := 0
+    if a >= m { // split off the whole-number slope
+        ans += (a / m) * (n * (n - 1) / 2)
+        a %= m
+    }
+    if b >= m { // split off the whole-number offset
+        ans += (b / m) * n
+        b %= m
+    }
+    y := a*n + b
+    if y < m { // every remaining term is 0
+        return ans
+    }
+    return ans + floorSum(y/m, a, m, y%m) // count the lattice points by rows
 }
 ### min25
 --idea
@@ -6533,6 +8842,49 @@ long long primeCount(long long n) {
         for (long long v = r; v >= p2; v--) lo[v] -= lo[v / p] - pc;   // downward: read old values
     }
     return hi[1];
+}
+--go
+// pi(n): the number of primes up to n (n up to about 1e12)
+func primeCount(n int) int {
+    if n < 2 {
+        return 0
+    }
+    r := int(math.Sqrt(float64(n)))
+    for r*r > n {
+        r--
+    }
+    for (r+1)*(r+1) <= n {
+        r++
+    }
+    lo, hi := make([]int, r+2), make([]int, r+2)
+    for v := 1; v <= r; v++ {
+        lo[v], hi[v] = v-1, n/v-1
+    }
+    spf := buildSpf(r) // smallest prime factors (piece)
+    for p := 2; p <= r; p++ {
+        if spf[p] != p { // only primes
+            continue
+        }
+        pc, p2 := lo[p-1], p*p
+        if p2 > n {
+            break
+        }
+        lim := min(r, n/p2)
+        for i := 1; i <= lim; i++ {
+            d := i * p // S(n / d) comes from hi or lo
+            var s int
+            if d <= r {
+                s = hi[d]
+            } else {
+                s = lo[n/d]
+            }
+            hi[i] -= s - pc
+        }
+        for v := r; v >= p2; v-- { // downward: read old values
+            lo[v] -= lo[v/p] - pc
+        }
+    }
+    return hi[1]
 }
 ### randwalk
 --idea
@@ -6639,6 +8991,45 @@ vector<double> expectedDurations(int N, double p) {
         E[i] = dp[i] - cp[i] * E[i + 1];
     return E;
 }
+--go
+// probability of reaching N before 0, starting at i, stepping right with probability p
+func winProbability(i, N int, p float64) float64 {
+    if math.Abs(p-0.5) < 1e-12 {
+        return float64(i) / float64(N)
+    }
+    r := (1 - p) / p
+    return (1 - math.Pow(r, float64(i))) / (1 - math.Pow(r, float64(N)))
+}
+
+// expected number of steps until the walk hits 0 or N, closed form
+func expectedDuration(i, N int, p float64) float64 {
+    if math.Abs(p-0.5) < 1e-12 {
+        return float64(i * (N - i))
+    }
+    q := 1 - p
+    r := q / p
+    return float64(i)/(q-p) - (float64(N)/(q-p))*(1-math.Pow(r, float64(i)))/(1-math.Pow(r, float64(N)))
+}
+
+// the same expectation for every start 0..N by the Thomas algorithm on the tridiagonal system
+func expectedDurations(N int, p float64) []float64 {
+    q := 1 - p
+    E := make([]float64, N+1)
+    cp, dp := make([]float64, N), make([]float64, N)
+    for i := 1; i < N; i++ { // forward sweep: a = -q, b = 1, c = -p, d = 1
+        pc, pd := 0.0, 0.0
+        if i > 1 {
+            pc, pd = cp[i-1], dp[i-1]
+        }
+        denom := 1 + q*pc
+        cp[i] = -p / denom
+        dp[i] = (1 + q*pd) / denom
+    }
+    for i := N - 1; i >= 1; i-- { // back substitution
+        E[i] = dp[i] - cp[i]*E[i+1]
+    }
+    return E
+}
 ### markov
 --idea
 A Markov chain is a system that hops between a fixed set of states, where the chance of the next state depends only on the current state (not on how you got there). Weather is the usual picture: if today is sunny, tomorrow is sunny with chance 0.9 and rainy with 0.1; if today is rainy, tomorrow is sunny with 0.5 and rainy with 0.5. The chances live in a transition matrix `P`, where `P[i][j]` is the chance of going from state `i` to state `j` and every row sums to 1.
@@ -6722,6 +9113,38 @@ vector<double> stationaryDistribution(const vector<vector<double>>& P, int itera
         v = next;
     }
     return v;
+}
+--go
+// distribution after steps steps: v * P^steps, all entries modulo M (chances stored as a * b^-1 mod M)
+func stateAfter(P [][]int, v []int, steps, M int) []int {
+    Q := matPow(P, steps, M) // repeated squaring (piece)
+    k := len(v)
+    res := make([]int, k)
+    for j := 0; j < k; j++ {
+        for i := 0; i < k; i++ {
+            res[j] = (res[j] + v[i]*Q[i][j]) % M // row vector times matrix
+        }
+    }
+    return res
+}
+
+// stationary distribution of an irreducible, aperiodic chain by power iteration
+func stationaryDistribution(P [][]float64, iterations int) []float64 {
+    k := len(P)
+    v := make([]float64, k)
+    for i := range v {
+        v[i] = 1.0 / float64(k) // start from the uniform distribution
+    }
+    for it := 0; it < iterations; it++ {
+        next := make([]float64, k)
+        for i := 0; i < k; i++ {
+            for j := 0; j < k; j++ {
+                next[j] += v[i] * P[i][j] // one step: v * P
+            }
+        }
+        v = next
+    }
+    return v
 }
 ### grundy
 --idea
@@ -6807,6 +9230,34 @@ int gameValue(const vector<int>& piles, const vector<int>& g) {
     int x = 0;
     for (int p : piles) x ^= g[p];
     return x;
+}
+--go
+// Grundy numbers g[0..n] of a pile where one move removes some m in moves stones
+func grundyTable(n int, moves []int) []int {
+    g := make([]int, n+1) // g[0] = 0: no moves
+    for i := 1; i <= n; i++ {
+        mask := 0 // set of Grundy numbers of the options
+        for _, m := range moves {
+            if i >= m {
+                mask = setBit(mask, g[i-m])
+            }
+        }
+        v := 0
+        for getBit(mask, v) { // mex: the first value not present
+            v++
+        }
+        g[i] = v
+    }
+    return g
+}
+
+// value of a sum of piles: XOR of the Grundy numbers; non-zero means the first player wins
+func gameValue(piles, g []int) int {
+    x := 0
+    for _, p := range piles {
+        x ^= g[p]
+    }
+    return x
 }
 ### misere
 --idea
@@ -6900,6 +9351,41 @@ pair<int, int> misereMove(vector<int> piles) {
             if (ok) return {(int)i, s};
         }
     return {-1, -1};
+}
+--go
+// true if the player to move loses in misere Nim (the one who takes the last stone loses)
+func misereIsLosing(piles []int) bool {
+    big := false
+    ones, x := 0, 0
+    for _, p := range piles {
+        if p >= 2 {
+            big = true
+        }
+        if p == 1 {
+            ones++
+        }
+        x ^= p
+    }
+    if !big { // only 0s and 1s: an odd count of ones loses
+        return ones%2 == 1
+    }
+    return x == 0 // otherwise normal Nim
+}
+
+// a winning move (pile index, new size); ok is false when every move loses
+func misereMove(piles []int) (pile, size int, ok bool) {
+    for i := range piles {
+        for s := 0; s < piles[i]; s++ {
+            old := piles[i]
+            piles[i] = s
+            lose := misereIsLosing(piles) // does the opponent now lose?
+            piles[i] = old
+            if lose {
+                return i, s, true
+            }
+        }
+    }
+    return 0, 0, false
 }
 ### wythoff
 --idea
@@ -7035,6 +9521,65 @@ pair<long long, long long> wythoffMove(long long x, long long y) {
     for (long long t = 1; t <= min(x, y); t++) if (wythoffIsLosing(x - t, y - t)) return {x - t, y - t};
     return {-1, -1};
 }
+--go
+func isqrt(n int) int {
+    r := int(math.Sqrt(float64(n)))
+    for r*r > n { // correct the floating point estimate
+        r--
+    }
+    for (r+1)*(r+1) <= n {
+        r++
+    }
+    return r
+}
+
+// true if the player to move loses from piles (x, y)
+func wythoffIsLosing(x, y int) bool {
+    if x > y {
+        x, y = y, x
+    }
+    k := y - x
+    a := (k + isqrt(5*k*k)) / 2 // floor(k * golden ratio), exactly
+    return x == a
+}
+
+// the first count losing pairs, built greedily: a = smallest unused number, b = a + k
+func wythoffPairs(count int) [][2]int {
+    used := make([]bool, 4*count+10)
+    pairs := make([][2]int, count)
+    a := 0
+    for k := 0; k < count; k++ {
+        for used[a] {
+            a++
+        }
+        pairs[k] = [2]int{a, a + k}
+        used[a], used[a+k] = true, true
+    }
+    return pairs
+}
+
+// a winning move (new x, new y); ok is false when the position is already lost
+func wythoffMove(x, y int) (nx, ny int, ok bool) {
+    if wythoffIsLosing(x, y) {
+        return 0, 0, false
+    }
+    for t := 1; t <= x; t++ {
+        if wythoffIsLosing(x-t, y) {
+            return x - t, y, true
+        }
+    }
+    for t := 1; t <= y; t++ {
+        if wythoffIsLosing(x, y-t) {
+            return x, y - t, true
+        }
+    }
+    for t := 1; t <= min(x, y); t++ {
+        if wythoffIsLosing(x-t, y-t) {
+            return x - t, y - t, true
+        }
+    }
+    return 0, 0, false
+}
 ### sternb
 --idea
 The Stern-Brocot tree is a binary tree that contains every positive fraction exactly once, always in lowest terms. It is built with the mediant: the mediant of `a/b` and `c/d` is `(a + c)/(b + d)`, a fraction strictly between them. Start with the two "fractions" `0/1` and `1/0` (think of `1/0` as infinity). Their mediant is `1/1`, the root. Then below `1/1`, the mediant of `0/1` and `1/1` is `1/2` (left child) and of `1/1` and `1/0` is `2/1` (right child). Always take the mediant of the two ends that currently bracket the node.
@@ -7128,6 +9673,48 @@ pair<long long, long long> sbFraction(const string& path) {
         if (c == 'L') { hn = mn; hd = md; } else { ln = mn; ld = md; }
     }
     return {ln + hn, ld + hd};
+}
+--go
+// path to p/q (lowest terms, positive) as runs of {direction ('R' or 'L'), length}
+type run struct {
+    dir byte
+    n   int
+}
+
+func sbPathRuns(p, q int) []run {
+    var runs []run
+    dir := byte('R')
+    for q != 0 {
+        if k := p / q; k > 0 {
+            runs = append(runs, run{dir, k}) // a continued fraction term (skip empty runs)
+        }
+        p, q = q, p%q // Euclid step
+        if dir == 'R' { // directions alternate
+            dir = 'L'
+        } else {
+            dir = 'R'
+        }
+    }
+    last := len(runs) - 1
+    runs[last].n-- // the final term overshoots by one
+    if runs[last].n == 0 {
+        runs = runs[:last]
+    }
+    return runs
+}
+
+// the fraction (numerator, denominator) at the end of a path string such as "RL"
+func sbFraction(path string) (int, int) {
+    ln, ld, hn, hd := 0, 1, 1, 0 // lo = 0/1, hi = 1/0
+    for _, c := range path {
+        mn, md := ln+hn, ld+hd // mediant
+        if c == 'L' {
+            hn, hd = mn, md
+        } else {
+            ln, ld = mn, md
+        }
+    }
+    return ln + hn, ld + hd
 }
 ### contfrac
 --idea
@@ -7265,6 +9852,58 @@ pair<long long, long long> bestApprox(long long p, long long q, long long N) {
     }
     return {h1, k1};                                // p/q itself fits
 }
+--go
+// continued fraction terms [a0; a1, a2, ...] of p/q (p, q > 0)
+func contFrac(p, q int) []int {
+    var a []int
+    for q != 0 {
+        a = append(a, p/q)  // integer part
+        p, q = q, p%q       // flip the remainder (Euclid)
+    }
+    return a
+}
+
+// convergents (h, k) for the terms a
+func convergents(a []int) [][2]int {
+    var res [][2]int
+    h1, k1, h2, k2 := 1, 0, 0, 1
+    for _, t := range a {
+        h, k := t*h1+h2, t*k1+k2 // the convergent recurrence
+        res = append(res, [2]int{h, k})
+        h2, k2, h1, k1 = h1, k1, h, k
+    }
+    return res
+}
+
+func abs(x int) int {
+    if x < 0 {
+        return -x
+    }
+    return x
+}
+
+// the fraction a/b closest to p/q with b <= N (p, q small enough that cross products fit in an int)
+func bestApprox(p, q, N int) (int, int) {
+    h1, k1, h2, k2 := 1, 0, 0, 1
+    a, b := p, q
+    for b != 0 {
+        t := a / b
+        h, k := t*h1+h2, t*k1+k2
+        if k > N { // the next convergent is too big: try a semiconvergent
+            m := (N - k2) / k1
+            sh, sk := h2+m*h1, k2+m*k1
+            dOld := abs(p*k1-h1*q) * sk
+            dNew := abs(p*sk-sh*q) * k1
+            if dNew < dOld {
+                return sh, sk
+            }
+            return h1, k1
+        }
+        h2, k2, h1, k1 = h1, k1, h, k
+        a, b = b, a%b
+    }
+    return h1, k1 // p/q itself fits
+}
 ### pell
 --idea
 A Pell equation is `x^2 - d*y^2 = 1` where `d` is a positive whole number that is not a perfect square, and we want whole-number solutions `(x, y)` with `y > 0`. It always has infinitely many, and they all grow from one smallest ("fundamental") solution. Example: `d = 2`: `3^2 - 2*2^2 = 9 - 8 = 1`, so `(3, 2)`. For `d = 7`: `(8, 3)` since `64 - 63 = 1`. The smallest solutions can be enormous: for `d = 61` it is `x = 1766319049`, `y = 226153980`.
@@ -7357,4 +9996,35 @@ pair<long long, long long> pell(long long d) {
         hPrev = h; kPrev = k; h = hn; k = kn;
     }
     return {h, k};
+}
+--go
+// fundamental solution (x, y) of x^2 - d y^2 = 1; ok is false if d is a perfect square.
+// Fits in an int only for small d (below about 100); use math/big for larger d.
+func pell(d int) (x, y int, ok bool) {
+    a0 := sqrtFloor(d) // the sqrtFloor piece
+    if a0*a0 == d {    // perfect square: no solution
+        return 0, 0, false
+    }
+    var per []int
+    m, dd, a := 0, 1, a0
+    for {
+        m = dd*a - m
+        dd = (d - m*m) / dd
+        a = (a0 + m) / dd // next term of the continued fraction
+        per = append(per, a)
+        if a == 2*a0 { // the last term of the period
+            break
+        }
+    }
+    r := len(per)
+    target := 2*r - 1 // index of the convergent we want
+    if r%2 == 0 {
+        target = r - 1
+    }
+    hPrev, kPrev, h, k := 1, 0, a0, 1 // convergents at index -1 and 0
+    for i := 1; i <= target; i++ {
+        t := per[(i-1)%r]
+        hPrev, kPrev, h, k = h, k, t*h+hPrev, t*k+kPrev
+    }
+    return h, k, true
 }

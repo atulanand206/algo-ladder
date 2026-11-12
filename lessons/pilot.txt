@@ -86,6 +86,42 @@ int minCapacity(const vector<int>& weights, int days) {
     int hi = accumulate(weights.begin(), weights.end(), 0);
     return firstTrue(lo, hi, [&](int cap) { return daysNeeded(cap) <= days; });
 }
+--go
+// lowerBound, upperBound and firstTrue come from the code pieces
+
+func find(a []int, x int) int { // index of x, or -1
+    i := lowerBound(a, x)
+    if i < len(a) && a[i] == x {
+        return i
+    }
+    return -1
+}
+
+func countOf(a []int, x int) int { // how many copies of x
+    return upperBound(a, x) - lowerBound(a, x)
+}
+
+// "Smallest ship capacity that moves every package within `days` days" (a yes or no question that flips once)
+func minCapacity(weights []int, days int) int {
+    lo, hi := 0, 0
+    for _, w := range weights {
+        lo = max(lo, w)
+        hi += w
+    }
+    return firstTrue(lo, hi, func(cap int) bool { return daysNeeded(weights, cap) <= days })
+}
+
+func daysNeeded(weights []int, cap int) int {
+    days, load := 1, 0
+    for _, w := range weights {
+        if load+w > cap {
+            days++
+            load = 0
+        }
+        load += w
+    }
+    return days
+}
 ### dsu
 --idea
 Union-find keeps track of groups of items that have been joined together. It answers two questions very fast: "which group is this item in?" and "merge the groups of these two items". Think of friend circles: once A is friends with B, and B with C, all three are in the same circle, and you never need to list the friendships to know it.
@@ -161,6 +197,31 @@ int countGroups(int n, const vector<pair<int,int>>& pairs) {
 }
 
 bool connected(int a, int b) { return find(a) == find(b); }
+--go
+var p, sz []int // the slices the pieces work on
+
+func initDSU(n int) {
+    p, sz = make([]int, n), make([]int, n)
+    for i := range p {
+        p[i], sz[i] = i, 1
+    }
+}
+
+// find(x) and union(a, b) come from the code pieces
+
+func countGroups(n int, pairs [][2]int) int {
+    initDSU(n)
+    groups := n
+    for _, e := range pairs {
+        if find(e[0]) != find(e[1]) {
+            union(e[0], e[1])
+            groups--
+        }
+    }
+    return groups
+}
+
+func connected(a, b int) bool { return find(a) == find(b) }
 ### dijkstra
 --idea
 Dijkstra finds the cheapest route from one starting point to every other point in a map where each road has a non-negative cost. It works like a ripple: the start is at distance 0, and you always settle the closest place not yet settled, because no later route can beat it (all roads cost zero or more).
@@ -250,6 +311,35 @@ pair<vector<long long>, vector<int>> dijkstra(const vector<vector<pair<int,int>>
 }
 
 vector<int> route(const vector<int>& parent, int target) { return pathTo(parent, target); }
+--go
+// newPq, pushPq, popPq, relax and pathTo come from the code pieces
+
+// adj[v] holds {neighbour, cost}. parent must have length n.
+func dijkstra(adj [][][2]int, src int, parent []int) []int {
+    n := len(adj)
+    dist := make([]int, n)
+    for i := range dist {
+        dist[i], parent[i] = 1<<60, -1
+    }
+    dist[src] = 0
+    pq := newPq()
+    pushPq(pq, 0, src)
+    for len(*pq) > 0 {
+        cur := popPq(pq)
+        v := cur[1]
+        if cur[0] > dist[v] { // stale entry
+            continue
+        }
+        for _, e := range adj[v] {
+            if relax(dist, parent, v, e[0], e[1]) {
+                pushPq(pq, dist[e[0]], e[0])
+            }
+        }
+    }
+    return dist
+}
+
+func route(parent []int, target int) []int { return pathTo(parent, target) }
 ### knapsack
 --idea
 The knapsack problem: you have items, each with a weight and a value, and a bag that holds a limited weight. Pick items to get the most value without going over. You cannot split an item, so for each one the choice is take it or leave it.
@@ -297,6 +387,17 @@ long long knapsack(const vector<int>& w, const vector<int>& v, int cap) {
         for (int c = cap; c >= w[i]; c--)                // downward: each item once
             chmax(dp[c], dp[c - w[i]] + v[i]);
     return dp[cap];
+}
+--go
+// newTable and chmax come from the code pieces
+func knapsack(w, v []int, cap int) int {
+    dp := newTable(cap, 0)
+    for i := range w {
+        for c := cap; c >= w[i]; c-- { // downward: each item once
+            chmax(dp, c, dp[c-w[i]]+v[i])
+        }
+    }
+    return dp[cap]
 }
 ### kmp
 --idea
@@ -366,6 +467,31 @@ vector<int> search(const string& t, const string& p) {
 int smallestPeriod(const string& s) {
     int n = s.size(), k = n - prefixFunction(s)[n - 1];
     return n % k == 0 ? k : n;
+}
+--go
+// prefixFunction comes from the code piece
+
+// start positions of every match of p inside t
+func search(t, p string) []int {
+    m := len(p)
+    pi := prefixFunction(p + "#" + t)
+    var hits []int
+    for i := m + 1; i < len(pi); i++ {
+        if pi[i] == m {
+            hits = append(hits, i-2*m)
+        }
+    }
+    return hits
+}
+
+// length of the shortest piece that repeats to make s (n if none)
+func smallestPeriod(s string) int {
+    n := len(s)
+    k := n - prefixFunction(s)[n-1]
+    if n%k == 0 {
+        return k
+    }
+    return n
 }
 ### consistent
 --idea
@@ -477,3 +603,42 @@ struct Ring {
         return own[i == (int)pos.size() ? 0 : i]; // wrap around
     }
 };
+--go
+// lowerBound comes from the code piece; fmt is imported
+type Ring struct {
+    pos      []int    // sorted positions on the circle
+    own      []string // own[i] is the server at pos[i]
+    replicas int
+}
+
+func NewRing(replicas int) *Ring { return &Ring{replicas: replicas} }
+
+func hash(s string) int { // FNV-1a, then a final mix so similar names spread out
+    h := uint64(0xcbf29ce484222325)
+    for i := 0; i < len(s); i++ {
+        h ^= uint64(s[i])
+        h *= 0x100000001b3
+    }
+    h ^= h >> 30
+    h *= 0xbf58476d1ce4e5b9
+    h ^= h >> 27
+    h *= 0x94d049bb133111eb
+    return int((h ^ (h >> 31)) & 0x7fffffff)
+}
+
+func (r *Ring) AddServer(name string) {
+    for i := 0; i < r.replicas; i++ {
+        x := hash(name + "#" + fmt.Sprint(i))
+        at := lowerBound(r.pos, x) // keep positions sorted
+        r.pos = append(r.pos[:at], append([]int{x}, r.pos[at:]...)...)
+        r.own = append(r.own[:at], append([]string{name}, r.own[at:]...)...)
+    }
+}
+
+func (r *Ring) Owner(key string) string {
+    i := lowerBound(r.pos, hash(key)) // first server clockwise
+    if i == len(r.pos) {
+        i = 0 // wrap around
+    }
+    return r.own[i]
+}

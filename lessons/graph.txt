@@ -46,6 +46,18 @@ vector<vector<int>> graphFromEdges(int n, const vector<pair<int,int>>& edges, bo
     for (auto [u, v] : edges) addEdge(adj, u, v, true);    // piece: one direction only
     return adj;
 }
+--go
+// edges[i] = {u, v}; returns adjacency lists
+func graphFromEdges(n int, edges [][2]int, directed bool) [][]int {
+    if !directed {
+        return buildAdj(n, edges) // piece: stores both directions
+    }
+    adj := make([][]int, n) // nil slices are fine as empty lists
+    for _, e := range edges {
+        addEdge(adj, e[0], e[1], true) // piece: one direction only
+    }
+    return adj
+}
 ### adjmat
 --idea
 An adjacency matrix is a square table with one row and one column per node. The cell in row `u`, column `v` says whether there is an edge from `u` to `v` (1 or 0), or holds the edge cost. You can check any single edge in one step, just by looking at the cell.
@@ -165,6 +177,59 @@ Mat walks(const vector<vector<int>>& m, int k) {
     }
     return res;
 }
+--go
+func buildMatrix(n int, edges [][2]int, directed bool) [][]int {
+    m := make([][]int, n)
+    for i := range m {
+        m[i] = filled(n, 0) // piece: a row of n zeros
+    }
+    for _, e := range edges {
+        m[e[0]][e[1]] = 1
+        if !directed {
+            m[e[1]][e[0]] = 1
+        }
+    }
+    return m
+}
+
+type Mat [][]int64
+
+func mul(a, b Mat) Mat {
+    n := len(a)
+    c := make(Mat, n)
+    for i := range c {
+        c[i] = make([]int64, n)
+        for t := 0; t < n; t++ {
+            if a[i][t] == 0 {
+                continue
+            }
+            for j := 0; j < n; j++ {
+                c[i][j] += a[i][t] * b[t][j]
+            }
+        }
+    }
+    return c
+}
+
+// number of walks of exactly k edges between every pair
+func walks(m [][]int, k int) Mat {
+    n := len(m)
+    base, res := make(Mat, n), make(Mat, n)
+    for i := 0; i < n; i++ {
+        base[i], res[i] = make([]int64, n), make([]int64, n)
+        res[i][i] = 1 // identity
+        for j := 0; j < n; j++ {
+            base[i][j] = int64(m[i][j])
+        }
+    }
+    for ; k > 0; k >>= 1 { // repeated squaring
+        if k&1 == 1 {
+            res = mul(res, base)
+        }
+        base = mul(base, base)
+    }
+    return res
+}
 ### bfs
 --idea
 Breadth-first search (BFS) explores a graph in rings around the start: first the start itself, then everything one edge away, then everything two edges away, and so on. Picture a stone dropped in a pond: the ripple reaches nearby points first. Because of this order, the first time BFS reaches a node it has found the route with the fewest edges.
@@ -239,6 +304,27 @@ vector<int> bfs(const vector<vector<int>>& adj, int src) {
         }
     }
     return dist;
+}
+--go
+// returns dist[]: fewest edges from src, -1 if unreachable
+func bfsDist(adj [][]int, src int) []int {
+    dist := make([]int, len(adj))
+    for i := range dist {
+        dist[i] = -1
+    }
+    dist[src] = 0
+    q := []int{src}
+    for len(q) > 0 {
+        v := q[0]
+        q = q[1:] // pop from the front
+        for _, w := range adj[v] {
+            if dist[w] == -1 { // first visit is the shortest
+                dist[w] = dist[v] + 1
+                q = append(q, w)
+            }
+        }
+    }
+    return dist
 }
 ### dfs
 --idea
@@ -317,6 +403,30 @@ vector<int> dfsOrder(const vector<vector<int>>& adj, int src) {
         }
     }
     return order;
+}
+--go
+// returns nodes in the order DFS first enters them
+func dfsOrder(adj [][]int, src int) []int {
+    seen := make([]bool, len(adj))
+    it := make([]int, len(adj)) // next neighbour index to try per node
+    order := []int{src}
+    seen[src] = true
+    st := []int{src}
+    for len(st) > 0 {
+        v := st[len(st)-1]
+        if it[v] < len(adj[v]) {
+            w := adj[v][it[v]]
+            it[v]++
+            if !seen[w] {
+                seen[w] = true
+                order = append(order, w)
+                st = append(st, w)
+            }
+        } else {
+            st = st[:len(st)-1] // v is finished
+        }
+    }
+    return order
 }
 ### gridbfs
 --idea
@@ -403,6 +513,39 @@ int gridShortest(const vector<string>& grid, int sr, int sc, int tr, int tc) {
     }
     return -1;
 }
+--go
+// grid[r] is a string of '.' (open) and '#' (wall); returns fewest moves or -1
+func gridShortest(grid []string, sr, sc, tr, tc int) int {
+    R, C := len(grid), len(grid[0])
+    dist := make([][]int, R)
+    for r := range dist {
+        dist[r] = make([]int, C)
+        for c := range dist[r] {
+            dist[r][c] = -1
+        }
+    }
+    if grid[sr][sc] == '#' {
+        return -1
+    }
+    dist[sr][sc] = 0
+    q := [][2]int{{sr, sc}}
+    for len(q) > 0 {
+        cur := q[0]
+        q = q[1:]
+        if cur[0] == tr && cur[1] == tc {
+            return dist[tr][tc]
+        }
+        for _, nb := range neighbors(cur[0], cur[1], R, C) { // piece: in-bounds cells
+            nr, nc := nb[0], nb[1]
+            if grid[nr][nc] == '#' || dist[nr][nc] != -1 {
+                continue
+            }
+            dist[nr][nc] = dist[cur[0]][cur[1]] + 1
+            q = append(q, nb)
+        }
+    }
+    return -1
+}
 ### floodfill
 --idea
 Flood fill takes one cell of a grid and spreads to every connected cell with the same value, repainting them. It is the paint-bucket tool in a drawing program. It also counts islands, measures the size of a region, and finds out whether two cells are in the same region.
@@ -486,6 +629,29 @@ int floodFill(vector<vector<int>>& g, int r, int c, int newColor) {
     }
     return count;
 }
+--go
+// repaints the region of (r, c) with newColor, returns number of cells repainted
+func floodFill(g [][]int, r, c, newColor int) int {
+    old := g[r][c]
+    if old == newColor { // otherwise it never ends
+        return 0
+    }
+    R, C, count := len(g), len(g[0]), 1
+    g[r][c] = newColor
+    st := [][2]int{{r, c}}
+    for len(st) > 0 {
+        cur := st[len(st)-1]
+        st = st[:len(st)-1]
+        for _, nb := range neighbors(cur[0], cur[1], R, C) { // piece: in-bounds cells
+            if g[nb[0]][nb[1]] == old {
+                g[nb[0]][nb[1]] = newColor // painting also marks it visited
+                count++
+                st = append(st, nb)
+            }
+        }
+    }
+    return count
+}
 ### components
 --idea
 A connected component of an undirected graph is a maximal group of nodes where any two can reach each other. A graph that looks like several separate islands has several components. Finding them tells you which nodes belong together, how many groups there are, and how big each is.
@@ -562,6 +728,34 @@ vector<int> components(const vector<vector<int>>& adj) {
     }
     return comp;
 }
+--go
+// returns comp[v], component ids 0..count-1 (count = max id + 1)
+func components(adj [][]int) []int {
+    comp := make([]int, len(adj))
+    for i := range comp {
+        comp[i] = -1
+    }
+    count := 0
+    for s := range adj {
+        if comp[s] != -1 { // already labelled
+            continue
+        }
+        comp[s] = count
+        st := []int{s}
+        for len(st) > 0 {
+            v := st[len(st)-1]
+            st = st[:len(st)-1]
+            for _, w := range adj[v] {
+                if comp[w] == -1 {
+                    comp[w] = count
+                    st = append(st, w)
+                }
+            }
+        }
+        count++ // next unlabelled node starts a new one
+    }
+    return comp
+}
 ### treetrav
 --idea
 A binary tree node has at most two children, left and right. A traversal is a rule for visiting every node exactly once. The three classic depth-first orders differ only in when the node itself is visited compared to its two subtrees: preorder is node, left, right; inorder is left, node, right; postorder is left, right, node.
@@ -632,6 +826,24 @@ array<vector<int>, 3> treeOrders(const vector<int>& left, const vector<int>& rig
     array<vector<int>, 3> res;
     walkTree(left, right, root, res[0], res[1], res[2]);
     return res;
+}
+--go
+// returns {preorder, inorder, postorder} lists of node ids
+func treeOrders(left, right []int, root int) [3][]int {
+    var res [3][]int
+    var walk func(v int)
+    walk = func(v int) {
+        if v == -1 {
+            return
+        }
+        res[0] = append(res[0], v) // preorder: before children
+        walk(left[v])
+        res[1] = append(res[1], v) // inorder: between children
+        walk(right[v])
+        res[2] = append(res[2], v) // postorder: after children
+    }
+    walk(root)
+    return res
 }
 ### cycleund
 --idea
@@ -723,6 +935,36 @@ bool hasCycleUndirected(int n, const vector<pair<int,int>>& edges) {
         if (!seen[s] && cycleFrom(adj, seen, s, -1)) return true;
     return false;
 }
+--go
+// edges[i] = {u, v}. True if the undirected graph contains a cycle.
+func hasCycleUndirected(n int, edges [][2]int) bool {
+    type arc struct{ to, id int }
+    adj := make([][]arc, n)
+    for i, e := range edges {
+        adj[e[0]] = append(adj[e[0]], arc{e[1], i})
+        adj[e[1]] = append(adj[e[1]], arc{e[0], i})
+    }
+    seen := make([]bool, n)
+    var from func(v, parentEdge int) bool
+    from = func(v, parentEdge int) bool {
+        seen[v] = true
+        for _, a := range adj[v] {
+            if a.id == parentEdge { // the edge we came along
+                continue
+            }
+            if seen[a.to] || from(a.to, a.id) { // second route to a known node
+                return true
+            }
+        }
+        return false
+    }
+    for s := 0; s < n; s++ {
+        if !seen[s] && from(s, -1) {
+            return true
+        }
+    }
+    return false
+}
 ### cycledir
 --idea
 In a directed graph, edges have a direction, and a cycle means you can follow arrows and come back to where you started. This matters for dependencies: if task A needs B, B needs C, and C needs A, none of them can ever start. Finding the cycle tells you the plan is impossible.
@@ -800,6 +1042,31 @@ bool hasCycleDirected(const vector<vector<int>>& adj) {
     for (int s = 0; s < (int)adj.size(); s++)
         if (state[s] == 0 && visitCycle(adj, state, s)) return true;
     return false;
+}
+--go
+// adj is a directed graph. True if it has a cycle.
+func hasCycleDirected(adj [][]int) bool {
+    state := make([]int, len(adj)) // 0 white, 1 grey (on path), 2 black (done)
+    var visit func(v int) bool
+    visit = func(v int) bool {
+        state[v] = 1
+        for _, w := range adj[v] {
+            if state[w] == 1 { // back edge to the current path
+                return true
+            }
+            if state[w] == 0 && visit(w) {
+                return true
+            }
+        }
+        state[v] = 2
+        return false
+    }
+    for s := range adj {
+        if state[s] == 0 && visit(s) {
+            return true
+        }
+    }
+    return false
 }
 ### bipartite
 --idea
@@ -882,6 +1149,34 @@ vector<int> bipartite(const vector<vector<int>>& adj) {
         }
     }
     return color;
+}
+--go
+// returns color[] (0 or 1 per node), or nil if the graph is not bipartite
+func bipartite(adj [][]int) []int {
+    color := make([]int, len(adj))
+    for i := range color {
+        color[i] = -1
+    }
+    for s := range adj {
+        if color[s] != -1 {
+            continue
+        }
+        color[s] = 0
+        q := []int{s}
+        for len(q) > 0 {
+            v := q[0]
+            q = q[1:]
+            for _, w := range adj[v] {
+                if color[w] == -1 {
+                    color[w] = 1 - color[v]
+                    q = append(q, w)
+                } else if color[w] == color[v] { // odd cycle
+                    return nil
+                }
+            }
+        }
+    }
+    return color
 }
 ### topo
 --idea
@@ -973,6 +1268,36 @@ vector<int> topoSort(const vector<vector<int>>& adj) {
     reverse(order.begin(), order.end());            // finish order reversed
     return order;
 }
+--go
+// returns a topological order, or nil if there is a cycle
+func topoSort(adj [][]int) []int {
+    state := make([]int, len(adj))
+    var order []int
+    var visit func(v int) bool
+    visit = func(v int) bool {
+        state[v] = 1
+        for _, w := range adj[v] {
+            if state[w] == 1 { // cycle
+                return false
+            }
+            if state[w] == 0 && !visit(w) {
+                return false
+            }
+        }
+        state[v] = 2
+        order = append(order, v) // v finishes after all it points to
+        return true
+    }
+    for s := range adj {
+        if state[s] == 0 && !visit(s) {
+            return nil
+        }
+    }
+    for i, j := 0, len(order)-1; i < j; i, j = i+1, j-1 { // finish order reversed
+        order[i], order[j] = order[j], order[i]
+    }
+    return order
+}
 ### kahn
 --idea
 Kahn's algorithm builds a topological order by repeatedly removing nodes that have no remaining prerequisites. The in-degree of a node is the number of edges pointing into it. A node with in-degree 0 has nothing it must wait for, so it can go next in the order. Take it out, and the nodes it pointed to lose one prerequisite each.
@@ -1050,6 +1375,36 @@ vector<int> kahn(const vector<vector<int>>& adj) {
     }
     return (int)order.size() == n ? order : vector<int>();   // fewer means a cycle
 }
+--go
+// returns a topological order, or nil if there is a cycle
+func kahn(adj [][]int) []int {
+    n := len(adj)
+    indeg := make([]int, n)
+    for _, out := range adj {
+        for _, w := range out {
+            indeg[w]++
+        }
+    }
+    var q, order []int
+    for v := 0; v < n; v++ {
+        if indeg[v] == 0 {
+            enqueue(&q, v) // piece
+        }
+    }
+    for len(q) > 0 {
+        v := dequeue(&q) // piece
+        order = append(order, v)
+        for _, w := range adj[v] {
+            if indeg[w]--; indeg[w] == 0 { // last prerequisite done
+                enqueue(&q, w)
+            }
+        }
+    }
+    if len(order) != n { // fewer means a cycle
+        return nil
+    }
+    return order
+}
 ### msbfs
 --idea
 Multi-source BFS answers "how far is each node from its nearest source", where there are several sources at once. Instead of running BFS from each source, you put all of them in the queue at distance 0 and run a single BFS. The rings expand from all sources simultaneously, and each node gets the distance to whichever source reaches it first.
@@ -1107,6 +1462,22 @@ vector<int> multiSourceBfs(const vector<vector<int>>& adj, const vector<int>& so
     d.pop_back();                                          // forget the virtual node itself
     for (int& x : d) x = x > 0 ? x - 1 : -1;               // drop the extra step
     return d;
+}
+--go
+// returns dist[v] = fewest edges from v to the nearest source, -1 if none reaches it
+// bfs(adj, s) comes from the code piece
+func multiSourceBfs(adj [][]int, sources []int) []int {
+    n := len(adj)
+    g := append(adj[:n:n], append([]int(nil), sources...)) // virtual node n points at every source
+    d := bfs(g, n)                                         // piece: distances from the virtual node
+    dist := make([]int, n)
+    for v := range dist {
+        dist[v] = -1
+        if d[v] > 0 {
+            dist[v] = d[v] - 1 // drop the extra step
+        }
+    }
+    return dist
 }
 ### sp01
 --idea
@@ -1189,6 +1560,40 @@ vector<int> bfs01(const vector<vector<pair<int,int>>>& adj, int src) {
     }
     return dist;
 }
+--go
+type edge struct{ to, cost int }
+
+// adj[v] holds edges with cost 0 or 1; unreachable stays at 1<<60
+func bfs01(adj [][]edge, src int) []int {
+    dist := make([]int, len(adj))
+    for i := range dist {
+        dist[i] = 1 << 60
+    }
+    dist[src] = 0
+    // deque in two parts: front is a stack (push and pop at its end), back is a queue read from index bi
+    front, back := []int{src}, []int(nil)
+    for bi := 0; len(front) > 0 || bi < len(back); {
+        var v int
+        if len(front) > 0 {
+            v = front[len(front)-1]
+            front = front[:len(front)-1]
+        } else {
+            v = back[bi]
+            bi++
+        }
+        for _, e := range adj[v] {
+            if nd := dist[v] + e.cost; nd < dist[e.to] {
+                dist[e.to] = nd
+                if e.cost == 0 { // free move: same distance, front
+                    front = append(front, e.to)
+                } else { // paid move: one farther, back
+                    back = append(back, e.to)
+                }
+            }
+        }
+    }
+    return dist
+}
 ### treediam
 --idea
 The diameter of a tree is the length of the longest path between any two nodes. In a network of roads shaped like a tree, it is the two places that are farthest apart. Naively you would try every pair, which is far too slow for large trees.
@@ -1249,6 +1654,24 @@ int treeDiameter(const vector<vector<int>>& adj) {
     int a = farthestNode(adj, 0);
     int b = farthestNode(adj, a);
     return bfs(adj, a)[b];
+}
+--go
+// tree as adjacency lists; returns the diameter length in edges
+func treeDiameter(adj [][]int) int {
+    a := farthestNode(adj, 0)
+    b := farthestNode(adj, a)
+    return bfs(adj, a)[b] // piece: distances from a
+}
+
+func farthestNode(adj [][]int, src int) int {
+    dist := bfs(adj, src) // piece: distance from src to everyone
+    best := src
+    for v := range dist {
+        if dist[v] > dist[best] {
+            best = v
+        }
+    }
+    return best
 }
 ### bellman
 --idea
@@ -1327,6 +1750,37 @@ vector<long long> bellmanFord(int n, const vector<array<int,3>>& edges, int src)
         if (round == n - 1) return {};                    // still improving after n-1 rounds
     }
     return dist;
+}
+--go
+// edges[i] = {u, v, w}; returns dist (INF = unreachable), or nil if a negative cycle is reachable
+func bellmanFord(n int, edges [][3]int, src int) []int {
+    dist := make([]int, n)
+    for i := range dist {
+        dist[i] = INF // piece: safe "infinity"
+    }
+    parent := make([]int, n)
+    for i := range parent {
+        parent[i] = -1
+    }
+    dist[src] = 0
+    for round := 0; round < n; round++ {
+        changed := false
+        for _, e := range edges {
+            if safeAdd(dist[e[0]], e[2]) >= INF { // start not reached yet (piece)
+                continue
+            }
+            if relax(dist, parent, e[0], e[1], e[2]) { // piece
+                changed = true
+            }
+        }
+        if !changed { // settled early
+            return dist
+        }
+        if round == n-1 { // still improving after n-1 rounds
+            return nil
+        }
+    }
+    return dist
 }
 ### spfa
 --idea
@@ -1419,6 +1873,39 @@ vector<long long> spfa(const vector<vector<pair<int,int>>>& adj, int src) {
     }
     return dist;
 }
+--go
+// adj[v] holds {neighbour, cost}; returns dist or nil if a negative cycle is reachable
+func spfa(adj [][][2]int, src int) []int {
+    n := len(adj)
+    dist := make([]int, n)
+    for i := range dist {
+        dist[i] = 1<<60
+    }
+    parent := make([]int, n)
+    for i := range parent {
+        parent[i] = -1
+    }
+    pushes := make([]int, n)
+    inQ := make([]bool, n)
+    var q []int
+    dist[src] = 0
+    enqueue(&q, src) // piece
+    inQ[src] = true
+    for len(q) > 0 {
+        v := dequeue(&q) // piece
+        inQ[v] = false
+        for _, e := range adj[v] {
+            if relax(dist, parent, v, e[0], e[1]) && !inQ[e[0]] { // piece: improved?
+                if pushes[e[0]]++; pushes[e[0]] >= n { // n improvements: negative cycle
+                    return nil
+                }
+                enqueue(&q, e[0])
+                inQ[e[0]] = true
+            }
+        }
+    }
+    return dist
+}
 ### negcycle
 --idea
 A negative cycle is a loop of edges whose costs add up to less than zero. Walking around it again and again keeps lowering your total cost forever, so shortest paths through it are undefined. Detecting one matters for real problems: currency exchange loops that make free money, or schedules whose constraints contradict each other.
@@ -1502,6 +1989,41 @@ vector<int> findNegativeCycle(int n, const vector<array<int,3>>& edges) {
     reverse(cycle.begin(), cycle.end());
     return cycle;
 }
+--go
+// edges[i] = {u, v, w}; returns the nodes of a negative cycle in order, or nil
+func findNegativeCycle(n int, edges [][3]int) []int {
+    dist := make([]int, n) // all 0: every node is a start
+    parent := make([]int, n)
+    for i := range parent {
+        parent[i] = -1
+    }
+    x := -1
+    for round := 0; round < n; round++ {
+        x = -1
+        for _, e := range edges {
+            if relax(dist, parent, e[0], e[1], e[2]) { // piece: lowered dist[v]
+                x = e[1]
+            }
+        }
+        if x == -1 { // a quiet round: no negative cycle
+            return nil
+        }
+    }
+    for i := 0; i < n; i++ { // n steps back lands inside the cycle
+        x = parent[x]
+    }
+    var cycle []int
+    for v := x; ; {
+        cycle = append(cycle, v)
+        if v = parent[v]; v == x {
+            break
+        }
+    }
+    for i, j := 0, len(cycle)-1; i < j; i, j = i+1, j-1 {
+        cycle[i], cycle[j] = cycle[j], cycle[i]
+    }
+    return cycle
+}
 ### floyd
 --idea
 Floyd-Warshall computes the shortest distance between every pair of nodes at once. It uses a table `d[i][j]` and a simple idea: allow the "middle stops" one node at a time. First ask for the best route from `i` to `j` using no middle stops (just the direct edge). Then allow node 0 as a stop, then nodes 0 and 1, and so on.
@@ -1565,6 +2087,25 @@ void floydWarshall(vector<vector<long long>>& d) {
                 chmin(d[i][j], d[i][k] + d[k][j]);      // piece: keep the smaller
             }
         }
+}
+--go
+// d[i][j]: edge cost, inf if none, d[i][i] = 0. Updated in place to all-pairs distances.
+func floydWarshall(d [][]int) {
+    const inf = 1 << 60
+    n := len(d)
+    for k := 0; k < n; k++ { // k = the newest allowed middle stop
+        for i := 0; i < n; i++ {
+            if d[i][k] == inf {
+                continue
+            }
+            for j := 0; j < n; j++ {
+                if d[k][j] == inf {
+                    continue
+                }
+                chmin(d[i], j, d[i][k]+d[k][j]) // piece: keep the smaller
+            }
+        }
+    }
 }
 ### astar
 --idea
@@ -1650,6 +2191,34 @@ long long astar(const vector<vector<pair<int,int>>>& adj, int src, int goal, con
         }
     }
     return -1;                                       // goal unreachable
+}
+--go
+// adj[v] holds {neighbour, cost}; h[v] is an admissible estimate of the cost from v to goal
+func astar(adj [][][2]int, src, goal int, h []int) int {
+    dist := make([]int, len(adj))
+    for i := range dist {
+        dist[i] = 1<<60
+    }
+    dist[src] = 0
+    pq := newPq()
+    pushPq(pq, h[src], src) // key f = dist + h
+    for len(*pq) > 0 {
+        cur := popPq(pq)
+        v := cur[1]
+        if cur[0] > dist[v]+h[v] { // stale entry
+            continue
+        }
+        if v == goal {
+            return dist[v]
+        }
+        for _, e := range adj[v] {
+            if nd := dist[v] + e[1]; nd < dist[e[0]] {
+                dist[e[0]] = nd
+                pushPq(pq, nd+h[e[0]], e[0])
+            }
+        }
+    }
+    return -1 // goal unreachable
 }
 ### bibfs
 --idea
@@ -1746,6 +2315,47 @@ int bidirectionalBfs(const vector<vector<int>>& adj, int src, int dst) {
     }
     return -1;
 }
+--go
+// undirected graph; fewest edges from src to dst, -1 if not connected
+func bidirectionalBfs(adj [][]int, src, dst int) int {
+    if src == dst {
+        return 0
+    }
+    n := len(adj)
+    var dist [2][]int
+    for s := range dist {
+        dist[s] = make([]int, n)
+        for v := range dist[s] {
+            dist[s][v] = -1
+        }
+    }
+    front := [2][]int{{src}, {dst}}
+    dist[0][src], dist[1][dst] = 0, 0
+    for len(front[0]) > 0 && len(front[1]) > 0 {
+        s := 1
+        if len(front[0]) <= len(front[1]) { // expand the smaller side
+            s = 0
+        }
+        var next []int
+        best := 1 << 60
+        for _, v := range front[s] {
+            for _, w := range adj[v] {
+                if dist[1-s][w] != -1 { // the two searches touch
+                    best = min(best, dist[s][v]+1+dist[1-s][w])
+                }
+                if dist[s][w] == -1 {
+                    dist[s][w] = dist[s][v] + 1
+                    next = append(next, w)
+                }
+            }
+        }
+        if best != 1<<60 { // whole level done, exact
+            return best
+        }
+        front[s] = next
+    }
+    return -1
+}
 ### mst
 --idea
 A spanning tree of a connected graph uses just enough edges to join all nodes together, with no loops (so exactly `n - 1` edges). A minimum spanning tree (MST) is the one with the smallest total edge cost. It answers "what is the cheapest way to wire up all these towns, so everyone is connected".
@@ -1839,6 +2449,40 @@ long long kruskal(int n, vector<array<int,3>> edges) {
     }
     return taken == n - 1 ? total : -1;
 }
+--go
+// edges[i] = {u, v, w}; returns the MST total weight, or -1 if the graph is not connected
+func kruskal(n int, edges [][3]int) int {
+    sorted := append([][3]int(nil), edges...)
+    sortEdges(sorted) // piece: cheapest first
+    parent := make([]int, n)
+    for i := range parent {
+        parent[i] = i
+    }
+    total, taken := 0, 0
+    for _, e := range sorted {
+        ru, rv := findRoot(parent, e[0]), findRoot(parent, e[1])
+        if ru == rv { // would close a loop
+            continue
+        }
+        parent[ru] = rv // join the two groups
+        total += e[2]
+        if taken++; taken == n-1 {
+            break
+        }
+    }
+    if taken != n-1 {
+        return -1
+    }
+    return total
+}
+
+func findRoot(parent []int, x int) int {
+    for parent[x] != x {
+        parent[x] = parent[parent[x]] // path halving
+        x = parent[x]
+    }
+    return x
+}
 ### prim
 --idea
 Prim's algorithm builds a minimum spanning tree by growing it from one node, like a crystal. At each step it looks at every edge that leaves the current tree and takes the cheapest one, adding the new node on its far side. It stops when all nodes are in.
@@ -1920,6 +2564,34 @@ long long prim(const vector<vector<pair<int,int>>>& adj) {
             if (!inTree[u]) pushPq(pq, c, u);
     }
     return count == n ? total : -1;
+}
+--go
+// adj[v] holds {neighbour, weight}; returns the MST total weight, or -1 if disconnected
+func prim(adj [][][2]int) int {
+    n := len(adj)
+    inTree := make([]bool, n)
+    pq := newPq()
+    pushPq(pq, 0, 0) // key = edge cost, value = node: start at node 0
+    total, count := 0, 0
+    for len(*pq) > 0 {
+        cur := popPq(pq)
+        v := cur[1]
+        if inTree[v] { // stale candidate
+            continue
+        }
+        inTree[v] = true
+        total += cur[0]
+        count++
+        for _, e := range adj[v] {
+            if !inTree[e[0]] {
+                pushPq(pq, e[1], e[0])
+            }
+        }
+    }
+    if count != n {
+        return -1
+    }
+    return total
 }
 ### euler
 --idea
@@ -2016,6 +2688,37 @@ void eulerTour(const vector<vector<int>>& adj, int root,
         }
     }
 }
+--go
+// returns tin, tout, order; subtree of v is order[tin[v]..tout[v]]
+func eulerTour(adj [][]int, root int) (tin, tout, order []int) {
+    n := len(adj)
+    tin, tout, order = make([]int, n), make([]int, n), make([]int, 0, n)
+    parent, it := make([]int, n), make([]int, n)
+    for i := range parent {
+        parent[i] = -1
+    }
+    tin[root] = 0
+    order = append(order, root)
+    st := []int{root}
+    for len(st) > 0 {
+        v := st[len(st)-1]
+        if it[v] < len(adj[v]) {
+            w := adj[v][it[v]]
+            it[v]++
+            if w == parent[v] {
+                continue
+            }
+            parent[w] = v
+            tin[w] = len(order) // enter w
+            order = append(order, w)
+            st = append(st, w)
+        } else {
+            tout[v] = len(order) - 1 // leave v: last timestamp in its subtree
+            st = st[:len(st)-1]
+        }
+    }
+    return
+}
 ### treecenter
 --idea
 The center of a tree is the node (or the two adjacent nodes) in the middle of its longest path. It is the best place for a hub: it minimises the largest distance to any other node. If the longest path has an even number of nodes there are two centers, if odd there is exactly one.
@@ -2104,6 +2807,38 @@ vector<int> treeCenter(const vector<vector<int>>& adj) {
         leaves = next;                                                 // peel one layer
     }
     return leaves;
+}
+--go
+// tree given as adjacency lists; returns the 1 or 2 center nodes
+func treeCenter(adj [][]int) []int {
+    n := len(adj)
+    if n == 1 {
+        return []int{0}
+    }
+    deg := make([]int, n)
+    var leaves []int
+    for v := range adj {
+        deg[v] = len(adj[v])
+        if deg[v] == 1 {
+            leaves = append(leaves, v)
+        }
+    }
+    for remaining := n; remaining > 2; {
+        remaining -= len(leaves)
+        var next []int
+        for _, leaf := range leaves {
+            deg[leaf] = 0
+            for _, w := range adj[leaf] {
+                if deg[w] > 0 {
+                    if deg[w]--; deg[w] == 1 { // w became a leaf
+                        next = append(next, w)
+                    }
+                }
+            }
+        }
+        leaves = next // peel one layer
+    }
+    return leaves
 }
 ### lca
 --idea
@@ -2224,6 +2959,55 @@ struct Lca {
         return up[0][u];
     }
 };
+--go
+type Lca struct {
+    log   int
+    up    [][]int // up[j][v] = 2^j-th ancestor of v
+    depth []int
+}
+
+func buildLca(adj [][]int, root int) *Lca {
+    n := len(adj)
+    t := &Lca{log: 1, depth: make([]int, n)}
+    for 1<<t.log < n {
+        t.log++
+    }
+    parent := make([]int, n)
+    seen := make([]bool, n)
+    parent[root], seen[root] = root, true // root is its own parent
+    for q := []int{root}; len(q) > 0; q = q[1:] {
+        v := q[0]
+        for _, w := range adj[v] {
+            if !seen[w] {
+                seen[w], parent[w], t.depth[w] = true, v, t.depth[v]+1
+                q = append(q, w)
+            }
+        }
+    }
+    t.up = buildLift(parent, t.log) // piece: 2^j-th ancestors
+    return t
+}
+
+func (t *Lca) lca(u, v int) int {
+    if t.depth[u] < t.depth[v] {
+        u, v = v, u
+    }
+    diff := t.depth[u] - t.depth[v]
+    for j := 0; j < t.log; j++ {
+        if diff>>j&1 == 1 { // equalise depth
+            u = t.up[j][u]
+        }
+    }
+    if u == v {
+        return u
+    }
+    for j := t.log - 1; j >= 0; j-- {
+        if t.up[j][u] != t.up[j][v] { // jump while different
+            u, v = t.up[j][u], t.up[j][v]
+        }
+    }
+    return t.up[0][u]
+}
 ### kthanc
 --idea
 The k-th ancestor of a node `v` is the node you reach by walking `k` steps up toward the root: the parent is the 1st ancestor, the grandparent the 2nd, and so on. Walking one step at a time costs up to `n` per query, too slow when there are many queries on a deep tree.
@@ -2290,6 +3074,28 @@ int kthAncestor(const vector<vector<int>>& up, const vector<int>& depth, int v, 
     for (int j = 0; j < (int)up.size(); j++)
         if (k >> j & 1) v = up[j][v];                 // one jump per set bit
     return v;
+}
+--go
+// parent[v] = parent of v, the root is its own parent; returns up[j][v]
+func buildAncestors(parent []int) [][]int {
+    log := 1
+    for 1<<log < len(parent) {
+        log++
+    }
+    return buildLift(parent, log) // piece: 2^j-th ancestors
+}
+
+// k-th ancestor of v, or -1 if the tree is not that tall (depth[v] < k)
+func kthAncestor(up [][]int, depth []int, v, k int) int {
+    if k > depth[v] { // the root points to itself: check first
+        return -1
+    }
+    for j := range up {
+        if k>>j&1 == 1 { // one jump per set bit
+            v = up[j][v]
+        }
+    }
+    return v
 }
 ### lcaeuler
 --idea
@@ -2441,6 +3247,69 @@ struct LcaEuler {
         return depth[a] <= depth[b] ? a : b;
     }
 };
+--go
+type LcaEuler struct {
+    first, depth, lg []int
+    sp               [][]int // sp[j][i]: shallowest node in euler[i .. i + 2^j - 1]
+}
+
+func buildLcaEuler(adj [][]int, root int) *LcaEuler {
+    n := len(adj)
+    t := &LcaEuler{first: make([]int, n), depth: make([]int, n)}
+    it, parent := make([]int, n), make([]int, n)
+    for i := range parent {
+        parent[i] = -1
+    }
+    euler := []int{root}
+    st := []int{root}
+    for len(st) > 0 {
+        v := st[len(st)-1]
+        if it[v] < len(adj[v]) {
+            w := adj[v][it[v]]
+            it[v]++
+            if w == parent[v] {
+                continue
+            }
+            parent[w], t.depth[w] = v, t.depth[v]+1
+            t.first[w] = len(euler) // enter w
+            euler = append(euler, w)
+            st = append(st, w)
+        } else {
+            st = st[:len(st)-1]
+            if len(st) > 0 {
+                euler = append(euler, st[len(st)-1]) // return to the parent
+            }
+        }
+    }
+    m := len(euler)
+    t.lg = make([]int, m+1)
+    for i := 2; i <= m; i++ {
+        t.lg[i] = t.lg[i/2] + 1
+    }
+    t.sp = [][]int{euler}
+    for j := 1; j <= t.lg[m]; j++ {
+        row := make([]int, m-(1<<j)+1)
+        for i := range row {
+            a, b := t.sp[j-1][i], t.sp[j-1][i+(1<<(j-1))]
+            row[i] = a
+            if t.depth[b] < t.depth[a] {
+                row[i] = b
+            }
+        }
+        t.sp = append(t.sp, row)
+    }
+    return t
+}
+
+func (t *LcaEuler) lca(u, v int) int {
+    l, r := min(t.first[u], t.first[v]), max(t.first[u], t.first[v])
+    k := t.lg[r-l+1]
+    a, b := t.sp[k][l], t.sp[k][r-(1<<k)+1]
+    if t.depth[a] <= t.depth[b] {
+        return a
+    }
+    return b
+}
 ### treematch
 --idea
 On a tree you can pick a set of edges so that no two share a node (a matching), or pick a set of nodes so that every edge has at least one end chosen (a vertex cover), or pick nodes so that no two are neighbours (an independent set). On general graphs these are hard. On a tree they are easy, and they are linked: the maximum matching size equals the minimum vertex cover size (this is König's theorem, true for all bipartite graphs, and every tree is bipartite). The maximum independent set has `n` minus that many nodes.
@@ -2529,6 +3398,35 @@ int treeMatching(const vector<vector<int>>& adj) {
     }
     return count;
 }
+--go
+// tree as adjacency lists; returns the size of a maximum matching (= minimum vertex cover)
+func treeMatching(adj [][]int) int {
+    n := len(adj)
+    parent := make([]int, n) // -2 = not reached, -1 = root
+    for i := range parent {
+        parent[i] = -2
+    }
+    parent[0] = -1
+    order := []int{0} // BFS order doubles as the visit queue
+    for head := 0; head < len(order); head++ {
+        for _, w := range adj[order[head]] {
+            if parent[w] == -2 {
+                parent[w] = order[head]
+                order = append(order, w)
+            }
+        }
+    }
+    matched := make([]bool, n)
+    count := 0
+    for i := len(order) - 1; i >= 0; i-- { // children before parents
+        v := order[i]
+        if p := parent[v]; p >= 0 && !matched[v] && !matched[p] {
+            matched[v], matched[p] = true, true
+            count++
+        }
+    }
+    return count
+}
 ### scc
 --idea
 In a directed graph, two nodes `u` and `v` are strongly connected if you can get from `u` to `v` and also from `v` back to `u` by following arrows. A strongly connected component (SCC) is a maximal group of nodes that are all strongly connected to each other. Think of a road network with one-way streets: an SCC is a part of town where you can drive from any spot to any other spot and back.
@@ -2599,6 +3497,32 @@ vector<int> sccByReachability(const vector<vector<int>>& adj) {
         count++;
     }
     return comp;
+}
+--go
+// returns comp[v]: ids 0..k-1, two nodes share an id exactly when they reach each other
+func sccByReachability(adj [][]int) []int {
+    n := len(adj)
+    reach := make([][]bool, n)
+    for s := range reach {
+        reach[s] = dfsIter(adj, s) // piece: what s can reach
+    }
+    comp := make([]int, n)
+    for i := range comp {
+        comp[i] = -1
+    }
+    count := 0
+    for v := 0; v < n; v++ {
+        if comp[v] != -1 {
+            continue
+        }
+        for w := 0; w < n; w++ {
+            if comp[w] == -1 && reach[v][w] && reach[w][v] { // mutual reach
+                comp[w] = count
+            }
+        }
+        count++
+    }
+    return comp
 }
 ### kosaraju
 --idea
@@ -2742,6 +3666,64 @@ vector<int> kosaraju(const vector<vector<int>>& adj) {
     }
     return comp;
 }
+--go
+// returns comp[v]; components are numbered 0..k-1 in topological order of the condensation
+func kosaraju(adj [][]int) []int {
+    n := len(adj)
+    seen := make([]bool, n)
+    it := make([]int, n)
+    order := make([]int, 0, n)
+    for s := 0; s < n; s++ { // pass one: finish order
+        if seen[s] {
+            continue
+        }
+        seen[s] = true
+        for st := []int{s}; len(st) > 0; {
+            v := st[len(st)-1]
+            if it[v] < len(adj[v]) {
+                w := adj[v][it[v]]
+                it[v]++
+                if !seen[w] {
+                    seen[w] = true
+                    st = append(st, w)
+                }
+            } else {
+                order = append(order, v) // v is finished
+                st = st[:len(st)-1]
+            }
+        }
+    }
+    radj := make([][]int, n) // reversed graph
+    for v := range adj {
+        for _, w := range adj[v] {
+            radj[w] = append(radj[w], v)
+        }
+    }
+    comp := make([]int, n)
+    for i := range comp {
+        comp[i] = -1
+    }
+    count := 0
+    for i := n - 1; i >= 0; i-- { // pass two: latest finisher first
+        s := order[i]
+        if comp[s] != -1 {
+            continue
+        }
+        comp[s] = count
+        for st := []int{s}; len(st) > 0; {
+            v := st[len(st)-1]
+            st = st[:len(st)-1]
+            for _, w := range radj[v] {
+                if comp[w] == -1 {
+                    comp[w] = count
+                    st = append(st, w)
+                }
+            }
+        }
+        count++
+    }
+    return comp
+}
 ### condense
 --idea
 The condensation of a directed graph shrinks every strongly connected component (SCC, a group of nodes that can all reach each other) into a single node, and keeps an arrow from component A to component B whenever some original arrow goes from a node in A to a node in B. The result is always a DAG (directed acyclic graph): it has no cycles, because a cycle between components would merge them into one.
@@ -2809,6 +3791,34 @@ vector<vector<int>> condense(const vector<vector<int>>& adj, const vector<int>& 
 // the components in an order where every arrow goes forward
 vector<int> condensedOrder(const vector<vector<int>>& adj, const vector<int>& comp, int k) {
     return topoOrder(condense(adj, comp, k));                    // piece: topological order
+}
+--go
+// comp[v] in 0..k-1. Returns the condensation DAG as adjacency lists over component ids.
+func condense(adj [][]int, comp []int, k int) [][]int {
+    sets := make([]map[int]bool, k) // sets drop duplicate arrows
+    for i := range sets {
+        sets[i] = map[int]bool{}
+    }
+    for v := range adj {
+        for _, w := range adj[v] {
+            if comp[v] != comp[w] { // arrow between components
+                sets[comp[v]][comp[w]] = true
+            }
+        }
+    }
+    dag := make([][]int, k)
+    for c, s := range sets {
+        for d := range s {
+            dag[c] = append(dag[c], d)
+        }
+        sort.Ints(dag[c])
+    }
+    return dag
+}
+
+// the components in an order where every arrow goes forward
+func condensedOrder(adj [][]int, comp []int, k int) []int {
+    return topoOrder(condense(adj, comp, k)) // piece: topological order
 }
 ### eulerpath
 --idea
@@ -2889,6 +3899,43 @@ int eulerKind(int n, const vector<pair<int,int>>& edges) {
     vector<bool> seen = dfsIter(adj, start);            // piece: what the edges connect
     for (int v = 0; v < n; v++) if (deg[v] > 0 && !seen[v]) return 0;   // edges not in one piece
     return odd == 0 ? 2 : odd == 2 ? 1 : 0;
+}
+--go
+// undirected multigraph; edges[i] = {u, v}. Returns 2 for a circuit, 1 for a path only, 0 for neither.
+func eulerKind(n int, edges [][2]int) int {
+    adj := make([][]int, n)
+    deg := make([]int, n)
+    for _, e := range edges {
+        adj[e[0]] = append(adj[e[0]], e[1])
+        adj[e[1]] = append(adj[e[1]], e[0])
+        deg[e[0]]++
+        deg[e[1]]++
+    }
+    odd, start := 0, -1
+    for v := 0; v < n; v++ {
+        if deg[v]%2 == 1 {
+            odd++
+        }
+        if deg[v] > 0 && start == -1 {
+            start = v
+        }
+    }
+    if start == -1 { // no edges: the empty walk
+        return 2
+    }
+    seen := dfsIter(adj, start) // piece: what the edges connect
+    for v := 0; v < n; v++ {
+        if deg[v] > 0 && !seen[v] { // edges not in one piece
+            return 0
+        }
+    }
+    switch odd {
+    case 0:
+        return 2
+    case 2:
+        return 1
+    }
+    return 0
 }
 ### hierholzer
 --idea
@@ -3024,6 +4071,60 @@ vector<int> eulerPath(int n, const vector<pair<int,int>>& edges) {
     reverse(path.begin(), path.end());
     return path.size() == edges.size() + 1 ? path : vector<int>();   // edges in two pieces
 }
+--go
+// undirected multigraph; edges[i] = {u, v}. Returns the nodes of an Euler path in order, or nil.
+func eulerPath(n int, edges [][2]int) []int {
+    type arc struct{ to, id int }
+    adj := make([][]arc, n)
+    deg := make([]int, n)
+    for i, e := range edges {
+        adj[e[0]] = append(adj[e[0]], arc{e[1], i})
+        adj[e[1]] = append(adj[e[1]], arc{e[0], i})
+        deg[e[0]]++
+        deg[e[1]]++
+    }
+    odd, start := 0, -1
+    for v := 0; v < n; v++ {
+        if deg[v]%2 == 1 {
+            odd++
+            if start == -1 || deg[start]%2 == 0 {
+                start = v // an odd node must begin the path
+            }
+        } else if deg[v] > 0 && start == -1 {
+            start = v
+        }
+    }
+    if odd != 0 && odd != 2 {
+        return nil
+    }
+    if start == -1 { // no edges at all
+        return []int{0}
+    }
+    used := make([]bool, len(edges))
+    ptr := make([]int, n)
+    var st, path []int
+    push(&st, start) // piece
+    for len(st) > 0 {
+        v := peek(&st) // piece
+        for ptr[v] < len(adj[v]) && used[adj[v][ptr[v]].id] {
+            ptr[v]++
+        }
+        if ptr[v] == len(adj[v]) {
+            path = append(path, pop(&st)) // stuck: v is final
+        } else {
+            e := adj[v][ptr[v]]
+            used[e.id] = true // use the edge in both directions
+            push(&st, e.to)
+        }
+    }
+    if len(path) != len(edges)+1 { // edges in two pieces
+        return nil
+    }
+    for i, j := 0, len(path)-1; i < j; i, j = i+1, j-1 {
+        path[i], path[j] = path[j], path[i]
+    }
+    return path
+}
 ### hamilton
 --idea
 A Hamiltonian path visits every node of a graph exactly once. It is the "visit every city once" puzzle. It sounds close to an Euler path (every edge once, solved easily), but it is far harder: no fast algorithm is known, and the problem is NP-complete, which in practice means that the best known methods take exponential time. So it is only asked on small graphs, usually 20 nodes or fewer.
@@ -3086,6 +4187,25 @@ bool hasHamiltonPath(const vector<vector<int>>& adj) {
                 if (!(mask >> w & 1)) end[mask | (1 << w)] |= 1 << w;   // extend the path to w
     }
     return end[(1 << n) - 1] != 0;
+}
+--go
+// adj[v] lists neighbours (undirected edges appear in both lists). True if a Hamiltonian path exists. n <= 20.
+func hasHamiltonPath(adj [][]int) bool {
+    n := len(adj)
+    end := make([]int, 1<<n) // end[mask]: bitmask of possible last nodes
+    for v := 0; v < n; v++ {
+        end[1<<v] = 1 << v
+    }
+    for mask := 1; mask < 1<<n; mask++ {
+        for _, v := range itemsIn(end[mask], n) { // piece: each possible last node
+            for _, w := range adj[v] {
+                if mask>>w&1 == 0 {
+                    end[mask|1<<w] |= 1 << w // extend the path to w
+                }
+            }
+        }
+    }
+    return end[1<<n-1] != 0
 }
 ### funcgraph
 --idea
@@ -3182,6 +4302,36 @@ pair<int,int> tailAndCycle(const vector<int>& f, int start) {
     int tail = find(path.begin(), path.end(), entry) - path.begin();
     return {tail, (int)path.size() - tail};
 }
+--go
+// f[v] = the node v points to. Returns the walk from start up to (not including) the first repeat.
+// The cycle entry is f[last element]; the tail length is the index of that entry in the list.
+func walkUntilRepeat(f []int, start int) []int {
+    n := len(f)
+    parent := make([]int, n)
+    for i := range parent {
+        parent[i] = -1
+    }
+    seen := make([]bool, n)
+    v, last := start, start
+    for !seen[v] {
+        seen[v] = true
+        last = v
+        if u := f[v]; !seen[u] {
+            parent[u] = v
+        }
+        v = f[v]
+    }
+    return pathTo(parent, last) // piece: start ... last
+}
+
+func tailAndCycle(f []int, start int) (tail, cycle int) {
+    path := walkUntilRepeat(f, start)
+    entry := f[path[len(path)-1]]
+    for path[tail] != entry { // index of the entry node
+        tail++
+    }
+    return tail, len(path) - tail
+}
 ### graphcolor
 --idea
 Graph coloring means giving every node a colour so that no two nodes joined by an edge share a colour. The smallest number of colours that works is the chromatic number. Typical uses: schedule exams so that no student has two at once (nodes are exams, an edge means a shared student, colours are time slots), assign radio frequencies, or fill a map so neighbouring countries differ.
@@ -3260,6 +4410,42 @@ bool placeColor(const vector<vector<int>>& adj, vector<int>& color, int v, int k
 vector<int> kColoring(const vector<vector<int>>& adj, int k) {
     vector<int> color(adj.size(), -1);
     return placeColor(adj, color, 0, k, 0) ? color : vector<int>();
+}
+--go
+// returns color[v] in 0..k-1 using at most k colours, or nil if impossible
+func kColoring(adj [][]int, k int) []int {
+    color := make([]int, len(adj))
+    for i := range color {
+        color[i] = -1
+    }
+    if place(adj, color, 0, k, 0) {
+        return color
+    }
+    return nil
+}
+
+func place(adj [][]int, color []int, v, k, used int) bool {
+    if v == len(adj) {
+        return true
+    }
+    for c := 0; c <= min(used, k-1); c++ { // only one new colour name is tried
+        ok := true
+        for _, w := range adj[v] {
+            if color[w] == c {
+                ok = false
+                break
+            }
+        }
+        if !ok {
+            continue
+        }
+        color[v] = c
+        if place(adj, color, v+1, k, max(used, c+1)) {
+            return true
+        }
+        color[v] = -1 // undo and try the next colour
+    }
+    return false
 }
 ### flow
 --idea
@@ -3366,6 +4552,42 @@ long long maxFlow(vector<vector<long long>>& cap, int s, int t) {
         total += push;
     }
 }
+--go
+// capa[u][v]: capacity. On return capa holds the residual capacities. Returns the maximum flow from s to t.
+func maxFlow(capa [][]int, s, t int) int {
+    if s == t {
+        return 0
+    }
+    n, total := len(capa), 0
+    for {
+        parent := make([]int, n)
+        for i := range parent {
+            parent[i] = -2 // -2 = not reached
+        }
+        parent[s] = -1
+        for q := []int{s}; len(q) > 0 && parent[t] == -2; q = q[1:] {
+            for w := 0; w < n; w++ {
+                if parent[w] == -2 && capa[q[0]][w] > 0 {
+                    parent[w] = q[0]
+                    q = append(q, w)
+                }
+            }
+        }
+        if parent[t] == -2 { // no augmenting path left
+            return total
+        }
+        path := pathTo(parent, t) // piece: s ... t
+        push := 1 << 62
+        for i := 0; i+1 < len(path); i++ {
+            push = min(push, capa[path[i]][path[i+1]])
+        }
+        for i := 0; i+1 < len(path); i++ {
+            capa[path[i]][path[i+1]] -= push // use the forward capacity
+            capa[path[i+1]][path[i]] += push // and allow undoing it
+        }
+        total += push
+    }
+}
 ### mincut
 --idea
 A cut separates the source `s` from the sink `t`: split the nodes into two groups, `S` containing `s` and the rest containing `t`. The capacity of the cut is the total capacity of the edges that go from `S` to the other side. The min cut is the cheapest way to cut every route from `s` to `t`. Picture the cheapest set of roads to close so nobody can drive from `s` to `t`.
@@ -3434,6 +4656,34 @@ vector<pair<int,int>> minCut(const vector<vector<long long>>& cap, int s, int t)
         for (int v = 0; v < n; v++)
             if (dist[u] >= 0 && dist[v] < 0 && cap[u][v] > 0) cut.push_back({u, v});
     return cut;
+}
+--go
+// capa[u][v]: capacities. Returns the cut edges {u, v} of a minimum s-t cut. Uses maxFlow from the flow lesson.
+func minCut(capa [][]int, s, t int) [][2]int {
+    n := len(capa)
+    res := make([][]int, n)
+    for i := range res {
+        res[i] = append([]int(nil), capa[i]...)
+    }
+    maxFlow(res, s, t) // res becomes the residual graph
+    adj := make([][]int, n)
+    for u := range adj {
+        for v := 0; v < n; v++ {
+            if res[u][v] > 0 {
+                adj[u] = append(adj[u], v)
+            }
+        }
+    }
+    dist := bfs(adj, s) // piece: dist >= 0 means reachable from s
+    var cut [][2]int
+    for u := 0; u < n; u++ {
+        for v := 0; v < n; v++ {
+            if dist[u] >= 0 && dist[v] < 0 && capa[u][v] > 0 {
+                cut = append(cut, [2]int{u, v})
+            }
+        }
+    }
+    return cut
 }
 ### matching
 --idea
@@ -3523,6 +4773,33 @@ vector<int> maxMatching(const vector<vector<int>>& adj, int R) {
         augment(adj, u, seen, matchR);
     }
     return matchR;
+}
+--go
+// adj[u]: right nodes that left node u may take; R = number of right nodes.
+// Returns matchR, where matchR[r] is the left node paired with r (or -1).
+func maxMatching(adj [][]int, R int) []int {
+    matchR := make([]int, R)
+    for i := range matchR {
+        matchR[i] = -1
+    }
+    for u := range adj {
+        augment(adj, u, make([]bool, R), matchR) // fresh seen for every start
+    }
+    return matchR
+}
+
+func augment(adj [][]int, u int, seen []bool, matchR []int) bool {
+    for _, r := range adj[u] {
+        if seen[r] {
+            continue
+        }
+        seen[r] = true
+        if matchR[r] == -1 || augment(adj, matchR[r], seen, matchR) { // free, or its owner can move
+            matchR[r] = u
+            return true
+        }
+    }
+    return false
 }
 ### stablematch
 --idea
@@ -3615,6 +4892,34 @@ vector<int> galeShapley(const vector<vector<int>>& pref, const vector<vector<int
         } else enqueue(freeMen, m);                        // turned down: ask the next one
     }
     return wife;
+}
+--go
+// pref[m]: receivers in order of preference (best first); rank[w][m]: how w ranks m (smaller = better).
+// Returns wife[m], the receiver each proposer ends with.
+func galeShapley(pref, rank [][]int) []int {
+    n := len(pref)
+    next, husband, wife := make([]int, n), make([]int, n), make([]int, n)
+    for i := range husband {
+        husband[i] = -1
+    }
+    var free []int
+    for m := 0; m < n; m++ {
+        enqueue(&free, m) // piece
+    }
+    for len(free) > 0 {
+        m := dequeue(&free) // piece
+        w := pref[m][next[m]] // best receiver not asked yet
+        next[m]++
+        if h := husband[w]; h == -1 {
+            husband[w], wife[m] = m, w
+        } else if rank[w][m] < rank[w][h] { // w trades up
+            husband[w], wife[m] = m, w
+            enqueue(&free, h) // the old partner is free again
+        } else {
+            enqueue(&free, m) // turned down: ask the next one
+        }
+    }
+    return wife
 }
 ### johnson
 --idea
@@ -3739,6 +5044,64 @@ vector<vector<long long>> johnson(int n, const vector<array<int,3>>& edges) {
     }
     return res;
 }
+--go
+// edges[i] = {u, v, w}. Returns dist[s][t], or nil if there is a negative cycle. Unreachable = 1<<60.
+func johnson(n int, edges [][3]int) [][]int {
+    const inf = 1 << 60
+    h := make([]int, n) // potentials, all 0 to start
+    par := make([]int, n)
+    for i := range par {
+        par[i] = -1
+    }
+    for round := 0; round < n; round++ { // Bellman-Ford
+        changed := false
+        for _, e := range edges {
+            if relax(h, par, e[0], e[1], e[2]) { // piece
+                changed = true
+            }
+        }
+        if !changed {
+            break
+        }
+        if round == n-1 { // negative cycle
+            return nil
+        }
+    }
+    adj := make([][][2]int, n)
+    for _, e := range edges {
+        adj[e[0]] = append(adj[e[0]], [2]int{e[1], e[2] + h[e[0]] - h[e[1]]}) // now >= 0
+    }
+    res := make([][]int, n)
+    for s := range res { // Dijkstra from every source
+        dist, parent := make([]int, n), make([]int, n)
+        for i := range dist {
+            dist[i], parent[i] = inf, -1
+        }
+        dist[s] = 0
+        pq := newPq()
+        pushPq(pq, 0, s)
+        for len(*pq) > 0 {
+            cur := popPq(pq)
+            v := cur[1]
+            if cur[0] > dist[v] { // stale entry
+                continue
+            }
+            for _, e := range adj[v] {
+                if relax(dist, parent, v, e[0], e[1]) {
+                    pushPq(pq, dist[e[0]], e[0])
+                }
+            }
+        }
+        res[s] = make([]int, n)
+        for t := range res[s] {
+            res[s][t] = inf
+            if dist[t] < inf {
+                res[s][t] = dist[t] - h[s] + h[t] // undo the shift
+            }
+        }
+    }
+    return res
+}
 ### kthpath
 --idea
 The k shortest paths problem asks for the cheapest route, then the second cheapest, then the third, up to the `k`-th, between two nodes. Maps apps show a few alternative routes: that is this problem. A plain shortest path search keeps only the single best arrival at each node and throws the rest away. To find the second best route you must keep the second best arrival as well.
@@ -3812,6 +5175,29 @@ vector<long long> kShortestWalks(const vector<vector<pair<int,int>>>& adj, int s
         for (auto [w, c] : adj[v]) pushPq(pq, d + c, w);
     }
     return answers;
+}
+--go
+// adj[v] holds {neighbour, cost >= 0}; returns the costs of the k cheapest walks from s to t (fewer if not enough exist)
+func kShortestWalks(adj [][][2]int, s, t, k int) []int {
+    cnt := make([]int, len(adj))
+    var answers []int
+    pq := newPq()
+    pushPq(pq, 0, s)
+    for len(*pq) > 0 && len(answers) < k {
+        cur := popPq(pq)
+        v := cur[1]
+        if cnt[v] == k { // k better walks to v are already known
+            continue
+        }
+        cnt[v]++
+        if v == t { // next best walk to the target
+            answers = append(answers, cur[0])
+        }
+        for _, e := range adj[v] {
+            pushPq(pq, cur[0]+e[1], e[0])
+        }
+    }
+    return answers
 }
 ### boruvka
 --idea
@@ -3943,6 +5329,55 @@ long long boruvka(int n, const vector<array<int,3>>& edges) {
         if (!merged) return -1;                                      // no edge leaves any component
     }
     return total;
+}
+--go
+var p, sz []int // the arrays the DSU pieces work on
+// find(x) and union(a, b) come from the code pieces
+
+// edges[i] = {u, v, w}; returns the MST weight, or -1 if the graph is not connected
+func boruvka(n int, edges [][3]int) int {
+    p, sz = make([]int, n), make([]int, n)
+    for i := range p {
+        p[i], sz[i] = i, 1
+    }
+    comps, total := n, 0
+    for comps > 1 {
+        cheapest := make([]int, n)
+        for i := range cheapest {
+            cheapest[i] = -1
+        }
+        for i, e := range edges {
+            ru, rv := find(e[0]), find(e[1]) // piece
+            if ru == rv {                    // inside one component
+                continue
+            }
+            for _, r := range [2]int{ru, rv} {
+                c := cheapest[r]
+                if c == -1 || e[2] < edges[c][2] || (e[2] == edges[c][2] && i < c) {
+                    cheapest[r] = i
+                }
+            }
+        }
+        any := false
+        for r := 0; r < n; r++ {
+            if cheapest[r] == -1 {
+                continue
+            }
+            e := edges[cheapest[r]]
+            ru, rv := find(e[0]), find(e[1]) // piece
+            if ru == rv {                    // joined earlier this round
+                continue
+            }
+            union(ru, rv) // piece
+            total += e[2]
+            comps--
+            any = true
+        }
+        if !any { // no edge leaves any component
+            return -1
+        }
+    }
+    return total
 }
 ### mst2
 --idea
@@ -4084,6 +5519,62 @@ long long secondBestMst(int n, const vector<array<int,3>>& edges) {
     }
     return best == LLONG_MAX ? -1 : best;
 }
+--go
+// edges[i] = {u, v, w}; returns the weight of the second-best spanning tree, or -1 if none exists
+func secondBestMst(n int, edges [][3]int) int {
+    m := len(edges)
+    order := make([]int, m)
+    for i := range order {
+        order[i] = i
+    }
+    sort.Slice(order, func(a, b int) bool { return edges[order[a]][2] < edges[order[b]][2] })
+    parent := make([]int, n)
+    for i := range parent {
+        parent[i] = i
+    }
+    inTree := make([]bool, m)
+    tree := make([][][2]int, n)
+    total, taken := 0, 0
+    for _, i := range order {
+        e := edges[i]
+        ru, rv := findRoot(parent, e[0]), findRoot(parent, e[1]) // find from the mst lesson
+        if ru == rv {
+            continue
+        }
+        parent[ru], inTree[i] = rv, true
+        total += e[2]
+        taken++
+        tree[e[0]] = append(tree[e[0]], [2]int{e[1], e[2]})
+        tree[e[1]] = append(tree[e[1]], [2]int{e[0], e[2]})
+    }
+    if taken != n-1 {
+        return -1
+    }
+    mx := make([][]int, n) // mx[s][t]: heaviest edge on the tree path s..t
+    for s := range mx {
+        mx[s] = make([]int, n)
+        for st := [][2]int{{s, -1}}; len(st) > 0; { // {node, parent}
+            cur := st[len(st)-1]
+            st = st[:len(st)-1]
+            for _, e := range tree[cur[0]] {
+                if e[0] != cur[1] {
+                    mx[s][e[0]] = max(mx[s][cur[0]], e[1])
+                    st = append(st, [2]int{e[0], cur[0]})
+                }
+            }
+        }
+    }
+    best := -1
+    for i, e := range edges {
+        if inTree[i] || e[0] == e[1] {
+            continue
+        }
+        if c := total + e[2] - mx[e[0]][e[1]]; best == -1 || c < best { // swap one edge
+            best = c
+        }
+    }
+    return best
+}
 ### lcatarjan
 --idea
 Tarjan's offline LCA answers many "lowest common ancestor" queries in one depth-first walk of the tree, with a disjoint set union (DSU, a structure that merges groups and finds a group's leader quickly). "Offline" means you know all queries before you start. You read them all, then answer them together while the DFS runs.
@@ -4214,6 +5705,57 @@ vector<int> offlineLca(const vector<vector<int>>& adj, int root, const vector<pa
         }
     }
     return ans;
+}
+--go
+// queries[i] = {a, b}; returns ans[i] = LCA of a and b in the tree rooted at root
+func offlineLca(adj [][]int, root int, queries [][2]int) []int {
+    n := len(adj)
+    type qry struct{ other, id int }
+    qs := make([][]qry, n)
+    for i, q := range queries { // each query is stored at both ends
+        qs[q[0]] = append(qs[q[0]], qry{q[1], i})
+        qs[q[1]] = append(qs[q[1]], qry{q[0], i})
+    }
+    dsu, parent, it := make([]int, n), make([]int, n), make([]int, n)
+    for i := range dsu {
+        dsu[i], parent[i] = i, -1
+    }
+    ans := make([]int, len(queries))
+    visited := make([]bool, n)
+    st := []int{root}
+    for len(st) > 0 {
+        v := st[len(st)-1]
+        if !visited[v] { // entering v for the first time
+            visited[v] = true
+            for _, q := range qs[v] {
+                if visited[q.other] {
+                    ans[q.id] = findSet(dsu, q.other)
+                }
+            }
+        }
+        if it[v] < len(adj[v]) {
+            w := adj[v][it[v]]
+            it[v]++
+            if w != parent[v] {
+                parent[w] = v
+                st = append(st, w)
+            }
+        } else {
+            st = st[:len(st)-1] // v is finished: merge it into its parent
+            if parent[v] != -1 {
+                dsu[v] = parent[v]
+            }
+        }
+    }
+    return ans
+}
+
+func findSet(dsu []int, x int) int {
+    for dsu[x] != x {
+        dsu[x] = dsu[dsu[x]]
+        x = dsu[x]
+    }
+    return x
 }
 ### hld
 --idea
@@ -4385,6 +5927,75 @@ struct Hld {
         return s + query(pos[u], pos[v] + 1);              // piece: same chain now
     }
 };
+--go
+var n int   // number of nodes
+var t []int // segment tree over positions (sums), used by the pieces
+// update(i, v) and query(l, r) come from the code pieces
+
+type Hld struct {
+    parent, depth, head, pos, heavy, size []int
+}
+
+func newHld(adj [][]int, vals []int, root int) *Hld {
+    n = len(adj)
+    h := &Hld{make([]int, n), make([]int, n), make([]int, n), make([]int, n), make([]int, n), make([]int, n)}
+    for i := range h.heavy {
+        h.heavy[i], h.size[i] = -1, 1
+    }
+    h.parent[root] = -1
+    order := []int{root}
+    for i := 0; i < len(order); i++ { // BFS order
+        v := order[i]
+        for _, w := range adj[v] {
+            if w != h.parent[v] {
+                h.parent[w], h.depth[w] = v, h.depth[v]+1
+                order = append(order, w)
+            }
+        }
+    }
+    for i := n - 1; i > 0; i-- { // sizes and heavy children, leaves first
+        v := order[i]
+        p := h.parent[v]
+        h.size[p] += h.size[v]
+        if h.heavy[p] == -1 || h.size[v] > h.size[h.heavy[p]] {
+            h.heavy[p] = v
+        }
+    }
+    cur := 0
+    for _, v := range order { // lay each chain out contiguously
+        if h.parent[v] == -1 || h.heavy[h.parent[v]] != v {
+            for u := v; u != -1; u = h.heavy[u] {
+                h.head[u], h.pos[u] = v, cur
+                cur++
+            }
+        }
+    }
+    t = make([]int, 2*n)
+    for v := 0; v < n; v++ {
+        t[n+h.pos[v]] = vals[v]
+    }
+    for i := n - 1; i >= 1; i-- {
+        t[i] = t[2*i] + t[2*i+1]
+    }
+    return h
+}
+
+func (h *Hld) setValue(v, x int) { update(h.pos[v], x) } // piece: point update
+
+func (h *Hld) pathSum(u, v int) int {
+    s := 0
+    for h.head[u] != h.head[v] {
+        if h.depth[h.head[u]] < h.depth[h.head[v]] { // deeper chain first
+            u, v = v, u
+        }
+        s += query(h.pos[h.head[u]], h.pos[u]+1) // piece: top of the chain down to u
+        u = h.parent[h.head[u]]                  // jump over the chain
+    }
+    if h.depth[u] > h.depth[v] {
+        u, v = v, u
+    }
+    return s + query(h.pos[u], h.pos[v]+1) // piece: same chain now
+}
 ### centroid
 --idea
 A centroid of a tree is a node whose removal leaves no piece with more than half of the nodes. Every tree has one. Centroid decomposition picks the centroid, removes it, and repeats the same thing on each remaining piece. Because each piece has at most half the nodes, the nesting is at most `log n` levels deep. The chosen centroids form a new tree, the centroid tree, of height about `log n`.
@@ -4560,6 +6171,88 @@ struct CentroidNearest {
         return res;
     }
 };
+--go
+const inf = 1_000_000_000
+
+type CentroidNearest struct {
+    anc  [][][2]int // anc[v]: {centroid, distance to it}
+    best []int      // best[c]: distance to the nearest red node in c's piece
+}
+
+func newCentroidNearest(adj [][]int) *CentroidNearest {
+    n := len(adj)
+    cn := &CentroidNearest{anc: make([][][2]int, n), best: make([]int, n)}
+    for i := range cn.best {
+        cn.best[i] = inf
+    }
+    removed := make([]bool, n)
+    par, sz, dist := make([]int, n), make([]int, n), make([]int, n)
+    for work := []int{0}; len(work) > 0; {
+        s := work[len(work)-1]
+        work = work[:len(work)-1]
+        comp := []int{s} // the piece, in discovery order
+        par[s] = -1
+        for i := 0; i < len(comp); i++ {
+            v := comp[i]
+            sz[v] = 1
+            for _, w := range adj[v] {
+                if !removed[w] && w != par[v] {
+                    par[w] = v
+                    comp = append(comp, w)
+                }
+            }
+        }
+        total := len(comp)
+        for i := total - 1; i > 0; i-- {
+            sz[par[comp[i]]] += sz[comp[i]]
+        }
+        c := s
+        for _, v := range comp { // centroid: no part above half
+            big := total - sz[v]
+            for _, w := range adj[v] {
+                if !removed[w] && w != par[v] {
+                    big = max(big, sz[w])
+                }
+            }
+            if big*2 <= total {
+                c = v
+                break
+            }
+        }
+        dist[c], par[c] = 0, -1 // distances from c inside the piece
+        for q := []int{c}; len(q) > 0; q = q[1:] {
+            v := q[0]
+            cn.anc[v] = append(cn.anc[v], [2]int{c, dist[v]})
+            for _, w := range adj[v] {
+                if !removed[w] && w != par[v] {
+                    par[w], dist[w] = v, dist[v]+1
+                    q = append(q, w)
+                }
+            }
+        }
+        removed[c] = true
+        for _, w := range adj[c] {
+            if !removed[w] {
+                work = append(work, w)
+            }
+        }
+    }
+    return cn
+}
+
+func (cn *CentroidNearest) mark(v int) {
+    for _, a := range cn.anc[v] {
+        cn.best[a[0]] = min(cn.best[a[0]], a[1])
+    }
+}
+
+func (cn *CentroidNearest) nearest(v int) int { // inf if nothing is marked
+    res := inf
+    for _, a := range cn.anc[v] {
+        res = min(res, cn.best[a[0]]+a[1])
+    }
+    return res
+}
 ### vtree
 --idea
 A virtual tree (also called an auxiliary tree) is a small tree built from just the `k` nodes you care about, called key nodes, inside a huge rooted tree. It keeps the key nodes plus every lowest common ancestor (LCA, the deepest shared ancestor) of pairs of them, and an edge joins each node to its nearest ancestor that is also in the set. So long chains of unimportant nodes collapse into a single edge, and the virtual tree has fewer than `2k` nodes.
@@ -4643,6 +6336,34 @@ vector<pair<int,int>> virtualTree(const vector<vector<int>>& adj, int root, vect
         st.push_back(v);
     }
     return edges;
+}
+--go
+// uses buildLca/lca from the lca lesson and eulerTour from the euler lesson (build both once for the tree).
+// Returns the edges {parent, child} of the virtual tree of the key nodes.
+func virtualTree(adj [][]int, root int, keys []int) [][2]int {
+    tin, tout, _ := eulerTour(adj, root) // euler lesson: entry and exit times
+    t := buildLca(adj, root)             // piece: LCA by lifting
+    nodes := append([]int(nil), keys...)
+    sort.Slice(nodes, func(a, b int) bool { return tin[nodes[a]] < tin[nodes[b]] })
+    for i := 0; i+1 < len(keys); i++ {
+        nodes = append(nodes, t.lca(nodes[i], nodes[i+1])) // branching points
+    }
+    sort.Slice(nodes, func(a, b int) bool { return tin[nodes[a]] < tin[nodes[b]] }) // sorted by tin
+    var edges [][2]int
+    var st []int
+    for i, v := range nodes {
+        if i > 0 && nodes[i-1] == v { // drop duplicates
+            continue
+        }
+        for len(st) > 0 && !(tin[st[len(st)-1]] <= tin[v] && tin[v] <= tout[st[len(st)-1]]) {
+            st = st[:len(st)-1]
+        }
+        if len(st) > 0 { // nearest ancestor in the set
+            edges = append(edges, [2]int{st[len(st)-1], v})
+        }
+        st = append(st, v)
+    }
+    return edges
 }
 ### treeiso
 --idea
@@ -4757,6 +6478,56 @@ bool treesIsomorphic(const vector<vector<int>>& a, const vector<vector<int>>& b)
     if (a.size() != b.size()) return false;
     map<vector<int>, int> table;                               // shared between both trees
     return signatureOf(a, table) == signatureOf(b, table);
+}
+--go
+// uses treeCenter from the treecenter lesson. True if the two (unrooted) trees have the same shape.
+func treesIsomorphic(a, b [][]int) bool {
+    if len(a) != len(b) {
+        return false
+    }
+    table := map[string]int{} // shared between both trees
+    return signature(a, table) == signature(b, table)
+}
+
+func signature(adj [][]int, table map[string]int) int {
+    best := 1 << 60
+    for _, c := range treeCenter(adj) { // root at each center
+        best = min(best, canon(adj, c, table))
+    }
+    return best
+}
+
+func canon(adj [][]int, root int, table map[string]int) int {
+    n := len(adj)
+    parent, id := make([]int, n), make([]int, n)
+    for i := range parent {
+        parent[i] = -1
+    }
+    order := []int{root}
+    for i := 0; i < len(order); i++ {
+        for _, w := range adj[order[i]] {
+            if w != parent[order[i]] {
+                parent[w] = order[i]
+                order = append(order, w)
+            }
+        }
+    }
+    kids := make([][]int, n)
+    for i := n - 1; i >= 0; i-- { // children before parents
+        v := order[i]
+        sort.Ints(kids[v])
+        key := fmt.Sprint(kids[v]) // a slice cannot be a map key, its text can
+        got, ok := table[key]
+        if !ok {
+            got = len(table)
+            table[key] = got
+        }
+        id[v] = got
+        if parent[v] != -1 {
+            kids[parent[v]] = append(kids[parent[v]], got)
+        }
+    }
+    return id[root]
 }
 ### tarjan
 --idea
@@ -4886,6 +6657,57 @@ vector<int> tarjan(const vector<vector<int>>& adj) {
         }
     }
     return comp;
+}
+--go
+// returns comp[v]; ids are 0..k-1 in reverse topological order of the condensation
+func tarjan(adj [][]int) []int {
+    n, idx, count := len(adj), 0, 0
+    index, low, comp, it := make([]int, n), make([]int, n), make([]int, n), make([]int, n)
+    for i := range index {
+        index[i], comp[i] = -1, -1
+    }
+    onStack := make([]bool, n)
+    var st []int // nodes of unfinished SCCs
+    for s := 0; s < n; s++ {
+        if index[s] != -1 {
+            continue
+        }
+        index[s], low[s] = idx, idx
+        idx++
+        st = append(st, s)
+        onStack[s] = true
+        for call := []int{s}; len(call) > 0; { // the current DFS path
+            v := call[len(call)-1]
+            if it[v] < len(adj[v]) {
+                w := adj[v][it[v]]
+                it[v]++
+                if index[w] == -1 {
+                    index[w], low[w] = idx, idx
+                    idx++
+                    st = append(st, w)
+                    onStack[w] = true
+                    call = append(call, w)
+                } else if onStack[w] { // edge back into the stack
+                    low[v] = min(low[v], index[w])
+                }
+            } else {
+                call = call[:len(call)-1]
+                if low[v] == index[v] { // v is the root of an SCC
+                    for w := -1; w != v; {
+                        w = st[len(st)-1]
+                        st = st[:len(st)-1]
+                        onStack[w], comp[w] = false, count
+                    }
+                    count++
+                }
+                if len(call) > 0 {
+                    p := call[len(call)-1]
+                    low[p] = min(low[p], low[v])
+                }
+            }
+        }
+    }
+    return comp
 }
 ### bridges
 --idea
@@ -5040,6 +6862,70 @@ void bridgesAndCutPoints(int n, const vector<pair<int,int>>& edges, vector<int>&
     }
     for (int v = 0; v < n; v++) if (cut[v]) cuts.push_back(v);
     sort(bridges.begin(), bridges.end());
+}
+--go
+// edges[i] = {u, v}. Returns the bridge edge ids and the cut point nodes, each sorted.
+func bridgesAndCutPoints(n int, edges [][2]int) (bridges, cuts []int) {
+    type arc struct{ to, id int }
+    adj := make([][]arc, n)
+    for i, e := range edges {
+        adj[e[0]] = append(adj[e[0]], arc{e[1], i})
+        adj[e[1]] = append(adj[e[1]], arc{e[0], i})
+    }
+    tin, low, pe, it, children := make([]int, n), make([]int, n), make([]int, n), make([]int, n), make([]int, n)
+    for i := range tin {
+        tin[i], pe[i] = -1, -1
+    }
+    cut := make([]bool, n)
+    timer := 0
+    for s := 0; s < n; s++ {
+        if tin[s] != -1 {
+            continue
+        }
+        tin[s], low[s] = timer, timer
+        timer++
+        for call := []int{s}; len(call) > 0; {
+            v := call[len(call)-1]
+            if it[v] < len(adj[v]) {
+                e := adj[v][it[v]]
+                it[v]++
+                if e.id == pe[v] { // the edge we came by
+                    continue
+                }
+                if tin[e.to] == -1 { // tree edge: go down
+                    pe[e.to], tin[e.to], low[e.to] = e.id, timer, timer
+                    timer++
+                    call = append(call, e.to)
+                } else { // back edge
+                    low[v] = min(low[v], tin[e.to])
+                }
+            } else {
+                call = call[:len(call)-1]
+                if len(call) == 0 { // v was the root
+                    continue
+                }
+                p := call[len(call)-1]
+                low[p] = min(low[p], low[v])
+                children[p]++
+                if low[v] > tin[p] { // nothing climbs past this edge
+                    bridges = append(bridges, pe[v])
+                }
+                if low[v] >= tin[p] && pe[p] != -1 { // p is not the root
+                    cut[p] = true
+                }
+            }
+        }
+        if children[s] >= 2 { // root rule
+            cut[s] = true
+        }
+    }
+    for v := 0; v < n; v++ {
+        if cut[v] {
+            cuts = append(cuts, v)
+        }
+    }
+    sort.Ints(bridges)
+    return
 }
 ### bcc
 --idea
@@ -5206,6 +7092,65 @@ vector<vector<int>> biconnected(int n, const vector<pair<int,int>>& edges) {
     }
     return blocks;
 }
+--go
+// edges[i] = {u, v}. Returns the blocks, each a list of edge ids.
+func biconnected(n int, edges [][2]int) [][]int {
+    type arc struct{ to, id int }
+    adj := make([][]arc, n)
+    for i, e := range edges {
+        adj[e[0]] = append(adj[e[0]], arc{e[1], i})
+        adj[e[1]] = append(adj[e[1]], arc{e[0], i})
+    }
+    tin, low, pe, it := make([]int, n), make([]int, n), make([]int, n), make([]int, n)
+    for i := range tin {
+        tin[i], pe[i] = -1, -1
+    }
+    var st []int // stack of edge ids
+    var blocks [][]int
+    timer := 0
+    for s := 0; s < n; s++ {
+        if tin[s] != -1 {
+            continue
+        }
+        tin[s], low[s] = timer, timer
+        timer++
+        for call := []int{s}; len(call) > 0; {
+            v := call[len(call)-1]
+            if it[v] < len(adj[v]) {
+                e := adj[v][it[v]]
+                it[v]++
+                if e.id == pe[v] {
+                    continue
+                }
+                if tin[e.to] == -1 { // tree edge
+                    pe[e.to], tin[e.to], low[e.to] = e.id, timer, timer
+                    timer++
+                    push(&st, e.id) // piece
+                    call = append(call, e.to)
+                } else if tin[e.to] < tin[v] { // edge up to an ancestor
+                    push(&st, e.id)
+                    low[v] = min(low[v], tin[e.to])
+                }
+            } else {
+                call = call[:len(call)-1]
+                if len(call) == 0 {
+                    continue
+                }
+                p := call[len(call)-1]
+                low[p] = min(low[p], low[v])
+                if low[v] >= tin[p] { // p closes a block
+                    var block []int
+                    for id := -1; id != pe[v]; {
+                        id = pop(&st) // piece
+                        block = append(block, id)
+                    }
+                    blocks = append(blocks, block)
+                }
+            }
+        }
+    }
+    return blocks
+}
 ### twosat
 --idea
 2-SAT asks: given yes-or-no variables and a list of conditions that each involve two of them ("`a` or `b`", "not `a` or `c`", and so on), can every condition be true at once? It is the easy cousin of general satisfiability: with two choices per clause there is a fast exact algorithm, while with three it becomes NP-hard.
@@ -5278,6 +7223,25 @@ vector<char> twoSat(int n, const vector<pair<int,int>>& clauses) {
     }
     return value;
 }
+--go
+// n variables; literal 2x = "x is true", 2x+1 = "x is false". clauses[i] = {a, b} means (a OR b).
+// Uses kosaraju from the kosaraju lesson. Returns the assignment, or nil if unsatisfiable.
+func twoSat(n int, clauses [][2]int) []bool {
+    adj := make([][]int, 2*n)
+    for _, c := range clauses {
+        adj[c[0]^1] = append(adj[c[0]^1], c[1]) // not a -> b
+        adj[c[1]^1] = append(adj[c[1]^1], c[0]) // not b -> a
+    }
+    comp := kosaraju(adj) // ids in topological order
+    value := make([]bool, n)
+    for x := 0; x < n; x++ {
+        if comp[2*x] == comp[2*x+1] { // x and not-x imply each other
+            return nil
+        }
+        value[x] = comp[2*x] > comp[2*x+1] // pick the literal that comes later
+    }
+    return value
+}
 ### dinic
 --idea
 Dinic's algorithm computes maximum flow (see `flow`) much faster than finding one path at a time. It works in phases. In each phase it first runs a BFS from the source over edges that still have spare capacity and labels every node with its level, the number of edges from the source. Then it sends flow only along edges that go from level `d` to level `d + 1`, which is called the level graph. It keeps pushing along such paths until no more can be pushed in this level graph (a blocking flow), then starts a new phase.
@@ -5345,6 +7309,7 @@ static class Dinic {
     }
 
     long maxFlow(int s, int t) {
+        if (s == t) return 0;                           // otherwise the first path is endless
         long total = 0;
         while (bfs(s, t)) {                             // one phase per BFS
             Arrays.fill(it, 0);
@@ -5453,6 +7418,80 @@ struct Dinic {
         return total;
     }
 };
+--go
+type Dinic struct {
+    n, cnt int
+    to     []int
+    capa   []int
+    level  []int
+    it     []int
+    g      [][]int // g[v]: ids of edges leaving v
+}
+
+func newDinic(n, maxEdges int) *Dinic { // room for maxEdges edges plus their reverses
+    return &Dinic{n: n, to: make([]int, 2*maxEdges), capa: make([]int, 2*maxEdges),
+        level: make([]int, n), it: make([]int, n), g: make([][]int, n)}
+}
+
+func (d *Dinic) addEdge(u, v, c int) {
+    d.g[u] = append(d.g[u], d.cnt) // forward edge, even index
+    d.to[d.cnt], d.capa[d.cnt] = v, c
+    d.cnt++
+    d.g[v] = append(d.g[v], d.cnt) // reverse edge, index xor 1
+    d.to[d.cnt], d.capa[d.cnt] = u, 0
+    d.cnt++
+}
+
+func (d *Dinic) bfs(s, t int) bool { // levels over edges with spare capacity
+    for i := range d.level {
+        d.level[i] = -1
+    }
+    d.level[s] = 0
+    for q := []int{s}; len(q) > 0; q = q[1:] {
+        v := q[0]
+        for _, e := range d.g[v] {
+            if d.capa[e] > 0 && d.level[d.to[e]] < 0 {
+                d.level[d.to[e]] = d.level[v] + 1
+                q = append(q, d.to[e])
+            }
+        }
+    }
+    return d.level[t] >= 0
+}
+
+func (d *Dinic) dfs(v, t, f int) int { // push one path along the level graph
+    if v == t {
+        return f
+    }
+    for ; d.it[v] < len(d.g[v]); d.it[v]++ { // current-edge pointer: never retry a dead edge
+        e := d.g[v][d.it[v]]
+        w := d.to[e]
+        if d.capa[e] > 0 && d.level[w] == d.level[v]+1 {
+            if x := d.dfs(w, t, min(f, d.capa[e])); x > 0 {
+                d.capa[e] -= x
+                d.capa[e^1] += x
+                return x
+            }
+        }
+    }
+    return 0
+}
+
+func (d *Dinic) maxFlow(s, t int) int {
+    if s == t { // otherwise the first path is endless
+        return 0
+    }
+    total := 0
+    for d.bfs(s, t) { // one phase per BFS
+        for i := range d.it {
+            d.it[i] = 0
+        }
+        for f := d.dfs(s, t, 1<<62); f > 0; f = d.dfs(s, t, 1<<62) {
+            total += f
+        }
+    }
+    return total
+}
 ### pushrelabel
 --idea
 Push-relabel computes maximum flow in a different style from augmenting paths. Instead of finding a whole path from the source to the sink, it works locally. It first floods: every edge out of the source is filled to capacity, so the neighbours of the source hold extra material, called excess. Then nodes with excess try to pass it on, one edge at a time, and the material gradually moves toward the sink.
@@ -5591,6 +7630,64 @@ long long pushRelabel(vector<vector<long long>> res, int s, int t) {
         }
     }
     return ex[t];
+}
+--go
+// capa[u][v]: capacity. Returns the maximum flow from s to t. The table is not modified.
+func pushRelabel(capa [][]int, s, t int) int {
+    n := len(capa)
+    if s == t {
+        return 0
+    }
+    res := make([][]int, n)
+    for i := range res {
+        res[i] = append([]int(nil), capa[i]...)
+    }
+    h, ex := make([]int, n), make([]int, n)
+    active := make([]bool, n)
+    var q []int
+    h[s] = n
+    for v := 0; v < n; v++ { // preflow: saturate every edge out of s
+        c := res[s][v]
+        if c <= 0 {
+            continue
+        }
+        res[s][v] -= c
+        res[v][s] += c
+        ex[v] += c
+        if v != t && v != s && !active[v] {
+            enqueue(&q, v) // piece
+            active[v] = true
+        }
+    }
+    for len(q) > 0 {
+        u := dequeue(&q) // piece
+        active[u] = false
+        for ex[u] > 0 {
+            for v := 0; v < n && ex[u] > 0; v++ {
+                if res[u][v] > 0 && h[u] == h[v]+1 { // push downhill
+                    d := min(ex[u], res[u][v])
+                    res[u][v] -= d
+                    res[v][u] += d
+                    ex[u] -= d
+                    ex[v] += d
+                    if v != s && v != t && !active[v] {
+                        enqueue(&q, v)
+                        active[v] = true
+                    }
+                }
+            }
+            if ex[u] > 0 { // stuck: relabel
+                low := 1 << 62
+                for v := 0; v < n; v++ {
+                    if res[u][v] > 0 {
+                        low = min(low, h[v])
+                    }
+                }
+                h[u] = low + 1
+            }
+        }
+    }
+    return ex[t]
 }
 ### mcmf
 --idea
@@ -5756,6 +7853,67 @@ struct MinCostFlow {
         }
     }
 };
+--go
+type MinCostFlow struct {
+    n, cnt     int
+    to         []int
+    capa, cost []int
+    g          [][]int // g[v]: ids of edges leaving v
+}
+
+func newMinCostFlow(n, maxEdges int) *MinCostFlow {
+    return &MinCostFlow{n: n, to: make([]int, 2*maxEdges), capa: make([]int, 2*maxEdges),
+        cost: make([]int, 2*maxEdges), g: make([][]int, n)}
+}
+
+func (m *MinCostFlow) addEdge(u, v, c, w int) {
+    m.g[u] = append(m.g[u], m.cnt) // forward edge
+    m.to[m.cnt], m.capa[m.cnt], m.cost[m.cnt] = v, c, w
+    m.cnt++
+    m.g[v] = append(m.g[v], m.cnt) // reverse edge refunds
+    m.to[m.cnt], m.capa[m.cnt], m.cost[m.cnt] = u, 0, -w
+    m.cnt++
+}
+
+// returns max flow and min cost
+func (m *MinCostFlow) run(s, t int) (flow, total int) {
+    const inf = 1 << 60
+    for {
+        dist, parent, pe := make([]int, m.n), make([]int, m.n), make([]int, m.n)
+        for i := range dist {
+            dist[i], parent[i], pe[i] = inf, -1, -1
+        }
+        inQ := make([]bool, m.n)
+        dist[s], inQ[s] = 0, true
+        for q := []int{s}; len(q) > 0; { // SPFA over the residual graph
+            u := q[0]
+            q = q[1:]
+            inQ[u] = false
+            for _, e := range m.g[u] {
+                if m.capa[e] > 0 && relax(dist, parent, u, m.to[e], m.cost[e]) { // piece
+                    pe[m.to[e]] = e
+                    if !inQ[m.to[e]] {
+                        q = append(q, m.to[e])
+                        inQ[m.to[e]] = true
+                    }
+                }
+            }
+        }
+        if dist[t] >= inf { // no augmenting path left
+            return
+        }
+        f := inf
+        for v := t; v != s; v = parent[v] {
+            f = min(f, m.capa[pe[v]])
+        }
+        for v := t; v != s; v = parent[v] {
+            m.capa[pe[v]] -= f
+            m.capa[pe[v]^1] += f
+        }
+        flow += f
+        total += f * dist[t]
+    }
+}
 ### lowerflow
 --idea
 In an ordinary flow, an edge can carry anywhere from 0 up to its capacity. With lower bounds, every edge `(u, v)` has a minimum `lo` and a maximum `hi`: it must carry at least `lo`. Examples: a road that must be used by at least 10 trucks, a machine that must run at least 3 shifts, a pipe with a minimum flow so it does not freeze. The question is whether any valid flow exists at all (feasibility), and then you can optimise inside it.
@@ -5840,6 +7998,32 @@ bool feasibleFlow(int n, const vector<array<int,4>>& edges, int s, int t) {
         else if (excess[v] < 0) d.addEdge(v, TT, -excess[v]);
     }
     return d.maxFlow(SS, TT) == need;                  // every supply edge saturated
+}
+--go
+// edges[i] = {u, v, lo, hi}. s < 0 asks for a circulation, otherwise for any s-t flow. Uses Dinic from the dinic lesson.
+func feasibleFlow(n int, edges [][4]int, s, t int) bool {
+    const inf = 1 << 60
+    SS, TT := n, n+1
+    d := newDinic(n+2, len(edges)+n+1)
+    excess := make([]int, n)
+    for _, e := range edges {
+        d.addEdge(e[0], e[1], e[3]-e[2]) // what is left after the forced lo
+        excess[e[1]] += e[2]
+        excess[e[0]] -= e[2]
+    }
+    if s >= 0 {
+        d.addEdge(t, s, inf) // turn the s-t flow into a circulation
+    }
+    need := 0
+    for v, x := range excess {
+        if x > 0 {
+            d.addEdge(SS, v, x)
+            need += x
+        } else if x < 0 {
+            d.addEdge(v, TT, -x)
+        }
+    }
+    return d.maxFlow(SS, TT) == need // every supply edge saturated
 }
 ### hopcroft
 --idea
@@ -5989,6 +8173,63 @@ vector<int> hopcroftKarp(const vector<vector<int>>& adj, int R) {
             if (matchL[u] == -1) hkDfs(adj, u, matchL, matchR, dist);
     return matchR;
 }
+--go
+// adj[u]: right nodes that left node u may take; R = number of right nodes.
+// Returns matchR, where matchR[r] is the left node paired with r (or -1).
+func hopcroftKarp(adj [][]int, R int) []int {
+    L := len(adj)
+    matchL, matchR, dist := make([]int, L), make([]int, R), make([]int, L)
+    for i := range matchL {
+        matchL[i] = -1
+    }
+    for i := range matchR {
+        matchR[i] = -1
+    }
+    for hkBfs(adj, matchL, matchR, dist) { // one round per BFS
+        for u := 0; u < L; u++ {
+            if matchL[u] == -1 {
+                hkDfs(adj, u, matchL, matchR, dist)
+            }
+        }
+    }
+    return matchR
+}
+
+func hkBfs(adj [][]int, matchL, matchR, dist []int) bool {
+    var q []int
+    for u := range adj {
+        dist[u] = -1
+        if matchL[u] == -1 { // layer 0: free left nodes
+            dist[u] = 0
+            q = append(q, u)
+        }
+    }
+    found := false
+    for ; len(q) > 0; q = q[1:] {
+        u := q[0]
+        for _, r := range adj[u] {
+            if w := matchR[r]; w == -1 { // a free right node is reachable
+                found = true
+            } else if dist[w] == -1 {
+                dist[w] = dist[u] + 1
+                q = append(q, w)
+            }
+        }
+    }
+    return found
+}
+
+func hkDfs(adj [][]int, u int, matchL, matchR, dist []int) bool {
+    for _, r := range adj[u] {
+        w := matchR[r]
+        if w == -1 || (dist[w] == dist[u]+1 && hkDfs(adj, w, matchL, matchR, dist)) {
+            matchL[u], matchR[r] = r, u // flip the path
+            return true
+        }
+    }
+    dist[u] = -1 // dead end for the rest of this round
+    return false
+}
 ### hungarian
 --idea
 The assignment problem: there are `n` workers and `m` jobs (`n <= m`), and a table `cost[i][j]` says what it costs to give job `j` to worker `i`. Give every worker exactly one different job so that the total cost is as small as possible. Trying all assignments takes `n!` steps, hopeless beyond about ten workers. The Hungarian algorithm solves it in `n` cubed steps.
@@ -6124,6 +8365,60 @@ pair<long long, vector<int>> hungarian(const vector<vector<long long>>& cost) {
     vector<int> assign(n);
     for (int j = 1; j <= m; j++) if (p[j]) assign[p[j] - 1] = j - 1;
     return {-v[0], assign};
+}
+--go
+// cost[i][j] for n workers and m jobs, n <= m. Returns {total cost, job of worker 0, job of worker 1, ...}.
+func hungarian(cost [][]int) []int {
+    const inf = 1 << 60
+    n, m := len(cost), len(cost[0])
+    u, v := make([]int, n+1), make([]int, m+1)
+    p, way := make([]int, m+1), make([]int, m+1)
+    for i := 1; i <= n; i++ {
+        p[0] = i
+        j0 := 0
+        minv := make([]int, m+1)
+        used := make([]bool, m+1)
+        for j := range minv {
+            minv[j] = inf
+        }
+        for ok := true; ok; ok = p[j0] != 0 {
+            used[j0] = true
+            i0, j1, delta := p[j0], 0, inf
+            for j := 1; j <= m; j++ {
+                if used[j] {
+                    continue
+                }
+                if cur := cost[i0-1][j-1] - u[i0] - v[j]; cur < minv[j] { // slack of the pair
+                    minv[j], way[j] = cur, j0
+                }
+                if minv[j] < delta {
+                    delta, j1 = minv[j], j
+                }
+            }
+            for j := 0; j <= m; j++ { // raise prices
+                if used[j] {
+                    u[p[j]] += delta
+                    v[j] -= delta
+                } else {
+                    minv[j] -= delta
+                }
+            }
+            j0 = j1
+        }
+        for ok := true; ok; ok = j0 != 0 { // augment along the path
+            j1 := way[j0]
+            p[j0] = p[j1]
+            j0 = j1
+        }
+    }
+    res := make([]int, n+1)
+    res[0] = -v[0]
+    for j := 1; j <= m; j++ {
+        if p[j] != 0 {
+            res[p[j]] = j - 1
+        }
+    }
+    return res
 }
 ### blossom
 --idea
@@ -6383,6 +8678,108 @@ struct Blossom {
         return match;
     }
 };
+--go
+type Blossom struct {
+    n                int
+    adj              [][]int
+    match, p, base   []int
+    used, blossom    []bool
+}
+
+func newBlossom(adj [][]int) *Blossom {
+    n := len(adj)
+    b := &Blossom{n: n, adj: adj, match: make([]int, n), p: make([]int, n), base: make([]int, n),
+        used: make([]bool, n), blossom: make([]bool, n)}
+    for i := range b.match {
+        b.match[i] = -1
+    }
+    return b
+}
+
+func (b *Blossom) lca(x, y int) int { // lowest common base of two outer nodes
+    seen := make([]bool, b.n)
+    for {
+        x = b.base[x]
+        seen[x] = true
+        if b.match[x] == -1 {
+            break
+        }
+        x = b.p[b.match[x]]
+    }
+    for {
+        y = b.base[y]
+        if seen[y] {
+            return y
+        }
+        y = b.p[b.match[y]]
+    }
+}
+
+func (b *Blossom) markPath(v, bs, child int) { // mark the cycle from v up to base bs
+    for b.base[v] != bs {
+        b.blossom[b.base[v]], b.blossom[b.base[b.match[v]]] = true, true
+        b.p[v] = child
+        child = b.match[v]
+        v = b.p[b.match[v]]
+    }
+}
+
+func (b *Blossom) findPath(root int) int {
+    for i := 0; i < b.n; i++ {
+        b.used[i], b.p[i], b.base[i] = false, -1, i
+    }
+    b.used[root] = true
+    var q []int
+    enqueue(&q, root) // piece: queue of outer nodes
+    for len(q) > 0 {
+        v := dequeue(&q)
+        for _, to := range b.adj[v] {
+            if b.base[v] == b.base[to] || b.match[v] == to {
+                continue
+            }
+            if to == root || (b.match[to] != -1 && b.p[b.match[to]] != -1) { // odd cycle: contract
+                cb := b.lca(v, to)
+                for i := range b.blossom {
+                    b.blossom[i] = false
+                }
+                b.markPath(v, cb, to)
+                b.markPath(to, cb, v)
+                for i := 0; i < b.n; i++ {
+                    if b.blossom[b.base[i]] {
+                        b.base[i] = cb
+                        if !b.used[i] {
+                            b.used[i] = true
+                            enqueue(&q, i)
+                        }
+                    }
+                }
+            } else if b.p[to] == -1 {
+                b.p[to] = v
+                if b.match[to] == -1 { // augmenting path found
+                    return to
+                }
+                b.used[b.match[to]] = true
+                enqueue(&q, b.match[to])
+            }
+        }
+    }
+    return -1
+}
+
+func (b *Blossom) solve() []int { // match[v] = partner or -1
+    for i := 0; i < b.n; i++ {
+        if b.match[i] != -1 {
+            continue
+        }
+        for v := b.findPath(i); v != -1; { // flip the augmenting path
+            pv := b.p[v]
+            ppv := b.match[pv]
+            b.match[v], b.match[pv] = pv, v
+            v = ppv
+        }
+    }
+    return b.match
+}
 ### dominator
 --idea
 In a directed graph with a start node `root` (think of the entry of a program), a node `d` dominates a node `v` if every path from the root to `v` passes through `d`. Every node dominates itself. If you imagine the root as the entrance to a building and `v` as a room, the dominators of `v` are the doors you cannot avoid on the way. Compilers use this to find loops and to place code.
@@ -6540,6 +8937,71 @@ vector<int> dominators(const vector<vector<int>>& adj, int root) {
     }
     idom[root] = -1;
     return idom;
+}
+--go
+// adj is a directed graph; returns idom[v] (-1 for the root and for unreachable nodes)
+func dominators(adj [][]int, root int) []int {
+    n := len(adj)
+    post, it := make([]int, n), make([]int, n)
+    var order []int // nodes in finish order
+    seen := make([]bool, n)
+    seen[root] = true
+    for st := []int{root}; len(st) > 0; {
+        v := st[len(st)-1]
+        if it[v] < len(adj[v]) {
+            w := adj[v][it[v]]
+            it[v]++
+            if !seen[w] {
+                seen[w] = true
+                st = append(st, w)
+            }
+        } else {
+            post[v] = len(order)
+            order = append(order, v)
+            st = st[:len(st)-1]
+        }
+    }
+    pred := make([][]int, n)
+    for v := range adj {
+        for _, w := range adj[v] {
+            pred[w] = append(pred[w], v)
+        }
+    }
+    idom := make([]int, n)
+    for i := range idom {
+        idom[i] = -1
+    }
+    idom[root] = root
+    for changed := true; changed; {
+        changed = false
+        for i := len(order) - 2; i >= 0; i-- { // reverse postorder, skipping the root
+            v, cand := order[i], -1
+            for _, q := range pred[v] {
+                if idom[q] == -1 { // predecessor not processed yet
+                    continue
+                }
+                if cand == -1 {
+                    cand = q
+                    continue
+                }
+                a, b := q, cand // intersect: climb to the common ancestor
+                for a != b {
+                    for post[a] < post[b] {
+                        a = idom[a]
+                    }
+                    for post[b] < post[a] {
+                        b = idom[b]
+                    }
+                }
+                cand = a
+            }
+            if idom[v] != cand {
+                idom[v], changed = cand, true
+            }
+        }
+    }
+    idom[root] = -1
+    return idom
 }
 ### dynconn
 --idea
@@ -6753,6 +9215,91 @@ struct OfflineConn {
         return ans;
     }
 };
+--go
+// events[i] = {kind, u, v}: kind 0 = add edge, 1 = delete edge, 2 = query. Returns the answers to the queries in order.
+func offlineConnectivity(n int, events [][3]int) []bool {
+    T := len(events)
+    seg := make([][][2]int, 4*max(T, 1))
+    open := map[int][]int{} // edge -> start times still alive
+    for t, e := range events {
+        u, v := min(e[1], e[2]), max(e[1], e[2])
+        key := u*n + v
+        if e[0] == 0 {
+            open[key] = append(open[key], t)
+        } else if e[0] == 1 {
+            addInterval(seg, 1, 0, T, open[key][0], t, [2]int{u, v})
+            open[key] = open[key][1:]
+        }
+    }
+    for key, starts := range open {
+        for _, s := range starts {
+            addInterval(seg, 1, 0, T, s, T, [2]int{key / n, key % n})
+        }
+    }
+    parent, size := make([]int, n), make([]int, n)
+    for i := range parent {
+        parent[i], size[i] = i, 1
+    }
+    var ans []bool
+    var hist []int
+    var walk func(node, l, r int)
+    walk = func(node, l, r int) {
+        if l >= r {
+            return
+        }
+        mark := len(hist)
+        for _, e := range seg[node] { // unite, remembering how to undo
+            a, b := findRb(parent, e[0]), findRb(parent, e[1])
+            if a == b {
+                continue
+            }
+            if size[a] < size[b] {
+                a, b = b, a
+            }
+            parent[b] = a
+            size[a] += size[b]
+            hist = append(hist, b)
+        }
+        if r-l == 1 {
+            if events[l][0] == 2 {
+                ans = append(ans, findRb(parent, events[l][1]) == findRb(parent, events[l][2]))
+            }
+        } else {
+            mid := (l + r) / 2
+            walk(2*node, l, mid)
+            walk(2*node+1, mid, r)
+        }
+        for len(hist) > mark { // undo this node's unions
+            b := hist[len(hist)-1]
+            hist = hist[:len(hist)-1]
+            a := parent[b]
+            size[a] -= size[b]
+            parent[b] = b
+        }
+    }
+    walk(1, 0, T)
+    return ans
+}
+
+func addInterval(seg [][][2]int, node, l, r, ql, qr int, edge [2]int) {
+    if qr <= l || r <= ql {
+        return
+    }
+    if ql <= l && r <= qr { // node range fully inside the interval
+        seg[node] = append(seg[node], edge)
+        return
+    }
+    mid := (l + r) / 2
+    addInterval(seg, 2*node, l, mid, ql, qr, edge)
+    addInterval(seg, 2*node+1, mid, r, ql, qr, edge)
+}
+
+func findRb(parent []int, x int) int { // no compression
+    for parent[x] != x {
+        x = parent[x]
+    }
+    return x
+}
 ### arbor
 --idea
 A spanning tree of an undirected graph connects all nodes with no cycle. In a directed graph, the matching idea is a minimum arborescence: a tree rooted at a chosen node `root` in which every other node can be reached from the root by following the arrows, so every non-root node has exactly one incoming edge. The cheapest one answers questions like "what is the cheapest way to broadcast from a headquarters when links are one-way". Kruskal's greedy method does not work here, because direction matters.
@@ -6887,6 +9434,67 @@ long long minArborescence(int n, vector<array<long long,3>> edges, int root) {
     }
     return res;
 }
+--go
+// edges[i] = {u, v, w} means u -> v. Returns the minimum cost of an arborescence rooted at root, or -1.
+func minArborescence(n int, edges [][3]int, root int) int {
+    const inf = 1 << 60
+    es := append([][3]int(nil), edges...)
+    res := 0
+    for {
+        inw, pre := make([]int, n), make([]int, n)
+        for i := range inw {
+            inw[i] = inf
+        }
+        for _, e := range es { // cheapest incoming edge per node
+            if e[0] != e[1] && e[2] < inw[e[1]] {
+                inw[e[1]], pre[e[1]] = e[2], e[0]
+            }
+        }
+        for v := 0; v < n; v++ {
+            if v != root && inw[v] == inf {
+                return -1
+            }
+        }
+        cnt := 0
+        id, vis := make([]int, n), make([]int, n)
+        for i := range id {
+            id[i], vis[i] = -1, -1
+        }
+        inw[root] = 0
+        for v := 0; v < n; v++ {
+            res += inw[v]
+            x := v
+            for x != root && vis[x] != v && id[x] == -1 {
+                vis[x] = v
+                x = pre[x]
+            }
+            if x != root && id[x] == -1 { // found a new cycle through x
+                for y := pre[x]; y != x; y = pre[y] {
+                    id[y] = cnt
+                }
+                id[x] = cnt
+                cnt++
+            }
+        }
+        if cnt == 0 { // no cycles: done
+            break
+        }
+        for v := 0; v < n; v++ {
+            if id[v] == -1 { // lone nodes keep their own number
+                id[v] = cnt
+                cnt++
+            }
+        }
+        var next [][3]int
+        for _, e := range es {
+            if nu, nv := id[e[0]], id[e[1]]; nu != nv {
+                next = append(next, [3]int{nu, nv, e[2] - inw[e[1]]}) // reduced weight
+            }
+        }
+        es, n, root = next, cnt, id[root]
+    }
+    return res
+}
 ### gomory
 --idea
 Between every pair of nodes in an undirected network there is a minimum cut (the cheapest set of edges whose removal separates the two, see `mincut`). With `n` nodes there are about `n squared / 2` pairs, and computing each by its own max flow would be slow. The Gomory-Hu tree stores all of them in a tree with only `n - 1` edges: the minimum cut between any two nodes `u` and `v` equals the smallest edge weight on the tree path between them.
@@ -7013,6 +9621,52 @@ long long pairMinCut(const vector<int>& parent, const vector<long long>& weight,
     }
     return best;
 }
+--go
+// capa[u][v] = capa[v][u]: undirected capacities. Uses maxFlow from the flow lesson.
+// Returns parent and weight: tree edge (i, parent[i]) has weight[i], for i >= 1.
+func gomoryHu(capa [][]int) (parent, weight []int) {
+    n := len(capa)
+    parent, weight = make([]int, n), make([]int, n)
+    for i := 1; i < n; i++ {
+        res := make([][]int, n)
+        for u := range res {
+            res[u] = append([]int(nil), capa[u]...)
+        }
+        weight[i] = maxFlow(res, i, parent[i]) // min cut between i and its parent
+        adj := make([][]int, n)
+        for u := range adj {
+            for v := 0; v < n; v++ {
+                if res[u][v] > 0 {
+                    adj[u] = append(adj[u], v)
+                }
+            }
+        }
+        dist := bfs(adj, i) // piece: dist >= 0 means on i's side
+        for j := i + 1; j < n; j++ {
+            if dist[j] >= 0 && parent[j] == parent[i] {
+                parent[j] = i
+            }
+        }
+    }
+    return
+}
+
+// minimum cut between u and v, read off the tree
+func pairMinCut(parent, weight []int, u, v int) int {
+    depth := make([]int, len(parent))
+    for j := 1; j < len(parent); j++ {
+        depth[j] = depth[parent[j]] + 1 // parent[j] < j
+    }
+    best := 1 << 60
+    for u != v {
+        if depth[u] < depth[v] {
+            u, v = v, u
+        }
+        best = min(best, weight[u])
+        u = parent[u]
+    }
+    return best
+}
 ### clique
 --idea
 A clique is a group of nodes in which every pair is joined by an edge: everybody knows everybody. An independent set is the opposite, a group where no pair is joined. They are two sides of one problem: an independent set in a graph is a clique in its complement (the graph that has an edge exactly where the original has none). Finding the largest of either is NP-hard, so no fast general algorithm is known, but for graphs with up to about 40 to 60 nodes, branching with strong pruning is quick.
@@ -7115,6 +9769,48 @@ vector<int> maxClique(const vector<vector<int>>& adj) {
     vector<int> res;
     for (int v = 0; v < n; v++) if (getBit(best[1], v)) res.push_back(v);
     return res;
+}
+--go
+// adj[v] lists neighbours; n <= 30. Returns the nodes of a maximum clique.
+func maxClique(adj [][]int) []int {
+    n := len(adj)
+    nb := make([]int, n)
+    for v := range adj {
+        for _, w := range adj[v] {
+            nb[v] = setBit(nb[v], w) // piece: neighbour masks
+        }
+    }
+    best := [2]int{0, 0} // {size, members mask}
+    expand(nb, n, 0, 0, 1<<n-1, &best)
+    var res []int
+    for v := 0; v < n; v++ {
+        if getBit(best[1], v) {
+            res = append(res, v)
+        }
+    }
+    return res
+}
+
+func expand(nb []int, n, size, members, P int, best *[2]int) {
+    if P == 0 { // maximal clique
+        if size > best[0] {
+            *best = [2]int{size, members}
+        }
+        return
+    }
+    for v := 0; v < n; v++ {
+        if !getBit(P, v) {
+            continue
+        }
+        if size+bits.OnesCount(uint(P)) <= best[0] { // cannot beat the best
+            return
+        }
+        expand(nb, n, size+1, setBit(members, v), P&nb[v], best)
+        P = clearBit(P, v) // do not try v again
+    }
+    if size > best[0] {
+        *best = [2]int{size, members}
+    }
 }
 ### planar
 --idea
@@ -7238,4 +9934,47 @@ int facesAndDual(const vector<vector<int>>& rot, vector<pair<int,int>>& dual) {
             if (v < w) dual.push_back({face[start[v] + i], face[start[w] + pos[w][v]]});   // one per edge
         }
     return F;
+}
+--go
+// rot[v]: neighbours of v in cyclic order. Graph must be simple and connected.
+// Returns F and the dual edges {faceA, faceB}, one per edge.
+func facesAndDual(rot [][]int) (F int, dual [][2]int) {
+    n := len(rot)
+    start := make([]int, n+1)
+    for v := range rot {
+        start[v+1] = start[v] + len(rot[v])
+    }
+    pos := make([]map[int]int, n) // pos[w][v]: index of v in rot[w]
+    for w := range rot {
+        pos[w] = map[int]int{}
+        for i, x := range rot[w] {
+            pos[w][x] = i
+        }
+    }
+    face := make([]int, start[n])
+    for i := range face {
+        face[i] = -1
+    }
+    for v0 := range rot {
+        for i0 := range rot[v0] {
+            if face[start[v0]+i0] != -1 {
+                continue
+            }
+            v, i := v0, i0 // trace one face
+            for face[start[v]+i] == -1 {
+                face[start[v]+i] = F
+                w := rot[v][i]
+                v, i = w, (pos[w][v]+1)%len(rot[w]) // turn to the next edge around w
+            }
+            F++
+        }
+    }
+    for v := range rot {
+        for i, w := range rot[v] {
+            if v < w { // one per edge
+                dual = append(dual, [2]int{face[start[v]+i], face[start[w]+pos[w][v]]})
+            }
+        }
+    }
+    return
 }

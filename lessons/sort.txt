@@ -98,6 +98,44 @@ bool isSorted(const vector<int>& a) {
     for (size_t i = 1; i < a.size(); i++) if (a[i - 1] > a[i]) return false;
     return true;
 }
+--go
+// the position every value takes in sorted order (a is left untouched)
+func rankOf(a []int) []int {
+    id := sortIndices(a) // piece u-sortidx: positions ordered by value
+    rank := make([]int, len(a))
+    for r, i := range id {
+        rank[i] = r
+    }
+    return rank
+}
+
+// sort by merging: split, sort both halves, merge (piece u-merge)
+func mergeSort(a []int) []int {
+    if len(a) <= 1 {
+        return a
+    }
+    mid := len(a) / 2
+    return merge(mergeSort(a[:mid]), mergeSort(a[mid:]))
+}
+
+// sort in place by a pivot: partition (piece u-part) puts the pivot in its final place
+func quickSort(a []int, lo, hi int) {
+    if lo >= hi {
+        return
+    }
+    p := partition(a, lo, hi)
+    quickSort(a, lo, p-1)
+    quickSort(a, p+1, hi)
+}
+
+func isSorted(a []int) bool {
+    for i := 1; i < len(a); i++ {
+        if a[i-1] > a[i] {
+            return false
+        }
+    }
+    return true
+}
 --uses
 u-part
 u-merge
@@ -150,6 +188,21 @@ void bubbleSort(vector<int>& a) {
         if (!swapped) break;                       // a clean walk means sorted
     }
 }
+--go
+func bubbleSort(a []int) {
+    for end := len(a) - 1; end > 0; end-- {
+        swapped := false
+        for i := 0; i < end; i++ {
+            if a[i] > a[i+1] {
+                swap(a, i, i+1) // piece u-swap
+                swapped = true
+            }
+        }
+        if !swapped {
+            break // a clean walk means sorted
+        }
+    }
+}
 --uses
 u-swap
 
@@ -199,6 +252,20 @@ void selectionSort(vector<int>& a) {
         if (best != i) swapAt(a, i, best);         // piece u-swap: one swap per round
     }
 }
+--go
+func selectionSort(a []int) {
+    for i := 0; i < len(a)-1; i++ {
+        best := i // position of the smallest unsorted item
+        for j := i + 1; j < len(a); j++ {
+            if a[j] < a[best] {
+                best = j
+            }
+        }
+        if best != i {
+            swap(a, i, best) // piece u-swap: one swap per round
+        }
+    }
+}
 --uses
 u-swap
 
@@ -239,6 +306,14 @@ void insertionSort(vector<int>& a) {
     for (int i = 1; i < (int)a.size(); i++)
         for (int j = i; j > 0 && a[j - 1] > a[j]; j--)
             swapAt(a, j - 1, j);                   // piece u-swap: slide the new item left
+}
+--go
+func insertionSort(a []int) {
+    for i := 1; i < len(a); i++ {
+        for j := i; j > 0 && a[j-1] > a[j]; j-- {
+            swap(a, j-1, j) // piece u-swap: slide the new item left
+        }
+    }
 }
 --uses
 u-swap
@@ -305,6 +380,24 @@ void sortRows(vector<array<int, 2>>& rows) {
 void sortRowsTwoPass(vector<array<int, 2>>& rows) {
     stable_sort(rows.begin(), rows.end(), [](const array<int, 2>& x, const array<int, 2>& y) { return compare(x[1], y[1]) < 0; });
     stable_sort(rows.begin(), rows.end(), [](const array<int, 2>& x, const array<int, 2>& y) { return compare(y[0], x[0]) < 0; });
+}
+--go
+// needs sort
+// rows are {score, id}: highest score first, ties by smaller id. Uses compare (piece u-cmp)
+func sortRows(rows [][2]int) {
+    sort.Slice(rows, func(i, j int) bool {
+        c := compare(rows[j][0], rows[i][0]) // descending on score: swap the arguments
+        if c != 0 {
+            return c < 0
+        }
+        return compare(rows[i][1], rows[j][1]) < 0 // then ascending on id
+    })
+}
+
+// same result with two stable passes: least important key first
+func sortRowsTwoPass(rows [][2]int) {
+    sort.SliceStable(rows, func(i, j int) bool { return compare(rows[i][1], rows[j][1]) < 0 }) // by id
+    sort.SliceStable(rows, func(i, j int) bool { return compare(rows[j][0], rows[i][0]) < 0 }) // then by score, descending
 }
 --uses
 u-cmp
@@ -383,6 +476,26 @@ void mergeSortBottomUp(vector<int>& a) {
             vector<int> merged = mergeSorted(vector<int>(a.begin() + i, a.begin() + mid),
                                              vector<int>(a.begin() + mid, a.begin() + end));   // piece u-merge
             copy(merged.begin(), merged.end(), a.begin() + i);
+        }
+    }
+}
+--go
+// top-down: split, sort both halves, merge them (piece u-merge)
+func mergeSort(a []int) []int {
+    if len(a) <= 1 {
+        return a
+    }
+    mid := len(a) / 2
+    return merge(mergeSort(a[:mid]), mergeSort(a[mid:]))
+}
+
+// bottom-up: merge runs of width 1, 2, 4, ... in place of recursion
+func mergeSortBottomUp(a []int) {
+    n := len(a)
+    for width := 1; width < n; width *= 2 {
+        for i := 0; i < n; i += 2 * width {
+            mid, end := min(i+width, n), min(i+2*width, n)
+            copy(a[i:end], merge(a[i:mid], a[mid:end])) // piece u-merge; merge returns a new slice
         }
     }
 }
@@ -475,6 +588,39 @@ void quickSort3(vector<int>& a, int lo, int hi) {
     }
     quickSort3(a, lo, lt - 1);
     quickSort3(a, gt + 1, hi);
+}
+--go
+func quickSort(a []int, lo, hi int) {
+    if lo >= hi {
+        return
+    }
+    swap(a, randInt(lo, hi), hi) // piece u-rand picks the pivot, piece u-swap moves it to the end
+    p := partition(a, lo, hi)    // piece u-part: the pivot lands at index p
+    quickSort(a, lo, p-1)
+    quickSort(a, p+1, hi)
+}
+
+// three-way version: items equal to the pivot are left alone, so many duplicates stay fast
+func quickSort3(a []int, lo, hi int) {
+    if lo >= hi {
+        return
+    }
+    pivot := a[randInt(lo, hi)] // piece u-rand
+    lt, i, gt := lo, lo, hi     // a[lo..lt-1] < pivot, a[lt..i-1] == pivot, a[gt+1..hi] > pivot
+    for i <= gt {
+        if a[i] < pivot {
+            swap(a, lt, i) // piece u-swap
+            lt++
+            i++
+        } else if a[i] > pivot {
+            swap(a, i, gt)
+            gt--
+        } else {
+            i++
+        }
+    }
+    quickSort3(a, lo, lt-1)
+    quickSort3(a, gt+1, hi)
 }
 --uses
 u-part
@@ -581,6 +727,45 @@ void heapSort(vector<int>& a) {
         siftDown(a, 0, end);
     }
 }
+--go
+// simple form: all items into a min-heap (piece u-hpush), then pop them out in order (piece u-hpop)
+func heapSortSimple(a []int) []int {
+    h := &MinHeap{}
+    for _, x := range a {
+        h.push(x)
+    }
+    out := make([]int, len(a))
+    for i := range out {
+        out[i] = h.pop()
+    }
+    return out
+}
+
+// in place: build a max-heap, then move the largest to the back one by one
+func siftDown(a []int, i, n int) {
+    for 2*i+1 < n {
+        c := 2*i + 1
+        if c+1 < n && a[c+1] > a[c] { // the bigger child
+            c++
+        }
+        if a[i] >= a[c] {
+            return
+        }
+        swap(a, i, c) // piece u-swap
+        i = c
+    }
+}
+
+func heapSort(a []int) {
+    n := len(a)
+    for i := n/2 - 1; i >= 0; i-- { // build the heap
+        siftDown(a, i, n)
+    }
+    for end := n - 1; end > 0; end-- {
+        swap(a, 0, end) // the maximum goes to its final place
+        siftDown(a, 0, end)
+    }
+}
 --uses
 u-hpush
 u-hpop
@@ -606,6 +791,22 @@ Because it only counts and reads, it takes time proportional to the number of it
 - Pitfalls: running the placement loop forward (loses stability), forgetting to shift negative values, a count array that is too small (index out of range), and using it when the range is huge.
 --cost
 Time O(n + k). Space O(n + k). Stable (with the backward placement).
+--go
+// sort values in [0, k); stable
+func countingSort(a []int, k int) []int {
+    count, out := make([]int, k), make([]int, len(a))
+    for v, c := range countFreq(a) { // piece u-freq: tally of each value
+        count[v] = c
+    }
+    for v := 1; v < k; v++ { // count[v] = number of items <= v
+        count[v] += count[v-1]
+    }
+    for i := len(a) - 1; i >= 0; i-- { // backwards keeps equal items in order
+        count[a[i]]--
+        out[count[a[i]]] = a[i]
+    }
+    return out
+}
 --uses
 u-freq
 --java
@@ -720,6 +921,34 @@ void radixSort(vector<int>& a) {
         a = out;
     }
 }
+--go
+// sort non-negative ints, least significant decimal digit first
+func radixSort(a []int) {
+    mx := 0
+    for _, x := range a {
+        mx = max(mx, x)
+    }
+    if mx == 0 {
+        return
+    }
+    passes := len(digits(mx)) // piece u-digits: how many digits the biggest has
+    out := make([]int, len(a))
+    for p, exp := 0, 1; p < passes; p, exp = p+1, exp*10 {
+        var count [10]int
+        for _, x := range a {
+            count[x/exp%10]++
+        }
+        for d := 1; d < 10; d++ {
+            count[d] += count[d-1]
+        }
+        for i := len(a) - 1; i >= 0; i-- { // stable placement from the back
+            d := a[i] / exp % 10
+            count[d]--
+            out[count[d]] = a[i]
+        }
+        copy(a, out)
+    }
+}
 --uses
 u-digits
 
@@ -795,6 +1024,29 @@ void bucketSort(vector<int>& a) {
         for (int x : bucket) a[i++] = x;
     }
 }
+--go
+// needs sort
+func bucketSort(a []int) {
+    n := len(a)
+    if n <= 1 {
+        return
+    }
+    lo, hi := a[0], a[0]
+    for _, x := range a {
+        lo, hi = min(lo, x), max(hi, x)
+    }
+    k := n // about one item per bucket
+    buckets := make([][]int, k)
+    for _, x := range a {
+        b := clamp((x-lo)*k/(hi-lo+1), 0, k-1) // piece u-minmax
+        buckets[b] = append(buckets[b], x)
+    }
+    i := 0
+    for _, bucket := range buckets {
+        sort.Ints(bucket) // each bucket is small
+        i += copy(a[i:], bucket)
+    }
+}
 --uses
 u-minmax
 
@@ -847,6 +1099,20 @@ void shellSort(vector<int>& a) {
         for (int i = h; i < n; i++)
             for (int j = i; j >= h && a[j - h] > a[j]; j -= h)
                 swapAt(a, j - h, j);               // piece u-swap: insertion sort with step h
+}
+--go
+func shellSort(a []int) {
+    n, h := len(a), 1
+    for h < n/3 { // largest Knuth gap below n / 3
+        h = 3*h + 1
+    }
+    for ; h >= 1; h /= 3 {
+        for i := h; i < n; i++ {
+            for j := i; j >= h && a[j-h] > a[j]; j -= h {
+                swap(a, j-h, j) // piece u-swap: insertion sort with step h
+            }
+        }
+    }
 }
 --uses
 u-swap
@@ -961,6 +1227,53 @@ int quickSelect3(vector<int>& a, int k) {
     }
     return a[lo];
 }
+--go
+// k-th smallest (k from 0) of a; reorders a
+func quickSelect(a []int, k int) int {
+    lo, hi := 0, len(a)-1
+    for lo < hi {
+        swap(a, randInt(lo, hi), hi) // piece u-rand picks the pivot, piece u-swap moves it to the end
+        p := partition(a, lo, hi)    // piece u-part: the pivot lands at index p
+        if p == k {
+            return a[p]
+        }
+        if k < p { // keep only the side that holds k
+            hi = p - 1
+        } else {
+            lo = p + 1
+        }
+    }
+    return a[lo]
+}
+
+// same with three-way partitioning: safe when there are many equal items
+func quickSelect3(a []int, k int) int {
+    lo, hi := 0, len(a)-1
+    for lo < hi {
+        pivot := a[randInt(lo, hi)]
+        lt, i, gt := lo, lo, hi
+        for i <= gt {
+            if a[i] < pivot {
+                swap(a, lt, i)
+                lt++
+                i++
+            } else if a[i] > pivot {
+                swap(a, i, gt)
+                gt--
+            } else {
+                i++
+            }
+        }
+        if k < lt { // k is among the smaller items
+            hi = lt - 1
+        } else if k > gt { // k is among the larger items
+            lo = gt + 1
+        } else { // k is in the block equal to the pivot
+            return pivot
+        }
+    }
+    return a[lo]
+}
 --uses
 u-part
 u-swap
@@ -1051,6 +1364,36 @@ long long countInversions(vector<int> a) {                               // a is
     vector<int> tmp(a.size());
     return countInv(a, tmp, 0, a.size());
 }
+--go
+func countInversions(a []int) int {
+    cp := append([]int{}, a...) // keep the caller's slice unchanged
+    return countInv(cp, make([]int, len(a)), 0, len(a))
+}
+
+// sorts a[lo:hi], returns its inversions
+func countInv(a, tmp []int, lo, hi int) int {
+    if hi-lo < 2 {
+        return 0
+    }
+    mid := (lo + hi) / 2
+    inv := countInv(a, tmp, lo, mid) + countInv(a, tmp, mid, hi)
+    i, j, k := lo, mid, lo
+    for i < mid && j < hi {
+        if a[i] <= a[j] {
+            tmp[k] = a[i]
+            i++
+        } else {
+            tmp[k] = a[j]
+            j++
+            inv += mid - i // a[j] jumps over everything left in the left half
+        }
+        k++
+    }
+    k += copy(tmp[k:], a[i:mid])
+    copy(tmp[k:], a[j:hi])
+    copy(a[lo:hi], tmp[lo:hi])
+    return inv
+}
 
 ### cycle-sort
 --idea
@@ -1121,6 +1464,29 @@ int cycleSort(vector<int>& a) {                      // returns the number of sw
         }
     }
     return swaps;
+}
+--go
+func cycleSort(a []int) int { // returns the number of swaps made
+    swaps := 0
+    for start := 0; start < len(a)-1; start++ {
+        for {
+            pos := start
+            for i := start + 1; i < len(a); i++ {
+                if a[i] < a[start] {
+                    pos++ // count the smaller items: that gives the home of a[start]
+                }
+            }
+            if pos == start { // already home
+                break
+            }
+            for a[pos] == a[start] { // skip equal items already placed
+                pos++
+            }
+            swap(a, start, pos) // piece u-swap: a[start] goes home
+            swaps++
+        }
+    }
+    return swaps
 }
 --uses
 u-swap
@@ -1263,6 +1629,63 @@ void timSort(vector<int>& a, int minrun = 32) {            // real code uses a m
     }
     while (runs.size() > 1) mergeAt(a, runs, runs.size() - 2);   // merge what is left, from the top down
 }
+--go
+func timSort(a []int, minrun int) { // real code uses a minrun of 32 to 64
+    n := len(a)
+    start, size := make([]int, n+1), make([]int, n+1) // the run stack
+    top, i := 0, 0
+    for i < n {
+        j := i + 1
+        if j < n && a[j] < a[i] { // strictly descending run: turn it around
+            for j < n && a[j] < a[j-1] {
+                j++
+            }
+            for l, r := i, j-1; l < r; l, r = l+1, r-1 {
+                swap(a, l, r) // piece u-swap
+            }
+        } else {
+            for j < n && a[j] >= a[j-1] { // non-descending run
+                j++
+            }
+        }
+        if j-i < minrun { // short run: extend and repair with insertion sort
+            end := min(n, i+minrun)
+            for p := j; p < end; p++ {
+                for q := p; q > i && a[q-1] > a[q]; q-- {
+                    swap(a, q-1, q)
+                }
+            }
+            j = end
+        }
+        start[top], size[top] = i, j-i
+        top, i = top+1, j
+        for top > 1 { // restore the stack rules by merging
+            t := top - 2
+            if t > 0 && size[t-1] <= size[t]+size[t+1] {
+                if size[t-1] < size[t+1] {
+                    t--
+                }
+            } else if size[t] > size[t+1] {
+                break
+            }
+            mergeAt(a, start, size, t)
+            copy(start[t+1:], start[t+2:top])
+            copy(size[t+1:], size[t+2:top])
+            top--
+        }
+    }
+    for ; top > 1; top-- { // merge what is left, from the top down
+        mergeAt(a, start, size, top-2)
+    }
+}
+
+// merge run t and run t + 1
+func mergeAt(a, start, size []int, t int) {
+    s, m := start[t], start[t+1]
+    e := m + size[t+1]
+    copy(a[s:e], merge(a[s:m], a[m:e])) // piece u-merge returns a new slice
+    size[t] += size[t+1]
+}
 --uses
 u-merge
 u-swap
@@ -1390,6 +1813,58 @@ void sortRange(vector<int>& a, int lo, int hi, int depth) {
 void introSort(vector<int>& a) {
     if (a.size() < 2) return;
     sortRange(a, 0, a.size() - 1, 2 * floorLog2(a.size()));       // piece u-log2: the depth limit
+}
+--go
+func introSort(a []int) {
+    if len(a) < 2 {
+        return
+    }
+    sortRange(a, 0, len(a)-1, 2*floorLog2(len(a))) // piece u-log2: the depth limit
+}
+
+func sortRange(a []int, lo, hi, depth int) {
+    for hi-lo+1 > 16 {
+        if depth == 0 { // quicksort is going badly: fall back
+            heapSortRange(a, lo, hi)
+            return
+        }
+        depth--
+        swap(a, lo+(hi-lo)/2, hi) // piece u-swap: middle item becomes the pivot
+        p := partition(a, lo, hi) // piece u-part
+        sortRange(a, lo, p-1, depth)
+        lo = p + 1 // loop on the right part
+    }
+    for i := lo + 1; i <= hi; i++ { // small range: insertion sort
+        for j := i; j > lo && a[j-1] > a[j]; j-- {
+            swap(a, j-1, j)
+        }
+    }
+}
+
+func heapSortRange(a []int, lo, hi int) {
+    n := hi - lo + 1
+    for i := n/2 - 1; i >= 0; i-- {
+        siftDown(a, lo, i, n)
+    }
+    for end := n - 1; end > 0; end-- {
+        swap(a, lo, lo+end)
+        siftDown(a, lo, 0, end)
+    }
+}
+
+// heap positions are relative to lo
+func siftDown(a []int, lo, i, n int) {
+    for 2*i+1 < n {
+        c := 2*i + 1
+        if c+1 < n && a[lo+c+1] > a[lo+c] {
+            c++
+        }
+        if a[lo+i] >= a[lo+c] {
+            return
+        }
+        swap(a, lo+i, lo+c)
+        i = c
+    }
 }
 --uses
 u-log2
@@ -1526,6 +2001,70 @@ vector<int> kWayMerge(const vector<vector<int>>& runs) {
     }
     return out;
 }
+--go
+// needs sort, container/heap
+// sort chunks of at most memLimit items; each chunk is a sorted run
+func makeRuns(data []int, memLimit int) [][]int {
+    var runs [][]int
+    for i := 0; i < len(data); i += memLimit {
+        chunk := append([]int{}, data[i:min(len(data), i+memLimit)]...)
+        sort.Ints(chunk)
+        runs = append(runs, chunk)
+    }
+    return runs
+}
+
+// merge runs two at a time until one is left (piece u-merge); returns the result and the number of passes
+func mergePasses(runs [][]int) ([]int, int) {
+    passes := 0
+    for len(runs) > 1 {
+        var next [][]int
+        for i := 0; i+1 < len(runs); i += 2 {
+            next = append(next, merge(runs[i], runs[i+1]))
+        }
+        if len(runs)%2 == 1 {
+            next = append(next, runs[len(runs)-1])
+        }
+        runs = next
+        passes++
+    }
+    if len(runs) == 0 {
+        return nil, passes
+    }
+    return runs[0], passes
+}
+
+// merge all runs in a single pass with a heap of {value, run, position}
+type runHeap [][3]int
+
+func (h runHeap) Len() int           { return len(h) }
+func (h runHeap) Less(i, j int) bool { return h[i][0] < h[j][0] }
+func (h runHeap) Swap(i, j int)      { h[i], h[j] = h[j], h[i] }
+func (h *runHeap) Push(x any)        { *h = append(*h, x.([3]int)) }
+func (h *runHeap) Pop() any {
+    old := *h
+    x := old[len(old)-1]
+    *h = old[:len(old)-1]
+    return x
+}
+
+func kWayMerge(runs [][]int) []int {
+    h := &runHeap{}
+    var out []int
+    for r, run := range runs {
+        if len(run) > 0 {
+            heap.Push(h, [3]int{run[0], r, 0})
+        }
+    }
+    for h.Len() > 0 {
+        top := heap.Pop(h).([3]int)
+        out = append(out, top[0]) // smallest front item of all runs
+        if run := runs[top[1]]; top[2]+1 < len(run) {
+            heap.Push(h, [3]int{run[top[2]+1], top[1], top[2] + 1})
+        }
+    }
+    return out
+}
 --uses
 u-merge
 
@@ -1612,6 +2151,36 @@ vector<pair<int, int>> batcherNetwork(int n) {
 
 void runNetwork(vector<int>& a, const vector<pair<int, int>>& pairs) {
     for (auto [i, j] : pairs) compareSwap(a, i, j);
+}
+--go
+// compare-and-swap on positions i < j (pieces u-cmp and u-swap)
+func compareSwap(a []int, i, j int) {
+    if compare(a[i], a[j]) > 0 {
+        swap(a, i, j)
+    }
+}
+
+// Batcher's odd-even merge sort network for n a power of two: the list of comparator pairs
+func batcherNetwork(n int) [][2]int {
+    var pairs [][2]int
+    for p := 1; p < n; p *= 2 {
+        for k := p; k >= 1; k /= 2 {
+            for j := k % p; j < n-k; j += 2 * k {
+                for i := 0; i < min(k, n-j-k); i++ {
+                    if (i+j)/(2*p) == (i+j+k)/(2*p) {
+                        pairs = append(pairs, [2]int{i + j, i + j + k})
+                    }
+                }
+            }
+        }
+    }
+    return pairs
+}
+
+func runNetwork(a []int, pairs [][2]int) {
+    for _, pr := range pairs {
+        compareSwap(a, pr[0], pr[1])
+    }
 }
 --uses
 u-cmp
@@ -1723,6 +2292,51 @@ void bitonicSortAny(vector<int>& a) {
     b.resize(n, INT_MAX);
     bitonicSort(b, 0, n, true);
     copy(b.begin(), b.begin() + a.size(), a.begin());
+}
+--go
+// needs math
+func compareSwap(a []int, i, j int, asc bool) {
+    if (a[i] > a[j]) == asc {
+        swap(a, i, j) // piece u-swap
+    }
+}
+
+func bitonicMerge(a []int, lo, n int, asc bool) {
+    if n <= 1 {
+        return
+    }
+    m := n / 2
+    for i := lo; i < lo+m; i++ {
+        compareSwap(a, i, i+m, asc) // split into two bitonic halves
+    }
+    bitonicMerge(a, lo, m, asc)
+    bitonicMerge(a, lo+m, m, asc)
+}
+
+// n must be a power of two
+func bitonicSort(a []int, lo, n int, asc bool) {
+    if n <= 1 {
+        return
+    }
+    m := n / 2
+    bitonicSort(a, lo, m, true)    // ascending, then
+    bitonicSort(a, lo+m, m, false) // descending: together a bitonic sequence
+    bitonicMerge(a, lo, n, asc)
+}
+
+// any length: pad with the largest value up to a power of two
+func bitonicSortAny(a []int) {
+    n := 1
+    for n < len(a) {
+        n *= 2
+    }
+    b := make([]int, n)
+    copy(b, a)
+    for i := len(a); i < n; i++ {
+        b[i] = math.MaxInt
+    }
+    bitonicSort(b, 0, n, true)
+    copy(a, b)
 }
 --uses
 u-swap
@@ -1837,6 +2451,56 @@ int sentinelSearch(vector<int>& a, int x) {
     a[n - 1] = last;                                        // put the real item back
     return (i < n - 1 || last == x) ? i : -1;
 }
+--go
+// first position of x in a, or -1; compare is the code piece u-cmp
+func linearSearch(a []int, x int) int {
+    for i, v := range a {
+        if compare(v, x) == 0 {
+            return i
+        }
+    }
+    return -1
+}
+
+// last position, scanning from the back
+func linearSearchLast(a []int, x int) int {
+    for i := len(a) - 1; i >= 0; i-- {
+        if compare(a[i], x) == 0 {
+            return i
+        }
+    }
+    return -1
+}
+
+// no early exit: every match counts
+func countOf(a []int, x int) int {
+    c := 0
+    for _, v := range a {
+        if compare(v, x) == 0 {
+            c++
+        }
+    }
+    return c
+}
+
+// sentinel version: no bounds test inside the loop
+func sentinelSearch(a []int, x int) int {
+    n := len(a)
+    if n == 0 {
+        return -1
+    }
+    last := a[n-1]
+    a[n-1] = x // the sentinel guarantees the loop stops
+    i := 0
+    for a[i] != x {
+        i++
+    }
+    a[n-1] = last // put the real item back
+    if i < n-1 || last == x {
+        return i
+    }
+    return -1
+}
 --uses
 u-cmp
 
@@ -1920,6 +2584,32 @@ double ternaryMax(function<double(double)> f, double lo, double hi) {
     }
     return (lo + hi) / 2;
 }
+--go
+// position of the peak of a strictly rising-then-falling f on integers lo..hi (piece u-mid)
+func peakInt(f func(int) int, lo, hi int) int {
+    for lo < hi {
+        m := mid(lo, hi)
+        if f(m) < f(m+1) { // still rising: the peak is to the right
+            lo = m + 1
+        } else {
+            hi = m
+        }
+    }
+    return lo
+}
+
+// the x of the peak of a unimodal function on real numbers
+func ternaryMax(f func(float64) float64, lo, hi float64) float64 {
+    for it := 0; it < 100; it++ {
+        m1, m2 := lo+(hi-lo)/3, hi-(hi-lo)/3
+        if f(m1) < f(m2) { // the left third cannot hold the peak
+            lo = m1
+        } else {
+            hi = m2
+        }
+    }
+    return (lo + hi) / 2
+}
 --uses
 u-mid
 
@@ -1986,6 +2676,33 @@ int expoSearch(const vector<int>& a, int x) {
         if (a[m] < x) lo = m + 1; else hi = m - 1;
     }
     return -1;
+}
+--go
+func expoSearch(a []int, x int) int {
+    n := len(a)
+    if n == 0 {
+        return -1
+    }
+    if a[0] == x {
+        return 0
+    }
+    bound := 1
+    for bound < n && a[bound] < x { // 1, 2, 4, 8, ... until we pass x
+        bound *= 2
+    }
+    lo, hi := bound/2, min(bound, n-1) // x can only be in this range
+    for lo <= hi {
+        m := mid(lo, hi) // piece u-mid
+        if a[m] == x {
+            return m
+        }
+        if a[m] < x {
+            lo = m + 1
+        } else {
+            hi = m - 1
+        }
+    }
+    return -1
 }
 --uses
 u-mid
@@ -2054,6 +2771,35 @@ int interpSearch(const vector<int>& a, int x) {
     }
     return -1;
 }
+--go
+func interpSearch(a []int, x int) int {
+    lo, hi := 0, len(a)-1
+    bisect := false // alternate: interpolation, bisection, ...
+    for lo <= hi && x >= a[lo] && x <= a[hi] {
+        if a[lo] == a[hi] { // flat range, also avoids dividing by zero
+            if a[lo] == x {
+                return lo
+            }
+            return -1
+        }
+        var pos int
+        if bisect {
+            pos = mid(lo, hi) // piece u-mid: plain bisection step
+        } else {
+            pos = lo + (x-a[lo])*(hi-lo)/(a[hi]-a[lo]) // the guess
+        }
+        bisect = !bisect
+        if a[pos] == x {
+            return pos
+        }
+        if a[pos] < x {
+            lo = pos + 1
+        } else {
+            hi = pos - 1
+        }
+    }
+    return -1
+}
 --uses
 u-mid
 
@@ -2117,6 +2863,30 @@ int jumpSearch(const vector<int>& a, int x) {
         if (a[i] > x) break;
     }
     return -1;
+}
+--go
+func jumpSearch(a []int, x int) int {
+    n := len(a)
+    if n == 0 {
+        return -1
+    }
+    step := max(1, sqrtFloor(n)) // piece u-sqrt: block size
+    prev := 0
+    for prev < n && a[min(prev+step, n)-1] < x { // leap over blocks that end below x
+        prev += step
+    }
+    if prev >= n {
+        return -1
+    }
+    for i := prev; i < min(prev+step, n); i++ { // scan the one block that may hold x
+        if a[i] == x {
+            return i
+        }
+        if a[i] > x {
+            break
+        }
+    }
+    return -1
 }
 --uses
 u-sqrt
@@ -2182,6 +2952,26 @@ int minSpeed(const vector<int>& piles, int h) {
 // smallest integer r with r * r >= n (the square root rounded up)
 int ceilSqrt(int n) {
     return firstTrue(0, min(n, 46341), [&](int r) { return (long long)r * r >= n; });
+}
+--go
+// slowest eating speed that finishes all piles within h hours (h >= number of piles)
+func minSpeed(piles []int, h int) int {
+    mx := 0
+    for _, p := range piles {
+        mx = max(mx, p)
+    }
+    return firstTrue(1, mx, func(k int) bool { // piece u-first: smallest speed where the test is true
+        hours := 0
+        for _, p := range piles {
+            hours += ceilDiv(p, k) // piece u-ceildiv: a partial hour counts as a whole hour
+        }
+        return hours <= h
+    })
+}
+
+// smallest integer r with r * r >= n (the square root rounded up)
+func ceilSqrt(n int) int {
+    return firstTrue(0, min(n, 46341), func(r int) bool { return r*r >= n })
 }
 --uses
 u-ceildiv
@@ -2271,8 +3061,42 @@ double maxPieceLength(const vector<double>& ropes, int k) {
     }
     return lo;
 }
+--go
+// needs math
+// square root of x (x >= 0) by halving
+func sqrtReal(x float64) float64 {
+    lo, hi := 0.0, math.Max(1, x) // sqrt(x) is at most max(1, x)
+    for it := 0; it < 100; it++ {
+        m := (lo + hi) / 2
+        if m*m < x {
+            lo = m
+        } else {
+            hi = m
+        }
+    }
+    return lo
+}
 
-### bs-matrix
+// longest piece length L such that the ropes give at least k pieces of length L
+func maxPieceLength(ropes []float64, k int) float64 {
+    lo, hi := 0.0, 0.0
+    for _, r := range ropes {
+        hi = math.Max(hi, r)
+    }
+    for it := 0; it < 100; it++ {
+        m := (lo + hi) / 2
+        pieces := 0
+        for _, r := range ropes {
+            pieces += int(r / m) // whole pieces from this rope
+        }
+        if pieces >= k { // enough pieces: we may try longer ones
+            lo = m
+        } else {
+            hi = m
+        }
+    }
+    return lo
+}### bs-matrix
 --idea
 Searching a matrix whose rows and columns are sorted is a puzzle about throwing away as much as possible with every comparison. Suppose every row is sorted left to right and every column is sorted top to bottom. Stand in the top-right corner. That cell is the largest in its row and the smallest in its column. If it is bigger than the target, the whole column below it is bigger too, so you can discard the column and step left. If it is smaller than the target, the whole row to its left is smaller too, so you can discard the row and step down. Each step removes a full row or column, so at most `rows + cols` steps are needed.
 A second shape of matrix is stricter: each row is sorted and the first item of every row is larger than the last item of the previous row. Reading the matrix row by row then gives one long sorted list, and you can binary search over positions `0 .. rows * cols - 1`, converting a position `p` to the cell `(p / cols, p % cols)`.
@@ -2400,6 +3224,65 @@ int kthSmallest(const vector<vector<int>>& g, int k) {
         return count >= k;
     });
 }
+--go
+// rows and columns both sorted ascending: flat position of x (r * cols + c), or -1
+func searchStaircase(g [][]int, x int) int {
+    rows, cols := len(g), 0
+    if rows > 0 {
+        cols = len(g[0])
+    }
+    r, c := 0, cols-1 // top-right corner
+    for inBounds(r, c, rows, cols) { // piece u-idx
+        if g[r][c] == x {
+            return idx(r, c, cols) // piece u-idx: flat position
+        }
+        if g[r][c] > x { // the rest of this column is larger: drop the column
+            c--
+        } else { // the rest of this row is smaller: drop the row
+            r++
+        }
+    }
+    return -1
+}
+
+// each row sorted and every row starts after the previous one ends: binary search over flat positions
+func searchFlat(g [][]int, x int) bool {
+    rows, cols := len(g), 0
+    if rows > 0 {
+        cols = len(g[0])
+    }
+    lo, hi := 0, rows*cols-1
+    for lo <= hi {
+        m := lo + (hi-lo)/2
+        v := g[m/cols][m%cols]
+        if v == x {
+            return true
+        }
+        if v < x {
+            lo = m + 1
+        } else {
+            hi = m - 1
+        }
+    }
+    return false
+}
+
+// k-th smallest (k from 1) in a matrix with sorted rows and columns
+func kthSmallest(g [][]int, k int) int {
+    rows, cols := len(g), len(g[0])
+    return firstTrue(g[0][0], g[rows-1][cols-1], func(v int) bool { // piece u-first: smallest v with count(<= v) >= k
+        count, r, c := 0, rows-1, 0 // bottom-left corner
+        for inBounds(r, c, rows, cols) {
+            if g[r][c] <= v { // the whole column above counts
+                count += r + 1
+                c++
+            } else {
+                r--
+            }
+        }
+        return count >= k
+    })
+}
 --uses
 u-idx
 u-first
@@ -2478,6 +3361,34 @@ int fibSearch(const vector<int>& a, int x) {
     }
     if (fibM1 == 1 && offset + 1 < n && a[offset + 1] == x) return offset + 1;   // one position may be left
     return -1;
+}
+--go
+func fibSearch(a []int, x int) int {
+    n := len(a)
+    fibM2, fibM1 := 0, 1
+    fibM := fibM1 + fibM2 // F(k-2), F(k-1), F(k)
+    for fibM < n {        // smallest Fibonacci number >= n
+        fibM2, fibM1 = fibM1, fibM
+        fibM = fibM2 + fibM1
+    }
+    offset := -1 // everything up to offset is smaller than x
+    for fibM > 1 {
+        i := min(offset+fibM2, n-1)
+        if a[i] < x { // go right: bigger part
+            fibM, fibM1 = fibM1, fibM2
+            fibM2 = fibM - fibM1
+            offset = i
+        } else if a[i] > x { // go left: smaller part
+            fibM, fibM1 = fibM2, fibM1-fibM2
+            fibM2 = fibM - fibM1
+        } else {
+            return i
+        }
+    }
+    if fibM1 == 1 && offset+1 < n && a[offset+1] == x { // one position may be left
+        return offset + 1
+    }
+    return -1
 }
 
 ### bs-greedy
@@ -2571,6 +3482,43 @@ int maxMinDistance(vector<int> s, int c) {
         for (int p : s) if (p - last >= d) { placed++; last = p; }
         return placed < c;
     }) - 1;                                                       // so the one before it is the answer
+}
+--go
+// needs sort
+// split nums into at most m consecutive pieces, minimising the largest piece sum
+func splitArray(nums []int, m int) int {
+    lo, hi := 0, 0
+    for _, x := range nums { // a piece holds at least the biggest number, at most everything
+        lo, hi = max(lo, x), hi+x
+    }
+    return firstTrue(lo, hi, func(limit int) bool { // piece u-first: smallest limit that works
+        pieces, sum := 1, 0
+        for _, x := range nums {
+            if sum+x > limit { // greedy: start a new piece only when forced
+                pieces++
+                sum = 0
+            }
+            sum += x
+        }
+        return pieces <= m
+    })
+}
+
+// place c cows in stalls so the closest pair is as far apart as possible (c >= 2)
+func maxMinDistance(stalls []int, c int) int {
+    s := append([]int{}, stalls...)
+    sort.Ints(s)
+    hi := s[len(s)-1] - s[0] + 1 // this distance surely fails for c >= 2
+    return firstTrue(1, hi, func(d int) bool { // first distance that does NOT work
+        placed, last := 1, s[0]
+        for _, p := range s {
+            if p-last >= d {
+                placed++
+                last = p
+            }
+        }
+        return placed < c
+    }) - 1 // so the one before it is the answer
 }
 --uses
 u-first
@@ -2737,6 +3685,80 @@ vector<int> earliestConnectionSlow(int n, const vector<array<int, 2>>& edges, co
         }));
     return ans;
 }
+--go
+// union-find state shared with the piece u-dsuunion: union(a, b) uses these package-level p and sz
+var p, sz []int
+
+func resetDsu(n int) {
+    p, sz = make([]int, n), make([]int, n)
+    for i := range p {
+        p[i], sz[i] = i, 1
+    }
+}
+
+func find(x int) int {
+    for p[x] != x {
+        p[x] = p[p[x]] // path halving
+        x = p[x]
+    }
+    return x
+}
+
+// edges[k] = {a, b} added at time k + 1; queries[q] = {a, b}. Returns, for each query, the smallest k
+// such that a and b are connected after the first k edges (m + 1 if never).
+func earliestConnection(n int, edges, queries [][2]int) []int {
+    m, qn := len(edges), len(queries)
+    lo, hi := make([]int, qn), make([]int, qn)
+    for q := range hi {
+        hi[q] = m + 1
+    }
+    for {
+        bucket := make([][]int, m+1)
+        active := false
+        for q := 0; q < qn; q++ {
+            if lo[q] < hi[q] { // each question's guess
+                g := (lo[q] + hi[q]) / 2
+                bucket[g] = append(bucket[g], q)
+                active = true
+            }
+        }
+        if !active {
+            return lo
+        }
+        resetDsu(n) // fresh structure, replay from time 0
+        for k := 0; k <= m; k++ {
+            if k > 0 {
+                union(edges[k-1][0], edges[k-1][1]) // piece u-dsuunion
+            }
+            for _, q := range bucket[k] {
+                if find(queries[q][0]) == find(queries[q][1]) {
+                    hi[q] = k // connected already: answer <= k
+                } else {
+                    lo[q] = k + 1 // not yet: answer > k
+                }
+            }
+        }
+    }
+}
+
+// the slow reference: one binary search per question, each test replays its own union-find
+func earliestConnectionSlow(n int, edges, queries [][2]int) []int {
+    m := len(edges)
+    ans := make([]int, len(queries))
+    for q, qr := range queries {
+        ans[q] = firstTrue(0, m+1, func(k int) bool { // piece u-first: smallest k that passes
+            if k > m { // m + 1 means "never"
+                return true
+            }
+            resetDsu(n)
+            for i := 0; i < k; i++ {
+                union(edges[i][0], edges[i][1])
+            }
+            return find(qr[0]) == find(qr[1])
+        })
+    }
+    return ans
+}
 --uses
 u-dsuunion
 u-first
@@ -2864,6 +3886,57 @@ struct Cascade {
         return res;
     }
 };
+--go
+type Cascade struct {
+    aug, own, next [][]int
+}
+
+func newCascade(lists [][]int) *Cascade { // each list sorted ascending
+    k := len(lists)
+    c := &Cascade{make([][]int, k), make([][]int, k), make([][]int, k)}
+    for i := k - 1; i >= 0; i-- {
+        if i == k-1 {
+            c.aug[i] = append([]int{}, lists[i]...)
+        } else {
+            var sample []int
+            for t := 1; t < len(c.aug[i+1]); t += 2 { // every second item
+                sample = append(sample, c.aug[i+1][t])
+            }
+            c.aug[i] = merge(lists[i], sample) // piece u-merge
+        }
+        n := len(c.aug[i])
+        c.own[i] = make([]int, n+1)
+        c.next[i] = make([]int, n+1)
+        for j, v := range c.aug[i] {
+            c.own[i][j] = lowerBound(lists[i], v) // piece u-lower
+            if i < k-1 {
+                c.next[i][j] = lowerBound(c.aug[i+1], v)
+            }
+        }
+        c.own[i][n] = len(lists[i])
+        if i < k-1 {
+            c.next[i][n] = len(c.aug[i+1])
+        }
+    }
+    return c
+}
+
+// for every list, the position of the first item >= x, using one real binary search
+func (c *Cascade) search(x int) []int {
+    k := len(c.aug)
+    res := make([]int, k)
+    j := lowerBound(c.aug[0], x) // the only full binary search
+    for i := 0; i < k; i++ {
+        res[i] = c.own[i][j]
+        if i < k-1 {
+            j = c.next[i][j] // jump to the neighbourhood in the next list
+            for j > 0 && c.aug[i+1][j-1] >= x { // correct by a step or two
+                j--
+            }
+        }
+    }
+    return res
+}
 --uses
 u-merge
 u-lower

@@ -116,6 +116,53 @@ bool hasPairFast(const vector<int>& a, int target) {
     }
     return false;
 }
+--go
+// step counts for three growth rates
+func growth(n int) [3]int {
+    linear, quadratic, logarithmic := 0, 0, 0
+    for i := 0; i < n; i++ {
+        linear++ // n steps
+    }
+    for i := 0; i < n; i++ {
+        for j := 0; j < n; j++ {
+            quadratic++ // n * n steps
+        }
+    }
+    for x := n; x > 1; x /= 2 {
+        logarithmic++ // halving: log2(n) steps
+    }
+    return [3]int{linear, quadratic, logarithmic}
+}
+
+// does the plan fit in about one second?
+func fits(steps int) bool {
+    return steps <= 100_000_000
+}
+
+// O(n^2): try every pair
+func hasPairSlow(a []int, target int) bool {
+    for i := 0; i < len(a); i++ {
+        for j := i + 1; j < len(a); j++ {
+            if a[i]+a[j] == target {
+                return true
+            }
+        }
+    }
+    return false
+}
+
+// O(n): remember what we have seen, look up the partner
+func hasPairFast(a []int, target int) bool {
+    seen := map[int]bool{}
+    for _, x := range a {
+        if seen[target-x] {
+            return true
+        }
+        seen[x] = true
+    }
+    return false
+}
+
 ### amortized
 --idea
 Amortized analysis is a fair way to price an operation that is usually cheap but sometimes expensive. Think of a gym membership: you pay a small monthly fee even in months you never go, so that the occasional costly equipment is already paid for. Averaged over a long run of operations, the cost per operation is small, even if one single operation can be slow.
@@ -209,6 +256,37 @@ vector<int> nextGreater(const vector<int>& a) {
     }
     return res;
 }
+--go
+// total element copies when n items are pushed one by one into an array that doubles
+func totalCopies(n int) int {
+    capacity, size, copies := 1, 0, 0
+    for i := 0; i < n; i++ {
+        if size == capacity { // full: copy everything into a bigger array
+            copies += size
+            capacity *= 2
+        }
+        size++
+    }
+    return copies // always below 2n
+}
+
+// next greater element for each index: -1 if none. Each index is pushed and popped once, so O(n)
+func nextGreater(a []int) []int {
+    res := make([]int, len(a))
+    for i := range res {
+        res[i] = -1
+    }
+    stack := []int{} // indices still waiting for a greater value
+    for i := range a {
+        for len(stack) > 0 && a[stack[len(stack)-1]] < a[i] {
+            res[stack[len(stack)-1]] = i // the inner loop is paid for by earlier pushes
+            stack = stack[:len(stack)-1]
+        }
+        stack = append(stack, i)
+    }
+    return res
+}
+
 ### recursion
 --idea
 Recursion solves a problem by solving a smaller copy of the same problem, then using that answer. Picture Russian nesting dolls: to open the whole set you open the outer doll, and what is inside is the same job on a smaller set. You keep going until you reach the smallest doll, which you can handle directly.
@@ -291,8 +369,34 @@ void reverseRange(vector<int>& a, int i, int j) {
     swapAt(a, i, j);
     reverseRange(a, i + 1, j - 1);
 }
+--go
+// moves for n disks from peg from to peg to, using via as spare
+func hanoi(n int, from, to, via byte, moves *[]string) {
+    if n == 0 { // base case: nothing to move
+        return
+    }
+    hanoi(n-1, from, via, to, moves)                            // clear the way
+    *moves = append(*moves, string([]byte{from, '-', '>', to})) // move the largest disk
+    hanoi(n-1, via, to, from, moves)                            // put the rest back on top
+}
+
+func hanoiMoves(n int) []string {
+    var moves []string
+    hanoi(n, 'A', 'C', 'B', &moves)
+    return moves
+}
+
+// reverse a[i..j] in place: swap the two ends, then solve the smaller problem inside
+func reverseRange(a []int, i, j int) {
+    if i >= j { // base case: 0 or 1 items left
+        return
+    }
+    swap(a, i, j)
+    reverseRange(a, i+1, j-1)
+}
 --uses
 u-swap
+
 ### backtrack
 --idea
 Backtracking builds an answer one choice at a time. At each step you try an option, go deeper to see whether it can lead to a full answer, and if it fails (or after you have recorded the answer), you undo the choice and try the next option. Think of walking a maze and dropping a thread: when you hit a dead end you wind the thread back to the last fork and take a different branch.
@@ -418,8 +522,41 @@ void permuteSwap(vector<int>& a, int start, vector<vector<int>>& out) {
         swapAt(a, start, i);                     // undo
     }
 }
+--go
+func generateParens(n int) []string {
+    var out []string
+    build(make([]byte, 0, 2*n), 0, 0, n, &out)
+    return out
+}
+
+func build(cur []byte, open, close, n int, out *[]string) {
+    if len(cur) == 2*n { // complete answer
+        *out = append(*out, string(cur)) // string() makes a copy
+        return
+    }
+    if open < n { // choice 1: add '('
+        build(append(cur, '('), open+1, close, n, out) // the longer slice is undone by returning
+    }
+    if close < open { // choice 2: add ')' only if one is open
+        build(append(cur, ')'), open, close+1, n, out)
+    }
+}
+
+// all orderings, built in place: swap each remaining item into position start, recurse, swap back
+func permuteSwap(a []int, start int, out *[][]int) {
+    if start == len(a) {
+        *out = append(*out, append([]int(nil), a...)) // copy the finished ordering
+        return
+    }
+    for i := start; i < len(a); i++ {
+        swap(a, start, i) // choose a[i] for this position
+        permuteSwap(a, start+1, out)
+        swap(a, start, i) // undo
+    }
+}
 --uses
 u-swap
+
 ### subsets
 --idea
 Generating subsets and permutations means listing every way to pick some of the items (subsets) or every way to order them (permutations). For three items `a, b, c` there are 8 subsets and 6 orderings. They are the two basic shapes of "try everything", and many harder problems are one of them with a filter on top.
@@ -563,9 +700,58 @@ vector<vector<int>> permutations(const vector<int>& a) {      // n <= 31
     permRec(a, 0, cur, out);
     return out;
 }
+--go
+func subsets(a []int) [][]int {
+    var out [][]int
+    subsetsRec(a, 0, nil, &out)
+    return out
+}
+
+func subsetsRec(a []int, i int, cur []int, out *[][]int) {
+    if i == len(a) {
+        *out = append(*out, append([]int(nil), cur...)) // copy the finished subset
+        return
+    }
+    subsetsRec(a, i+1, cur, out)               // skip a[i]
+    subsetsRec(a, i+1, append(cur, a[i]), out) // take a[i]; the shorter cur is the undo
+}
+
+// the same subsets, one per mask from 0 to 2^n - 1
+func subsetsByMask(a []int) [][]int {
+    n := len(a)
+    var out [][]int
+    for mask := 0; mask < 1<<n; mask++ {
+        one := []int{}
+        for _, i := range itemsIn(mask, n) { // positions of the on bits
+            one = append(one, a[i])
+        }
+        out = append(out, one)
+    }
+    return out
+}
+
+func permutations(a []int) [][]int { // n <= 62
+    var out [][]int
+    permRec(a, 0, nil, &out)
+    return out
+}
+
+func permRec(a []int, used int, cur []int, out *[][]int) {
+    if len(cur) == len(a) {
+        *out = append(*out, append([]int(nil), cur...))
+        return
+    }
+    for i := range a {
+        if getBit(used, i) { // already placed
+            continue
+        }
+        permRec(a, setBit(used, i), append(cur, a[i]), out) // the mask copy carries the choice
+    }
+}
 --uses
 u-maskiter
 u-bit
+
 ### nqueens
 --idea
 N-Queens asks you to place `n` queens on an `n` by `n` chessboard so that no two attack each other: no two share a row, a column or a diagonal. It is the standard example of constraint search: you place pieces one at a time and stop exploring a placement the moment it breaks a rule, instead of building a full board and checking afterwards.
@@ -691,8 +877,50 @@ bool isValidPlacement(int n, const vector<int>& cols) {
         }
     return true;
 }
+--go
+func solveNQueens(n int) int {
+    return place(n, 0, 0, 0, 0)
+}
+
+// count placements for rows row..n-1 given the attacked columns and diagonals
+func place(n, row, cols, d1, d2 int) int {
+    if row == n { // every row has a queen
+        return 1
+    }
+    count := 0
+    free := ^(cols | d1 | d2) & (1<<n - 1) // safe squares in this row
+    for free != 0 {
+        bit := free & -free // take the lowest safe square
+        free -= bit
+        // diagonals shift one column per row
+        count += place(n, row+1, cols|bit, (d1|bit)<<1, (d2|bit)>>1)
+    }
+    return count
+}
+
+// check a finished placement: cols[r] is the column of the queen in row r
+func isValidPlacement(n int, cols []int) bool {
+    queen := make([]bool, n*n)
+    for r := 0; r < n; r++ {
+        queen[idx(r, cols[r], n)] = true
+    }
+    steps := [][2]int{{0, 1}, {1, 0}, {1, 1}, {1, -1}} // row, column, and both diagonals (one way each)
+    for r := 0; r < n; r++ {
+        for _, s := range steps {
+            rr, cc := r+s[0], cols[r]+s[1]
+            for inBounds(rr, cc, n, n) { // walk away from the queen along the line
+                if queen[idx(rr, cc, n)] { // another queen on the same line attacks it
+                    return false
+                }
+                rr, cc = rr+s[0], cc+s[1]
+            }
+        }
+    }
+    return true
+}
 --uses
 u-idx
+
 ### dlx
 --idea
 Dancing links (DLX) solves the exact cover problem: given a grid of 0s and 1s, pick some rows so that every column has exactly one 1 among the picked rows. Many puzzles are exact cover in disguise: Sudoku, pentomino tilings, N-Queens, scheduling. Each row is a possible move, each column is a rule that must be met exactly once.
@@ -895,6 +1123,96 @@ bool exactCover(int n, const vector<vector<int>>& rows) {
     sol.clear();
     return search();
 }
+--go
+var L, R, U, D, C, S, RW []int
+var sol []int
+
+func cover(c int) {
+    L[R[c]], R[L[c]] = L[c], R[c] // unlink the column header
+    for i := D[c]; i != c; i = D[i] {
+        for j := R[i]; j != i; j = R[j] { // unlink the rest of every row using c
+            U[D[j]], D[U[j]] = U[j], D[j]
+            S[C[j]]--
+        }
+    }
+}
+
+func uncover(c int) {
+    for i := U[c]; i != c; i = U[i] { // exact reverse of cover
+        for j := L[i]; j != i; j = L[j] {
+            S[C[j]]++
+            U[D[j]], D[U[j]] = j, j
+        }
+    }
+    L[R[c]], R[L[c]] = c, c
+}
+
+func search() bool {
+    if R[0] == 0 { // all columns covered
+        return true
+    }
+    c := R[0]
+    for j := R[c]; j != 0; j = R[j] {
+        if S[j] < S[c] { // fewest options first
+            c = j
+        }
+    }
+    cover(c)
+    for r := D[c]; r != c; r = D[r] {
+        sol = append(sol, RW[r])
+        for j := R[r]; j != r; j = R[j] {
+            cover(C[j])
+        }
+        if search() {
+            return true
+        }
+        for j := L[r]; j != r; j = L[j] {
+            uncover(C[j])
+        }
+        sol = sol[:len(sol)-1]
+    }
+    uncover(c)
+    return false
+}
+
+// rows[i] lists the 0-based columns covered by row i; returns chosen rows or nil
+func exactCover(n int, rows [][]int) []int {
+    total := n + 1
+    for _, r := range rows {
+        total += len(r)
+    }
+    L, R, U, D = make([]int, total), make([]int, total), make([]int, total), make([]int, total)
+    C, S, RW = make([]int, total), make([]int, n+1), make([]int, total)
+    for j := 0; j <= n; j++ {
+        L[j], R[j] = (j+n)%(n+1), (j+1)%(n+1)
+        U[j], D[j], C[j] = j, j, j
+    }
+    x := n + 1
+    for i, row := range rows {
+        first := -1
+        for _, col := range row {
+            c := col + 1
+            L[x], R[x], U[x], D[x], C[x], RW[x] = x, x, U[c], c, c, i
+            D[U[c]] = x // append at the bottom of column c
+            U[c] = x
+            S[c]++
+            if first < 0 {
+                first = x
+            } else { // join the row circle
+                L[x], R[x] = L[first], first
+                R[L[x]] = x
+                L[first] = x
+            }
+            x++
+        }
+    }
+    sol = nil
+    if search() {
+        return sol
+    }
+    return nil
+}
+
 ### brute
 --idea
 Brute force means trying every possibility and picking the one that works. It is the honest first answer to any problem: if you can list all candidates and test each one, you have a correct solution, even if it is slow. Pruning is the upgrade: while you build a candidate, notice early that it cannot possibly succeed, and stop wasting time on everything that would follow.
@@ -996,8 +1314,46 @@ bool canSumPlain(const vector<int>& a, int target) {
     }
     return false;
 }
+--go
+// can some subset of the non-negative numbers sum to exactly target?
+func canSum(a []int, target int) bool {
+    n := len(a)
+    suffix := make([]int, n+1) // suffix[i] = a[i] + ... + a[n-1]
+    for i := n - 1; i >= 0; i-- {
+        suffix[i] = suffix[i+1] + a[i]
+    }
+    return rec(a, suffix, 0, target)
+}
+
+func rec(a, suffix []int, i, remaining int) bool {
+    if remaining == 0 { // success
+        return true
+    }
+    if remaining < 0 || i == len(a) || suffix[i] < remaining { // prune
+        return false
+    }
+    return rec(a, suffix, i+1, remaining-a[i]) || // take a[i]
+        rec(a, suffix, i+1, remaining) // skip a[i]
+}
+
+// the plain version, no pruning: try every mask of chosen items (n <= 30)
+func canSumPlain(a []int, target int) bool {
+    for mask := 0; mask < 1<<len(a); mask++ {
+        sum := 0
+        for i := range a {
+            if getBit(mask, i) { // item i is chosen in this mask
+                sum += a[i]
+            }
+        }
+        if sum == target {
+            return true
+        }
+    }
+    return false
+}
 --uses
 u-bit
+
 ### prefix
 --idea
 A prefix sum array stores, for every position, the total of all items up to that position. Once you have it, the sum of any range of the array is one subtraction: the total up to the end of the range minus the total up to just before its start. It is like a running odometer on a car: the distance of any trip is the reading at the end minus the reading at the start.
@@ -1078,9 +1434,32 @@ long long countSubarraysWithSum(const vector<int>& a, long long k) {
     }
     return count;
 }
+--go
+// largest sum of k consecutive items (k <= len(a))
+func bestWindowSum(a []int, k int) int {
+    p := buildPrefix(a) // piece: p[i] = sum of the first i items
+    best := math.MinInt
+    for l := 0; l+k <= len(a); l++ {
+        best = max(best, rangeSum(p, l, l+k-1)) // piece: one subtraction per window
+    }
+    return best
+}
+
+// number of subarrays whose sum is exactly k (values may be negative)
+func countSubarraysWithSum(a []int, k int) int {
+    seen := map[int]int{0: 1} // the empty prefix
+    sum, count := 0, 0
+    for _, x := range a {
+        sum += x
+        count += seen[sum-k] // earlier prefixes that leave exactly k
+        seen[sum]++
+    }
+    return count
+}
 --uses
 u-prefix
 u-rangesum
+
 ### diffarr
 --idea
 A difference array lets you add a number to a whole range of an array in constant time, no matter how long the range is. You do not touch the range at all. Instead you mark where the extra amount starts and where it stops, and later one pass of running totals spreads it into place. Think of a road with traffic lights: you note "from here the speed limit goes up by 10" and "from here it goes back down", and only compute actual speeds when you drive.
@@ -1126,8 +1505,19 @@ vector<long long> applyRangeAdds(int n, const vector<array<int, 3>>& ops) {
     a.resize(n);                                     // drop the spare slot
     return a;
 }
+--go
+// ops[i] = {l, r, v}: add v to positions l..r (inclusive). Returns the final array.
+func applyRangeAdds(n int, ops [][3]int) []int {
+    d := make([]int, n+1) // one spare slot for r + 1
+    for _, op := range ops {
+        rangeAdd(d, op[0], op[1], op[2]) // piece: mark the start and the stop
+    }
+    a := materialize(d) // piece: running total spreads the marks out
+    return a[:n]        // drop the spare slot
+}
 --uses
 u-diffadd
+
 ### prefix2d
 --idea
 A 2D prefix sum table lets you add up any rectangle of a grid with just four lookups. Imagine each cell of the table holding the total of the rectangle that starts at the top left corner of the grid and ends at that cell. To get some other rectangle, take the big rectangle that ends at its bottom right corner and cut off the strips above and to the left.
@@ -1187,8 +1577,26 @@ long long bestBlock(const vector<vector<int>>& g, int bh, int bw) {
             best = max(best, rectSum(p, r, c, r + bh - 1, c + bw - 1));
     return best;
 }
+--go
+// sum of the rectangle with corners (r1,c1) and (r2,c2), both included; p comes from build2d
+func rectSum(p [][]int, r1, c1, r2, c2 int) int {
+    return p[r2+1][c2+1] - p[r1][c2+1] - p[r2+1][c1] + p[r1][c1]
+}
+
+// the best sum over all bh x bw blocks of the grid
+func bestBlock(g [][]int, bh, bw int) int {
+    p := build2d(g) // piece: the padded table
+    best := math.MinInt
+    for r := 0; r+bh <= len(g); r++ {
+        for c := 0; c+bw <= len(g[0]); c++ {
+            best = max(best, rectSum(p, r, c, r+bh-1, c+bw-1))
+        }
+    }
+    return best
+}
 --uses
 u-pfx2d
+
 ### twop
 --idea
 Two pointers means walking two markers through an array, usually from opposite ends or one behind the other, so that together they cover the data once instead of checking every pair. Picture two people searching a sorted bookshelf from both ends: if the sum of the two books they hold is too big, the right person steps left; if too small, the left person steps right.
@@ -1308,8 +1716,51 @@ void moveZeroes(vector<int>& a) {
     for (int read = 0; read < (int)a.size(); read++)
         if (a[read] != 0) swapAt(a, write++, read);   // piece: bring it forward
 }
+--go
+// sorted a: indices {i, j} with a[i] + a[j] == target, or {-1, -1}
+func pairWithSum(a []int, target int) [2]int {
+    lo, hi := 0, len(a)-1
+    for lo < hi {
+        s := a[lo] + a[hi]
+        if s == target {
+            return [2]int{lo, hi}
+        }
+        if s < target { // need something bigger
+            lo++
+        } else { // need something smaller
+            hi--
+        }
+    }
+    return [2]int{-1, -1}
+}
+
+// sorted a: how many pairs i < j have a[i] + a[j] <= target
+func countPairsAtMost(a []int, target int) int {
+    lo, hi, count := 0, len(a)-1, 0
+    for lo < hi {
+        if a[lo]+a[hi] <= target {
+            count += hi - lo // a[lo] works with every index lo+1..hi
+            lo++
+        } else {
+            hi-- // a[hi] is too big for a[lo], so for every later lo too
+        }
+    }
+    return count
+}
+
+// same direction: move all zeroes to the end, keeping the order of the others
+func moveZeroes(a []int) {
+    write := 0 // next slot for a non-zero item
+    for read := range a {
+        if a[read] != 0 {
+            swap(a, write, read) // piece: bring it forward
+            write++
+        }
+    }
+}
 --uses
 u-swap
+
 ### window
 --idea
 A sliding window is a range `[left, right]` over an array or string that you stretch on the right and shrink on the left, while keeping a running summary of what is inside (a sum, a set of letters, a count). Think of a caterpillar crawling along: the head moves forward to take in a new item, and the tail moves up whenever the body gets too long or breaks a rule.
@@ -1352,7 +1803,7 @@ static int shortestAtLeast(int[] a, long target) {
     long sum = 0;
     for (int right = 0; right < a.length; right++) {
         sum += a[right];
-        while (sum >= target) {                       // still valid: try to shrink
+        while (left <= right && sum >= target) {      // still valid: try to shrink
             int len = right - left + 1;
             if (best == 0 || len < best) best = len;
             sum -= a[left++];
@@ -1430,8 +1881,45 @@ int shortestAtLeast(const vector<int>& a, long long target) {
 int longestTwoKinds(const vector<int>& a) {
     return longestWindow(a, 2);             // piece: add on the right, drop on the left while too many kinds
 }
+--go
+// length of the longest substring with no repeated letter
+func longestUnique(s string) int {
+    last := map[byte]int{} // letter -> most recent index
+    left, best := 0, 0
+    for right := 0; right < len(s); right++ {
+        c := s[right]
+        if i, ok := last[c]; ok && i >= left {
+            left = i + 1 // jump past the earlier copy
+        }
+        last[c] = right
+        best = max(best, right-left+1)
+    }
+    return best
+}
+
+// shortest subarray (positive numbers) with sum >= target, 0 if none
+func shortestAtLeast(a []int, target int) int {
+    left, best, sum := 0, 0, 0
+    for right := range a {
+        sum += a[right]
+        for left <= right && sum >= target { // still valid: try to shrink
+            if n := right - left + 1; best == 0 || n < best {
+                best = n
+            }
+            sum -= a[left]
+            left++
+        }
+    }
+    return best
+}
+
+// the classic "fruit baskets" problem: longest stretch holding at most 2 kinds of value
+func longestTwoKinds(a []int) int {
+    return longestWindow(a, 2) // piece: add on the right, drop on the left while too many kinds
+}
 --uses
 u-windowmv
+
 ### windeque
 --idea
 The sliding window maximum problem asks for the biggest value inside every window of `k` consecutive items as the window slides along an array. Rescanning each window costs `O(nk)`. A deque (a queue you can push to and pop from at both ends) does it in `O(n)` by remembering only the items that could still become a maximum.
@@ -1494,6 +1982,26 @@ vector<int> slidingMax(const vector<int>& a, int k) {
     }
     return res;
 }
+--go
+func slidingMax(a []int, k int) []int {
+    n := len(a)
+    res := make([]int, n-k+1)
+    dq := []int{} // indices, values decreasing
+    for i := 0; i < n; i++ {
+        for len(dq) > 0 && a[dq[len(dq)-1]] <= a[i] {
+            dq = dq[:len(dq)-1] // dominated by the new item
+        }
+        dq = append(dq, i)
+        if dq[0] <= i-k { // slid out of the window
+            dq = dq[1:]
+        }
+        if i >= k-1 {
+            res[i-k+1] = a[dq[0]]
+        }
+    }
+    return res
+}
+
 ### fastslow
 --idea
 Fast and slow pointers walk the same path at two speeds: the slow one takes one step at a time, the fast one takes two. On a path that ends, the fast pointer reaches the end when the slow one is exactly halfway, which finds the middle in one pass. On a path that loops back on itself, the fast one laps the slow one and they meet inside the loop, which proves a cycle exists. It is two runners on a track: if the track is a loop, the faster runner must catch the slower one.
@@ -1624,8 +2132,49 @@ bool isPalindrome(ListNode* head) {
         if (front->val != back->val) return false;
     return true;
 }
+--go
+// ListNode has val int and next *ListNode (nil at the end)
+
+// first node of the cycle, or nil if the list ends
+func cycleStart(head *ListNode) *ListNode {
+    slow, fast := head, head
+    for fast != nil && fast.next != nil {
+        slow = slow.next      // one step
+        fast = fast.next.next // two steps
+        if slow == fast {     // they met inside the cycle
+            slow = head
+            for slow != fast { // equal distances now: walk together
+                slow, fast = slow.next, fast.next
+            }
+            return slow
+        }
+    }
+    return nil
+}
+
+// middle node of a list with no cycle (the second middle when the length is even)
+func middle(head *ListNode) *ListNode {
+    slow, fast := head, head
+    for fast != nil && fast.next != nil {
+        slow = slow.next
+        fast = fast.next.next
+    }
+    return slow
+}
+
+// palindrome test for a list with no cycle; it reverses the second half in place
+func isPalindrome(head *ListNode) bool {
+    back := reverseList(middle(head)) // piece: flip the second half
+    for front := head; back != nil; front, back = front.next, back.next {
+        if front.val != back.val {
+            return false
+        }
+    }
+    return true
+}
 --uses
 u-listrev
+
 ### greedy
 --idea
 A greedy algorithm builds an answer step by step and, at every step, takes the choice that looks best right now, never reconsidering it later. Think of making change at a till: to pay out 63 in coins of 25, 10, 5 and 1, you hand over the biggest coin that still fits, again and again, and you end with the fewest coins. No planning ahead, no undoing.
@@ -1714,8 +2263,38 @@ int greedyCoins(const vector<int>& coins, int amount) {
     }
     return amount == 0 ? count : -1;
 }
+--go
+// minimum jumps to reach the last index; a[i] = longest jump from i. -1 if impossible.
+func minJumps(a []int) int {
+    jumps, curEnd, farthest := 0, 0, 0
+    for i := 0; i < len(a)-1; i++ {
+        farthest = max(farthest, clamp(i+a[i], 0, len(a)-1)) // best place reachable, capped at the end
+        if i == curEnd {                                     // must jump now: take the farthest option
+            if farthest <= i { // stuck
+                return -1
+            }
+            jumps++
+            curEnd = farthest
+        }
+    }
+    return jumps
+}
+
+// greedy coin change: right for 25/10/5/1, wrong for 4/3/1. coins sorted descending.
+func greedyCoins(coins []int, amount int) int {
+    count := 0
+    for _, c := range coins {
+        count += amount / c // as many of the biggest coin as fit
+        amount %= c
+    }
+    if amount != 0 {
+        return -1
+    }
+    return count
+}
 --uses
 u-minmax
+
 ### exchange
 --idea
 An exchange argument is a way to prove that a greedy choice is safe. Take any best solution you can imagine. If it does not already start with the greedy choice, swap two things around so that it does, and show the swap does not make the answer worse. Then the greedy choice is part of some best solution, and you can lock it in and repeat on what is left.
@@ -1778,8 +2357,25 @@ long long minWeightedCompletion(vector<pair<int, int>> jobs) {
     }
     return total;
 }
+--go
+// jobs[i] = {time, weight}. Minimum possible sum of weight * finishing time.
+func minWeightedCompletion(jobs [][2]int) int {
+    order := append([][2]int(nil), jobs...)
+    // x goes before y when t_x / w_x < t_y / w_y, written without division
+    sort.Slice(order, func(i, j int) bool {
+        x, y := order[i], order[j]
+        return compare(x[0]*y[1], y[0]*x[1]) < 0 // piece: -1, 0 or 1
+    })
+    time, total := 0, 0
+    for _, job := range order {
+        time += job[0] // this job finishes at time
+        total += time * job[1]
+    }
+    return total
+}
 --uses
 u-cmp
+
 ### intervals
 --idea
 Interval scheduling asks: given many time slots, each with a start and an end, what is the largest number you can attend if no two may overlap? The greedy answer is wonderfully short: always pick the interval that ends earliest among those that still fit. It leaves the most room for everything after it.
@@ -1842,8 +2438,25 @@ int maxNonOverlap(vector<pair<int, int>> intervals) {
     }
     return count;
 }
+--go
+// intervals[i] = {start, end}. Largest number of intervals with no overlap (touching is fine).
+func maxNonOverlap(intervals [][2]int) int {
+    sorted := append([][2]int(nil), intervals...)
+    sort.Slice(sorted, func(i, j int) bool {
+        return compare(sorted[i][1], sorted[j][1]) < 0 // piece: earliest end first
+    })
+    count, lastEnd := 0, math.MinInt
+    for _, iv := range sorted {
+        if iv[0] >= lastEnd { // fits after the last chosen one
+            count++
+            lastEnd = iv[1]
+        }
+    }
+    return count
+}
 --uses
 u-cmp
+
 ### huffman
 --idea
 Huffman coding gives every symbol a binary code so that frequent symbols get short codes and rare ones get long codes, and the total length of the encoded message is as small as possible. No code is the beginning of another code (a prefix code), so you can decode a stream of bits from left to right without any separators. It is Morse code done properly.
@@ -1951,6 +2564,64 @@ vector<string> huffmanCodes(const vector<long long>& freq) {
     assignCodes(pq.top().second, "", left, right, n, codes);
     return codes;
 }
+--go
+// needs container/heap. Items are {frequency, id}; the heap orders by frequency, then id.
+type pq [][2]int
+
+func (h pq) Len() int { return len(h) }
+func (h pq) Less(i, j int) bool {
+    if h[i][0] != h[j][0] {
+        return h[i][0] < h[j][0]
+    }
+    return h[i][1] < h[j][1]
+}
+func (h pq) Swap(i, j int) { h[i], h[j] = h[j], h[i] }
+func (h *pq) Push(x any)   { *h = append(*h, x.([2]int)) }
+func (h *pq) Pop() any {
+    old := *h
+    x := old[len(old)-1]
+    *h = old[:len(old)-1]
+    return x
+}
+
+// freq[i] = frequency of symbol i. Returns one binary code string per symbol.
+func huffmanCodes(freq []int) []string {
+    n := len(freq)
+    codes := make([]string, n)
+    if n == 0 {
+        return codes
+    }
+    if n == 1 {
+        codes[0] = "0"
+        return codes
+    }
+    left, right := make([]int, 2*n), make([]int, 2*n)
+    h := &pq{}
+    for i, f := range freq {
+        heap.Push(h, [2]int{f, i})
+    }
+    next := n
+    for h.Len() > 1 {
+        a := heap.Pop(h).([2]int) // the two rarest
+        b := heap.Pop(h).([2]int)
+        left[next], right[next] = a[1], b[1]
+        heap.Push(h, [2]int{a[0] + b[0], next})
+        next++
+    }
+    root := heap.Pop(h).([2]int)[1]
+    assign(root, "", left, right, n, codes)
+    return codes
+}
+
+func assign(node int, code string, left, right []int, n int, codes []string) {
+    if node < n { // a leaf
+        codes[node] = code
+        return
+    }
+    assign(left[node], code+"0", left, right, n, codes)
+    assign(right[node], code+"1", left, right, n, codes)
+}
+
 ### fracknap
 --idea
 In the fractional knapsack you have a bag with a weight limit and items that each have a value and a weight, and you may take part of an item (half a sack of rice is worth half as much). The goal is the most total value. The answer is the cleanest greedy there is: take items in order of value per unit of weight, best ratio first, until the bag is full.
@@ -2019,8 +2690,30 @@ double fractionalKnapsack(vector<pair<int, int>> items, int capacity) {
     }
     return total;
 }
+--go
+// items[i] = {value, weight} with weight > 0. Best total value, parts of items allowed.
+func fractionalKnapsack(items [][2]int, capacity int) float64 {
+    sorted := append([][2]int(nil), items...)
+    // higher value per weight first: v_x / w_x > v_y / w_y, compared by cross multiplication
+    sort.Slice(sorted, func(i, j int) bool {
+        x, y := sorted[i], sorted[j]
+        return compare(y[0]*x[1], x[0]*y[1]) < 0 // piece
+    })
+    total := 0.0
+    remaining := capacity
+    for _, it := range sorted {
+        if remaining == 0 {
+            break
+        }
+        take := min(remaining, it[1]) // all of it, or whatever room is left
+        total += float64(it[0]) * float64(take) / float64(it[1])
+        remaining -= take
+    }
+    return total
+}
 --uses
 u-cmp
+
 ### divide
 --idea
 Divide and conquer solves a big problem by splitting it into smaller pieces of the same kind, solving each piece on its own (usually by the same method, recursively), and then combining the pieces' answers. Merge sort is the standard picture: cut the list in half, sort each half, then merge two sorted halves into one sorted list. The cutting is easy, the real work is in the combine step.
@@ -2111,8 +2804,38 @@ long long countInversions(vector<int> a) {                // by value: we sort a
     vector<int> tmp(a.size());
     return sortCount(a, tmp, 0, a.size());
 }
+--go
+// number of pairs i < j with a[i] > a[j]
+func countInversions(a []int) int {
+    b := append([]int(nil), a...) // sort a copy
+    return sortCount(b, make([]int, len(b)), 0, len(b))
+}
+
+// sorts a[lo:hi] and returns the inversions inside it
+func sortCount(a, tmp []int, lo, hi int) int {
+    if hi-lo < 2 { // base case
+        return 0
+    }
+    m := mid(lo, hi) // piece
+    inv := sortCount(a, tmp, lo, m) + sortCount(a, tmp, m, hi)
+    i, j, k := lo, m, lo
+    for i < m || j < hi { // merge the two sorted halves
+        if j >= hi || (i < m && a[i] <= a[j]) {
+            tmp[k] = a[i]
+            i++
+        } else {
+            inv += m - i // a[j] jumps over every remaining left item
+            tmp[k] = a[j]
+            j++
+        }
+        k++
+    }
+    copy(a[lo:hi], tmp[lo:hi])
+    return inv
+}
 --uses
 u-mid
+
 ### bits
 --idea
 A whole number is stored as a row of switches, each either on (1) or off (0). Bit manipulation means reading and changing those switches directly. The number 13 is `1101`: the switches for 8, 4 and 1 are on. A single integer can therefore hold a small set (switch `i` on means "item `i` is in the set") and operations on the whole set take one instruction.
@@ -2196,9 +2919,37 @@ int maskOf(const vector<int>& positions) {
     for (int p : positions) mask = setBit(mask, p);
     return mask;
 }
+--go
+// flip bit i: turn it off if it is on, on if it is off
+func flipBit(x, i int) int {
+    if getBit(x, i) {
+        return clearBit(x, i)
+    }
+    return setBit(x, i)
+}
+
+// is every item of set a also in set b?
+func isSubset(a, b int) bool {
+    return a&b == a // intersecting with b must lose nothing
+}
+
+// number of positions where a and b differ
+func hammingDistance(a, b int) int {
+    return popcount(a ^ b) // ^ is 1 exactly where the bits differ
+}
+
+// turn a list of positions into a mask
+func maskOf(positions []int) int {
+    mask := 0
+    for _, p := range positions {
+        mask = setBit(mask, p)
+    }
+    return mask
+}
 --uses
 u-bit
 u-popcount
+
 ### bittricks
 --idea
 Bit tricks are short expressions that do something useful to all the bits of a number at once. They exist because of a few facts about how binary numbers behave. The best known: `x & -x` leaves only the lowest switch that is on. Subtracting 1 from a number flips its lowest on switch and all the switches below it, so `x & (x - 1)` switches off the lowest on switch.
@@ -2297,9 +3048,42 @@ int roundUpPow2(int x) {
     while (p < x) p <<= 1;
     return p;
 }
+--go
+// bits[i] = number of 1 bits in i, for i from 0 to n
+func countBitsUpTo(n int) []int {
+    bits := make([]int, n+1)
+    for i := 1; i <= n; i++ {
+        bits[i] = bits[i-lowbit(i)] + 1 // drop the lowest set bit, add one for it
+    }
+    return bits
+}
+
+// the values of the set bits of x, lowest first (12 gives 4 then 8)
+func bitValues(x int) []int {
+    var out []int
+    for x != 0 {
+        low := lowbit(x)
+        out = append(out, low)
+        x -= low // remove it and continue
+    }
+    return out
+}
+
+// smallest power of two that is at least x (x >= 1)
+func roundUpPow2(x int) int {
+    if isPowerOfTwo(x) {
+        return x
+    }
+    p := 1
+    for p < x {
+        p <<= 1
+    }
+    return p
+}
 --uses
 u-lowbit
 u-pow2
+
 ### subsetenum
 --idea
 Enumerating subsets means visiting every subset of a set of `n` items exactly once. With a bit mask this is a plain counting loop: write each number from `0` to `2^n - 1` in binary, and let the switches that are on be the chosen items. Mask `0` is the empty set, mask `2^n - 1` is everything. There is no recursion and no undo, just a loop.
@@ -2388,8 +3172,39 @@ long long countPairs(int n) {
         total += submasks(mask).size() + 1;                // +1 for the empty submask
     return total;
 }
+--go
+// needs math/bits
+// sum[mask] = total of the items chosen by mask; each entry costs O(1)
+func allSubsetSums(a []int) []int {
+    n := len(a)
+    sum := make([]int, 1<<n)
+    for mask := 1; mask < 1<<n; mask++ {
+        low := bits.TrailingZeros(uint(mask))   // position of the lowest item
+        sum[mask] = sum[mask&(mask-1)] + a[low] // the rest is already computed
+    }
+    return sum
+}
+
+// sums of all non-empty subsets of the items inside mask
+func submaskSums(sum []int, mask int) []int {
+    var out []int
+    for _, sub := range submasks(mask) { // piece: every non-empty submask
+        out = append(out, sum[sub])
+    }
+    return out
+}
+
+// how many (mask, submask) pairs exist for n items: 3^n
+func countPairs(n int) int {
+    total := 0
+    for mask := 0; mask < 1<<n; mask++ {
+        total += len(submasks(mask)) + 1 // +1 for the empty submask
+    }
+    return total
+}
 --uses
 u-submask
+
 ### gray
 --idea
 Gray code is a way to list all the `n`-bit numbers so that each one differs from the next in exactly one bit. In ordinary counting, going from 3 (`011`) to 4 (`100`) flips three bits at once. In Gray order the neighbours always differ by a single flip, like a combination lock that changes one dial at a time. The list is also a loop: the last entry differs from the first by one bit.
@@ -2457,8 +3272,32 @@ int fromGray(int g, int bits) {
     }
     return b;
 }
+--go
+// all 2^n Gray codes in order
+func grayCodes(n int) []int {
+    g := make([]int, 1<<n)
+    for i := range g {
+        g[i] = i ^ (i >> 1) // each bit is the XOR of itself and the bit above
+    }
+    return g
+}
+
+// turn a Gray code with the given number of bits back into the plain number
+func fromGray(g, bits int) int {
+    b, prev := 0, 0
+    for i := bits - 1; i >= 0; i-- { // from the top bit down
+        if getBit(g, i) {
+            prev ^= 1 // running XOR of the Gray bits seen so far
+        }
+        if prev == 1 {
+            b = setBit(b, i)
+        }
+    }
+    return b
+}
 --uses
 u-bit
+
 ### xortricks
 --idea
 XOR (written `^`) compares two bits and gives 1 when they differ. It has three properties that make it a favourite: `x ^ x = 0` (a value cancels itself), `x ^ 0 = x` (zero changes nothing), and the order does not matter. So if you XOR a list in which every value appears twice except one, all the pairs vanish and only the odd one out remains. It is like a light switch: flipping it twice puts it back.
@@ -2558,8 +3397,47 @@ pair<int, int> twoSingles(const vector<int>& a) {
     int q = x ^ p;
     return {min(p, q), max(p, q)};
 }
+--go
+// every value appears twice except one: return that one
+func findSingle(a []int) int {
+    x := 0
+    for _, v := range a {
+        x ^= v // pairs cancel
+    }
+    return x
+}
+
+// the numbers 0..n with one missing, given as a slice of length n
+func missingNumber(a []int) int {
+    x := len(a) // include n itself
+    for i, v := range a {
+        x ^= i ^ v
+    }
+    return x
+}
+
+// two values appear once, all others twice: return them in increasing order
+func twoSingles(a []int) [2]int {
+    x := 0
+    for _, v := range a {
+        x ^= v // x = p ^ q, which is not zero
+    }
+    k := 0
+    for !getBit(x, k) { // a bit where p and q differ
+        k++
+    }
+    p := 0
+    for _, v := range a {
+        if getBit(v, k) { // this group holds exactly one of them
+            p ^= v
+        }
+    }
+    q := x ^ p
+    return [2]int{min(p, q), max(p, q)}
+}
 --uses
 u-bit
+
 ### meet
 --idea
 Meet in the middle splits a search that is too big for brute force into two halves that are each small, solves each half separately, and then joins the two answers cleverly. If a problem has `n = 40` items, trying all `2^40` subsets (a trillion) is hopeless, but each half of 20 items has only a million subsets. You list the subsets of each half and then match them up, which costs about `2^20` instead of `2^40`.
@@ -2642,8 +3520,34 @@ long long countSubsetsWithSum(const vector<long long>& a, long long target) {
     }
     return total;
 }
+--go
+// all subset sums of a[from:to], as a map: sum -> how many subsets give it
+func halfSums(a []int, from, to int) map[int]int {
+    m := to - from
+    res := map[int]int{}
+    for mask := 0; mask < 1<<m; mask++ {
+        s := 0
+        for _, i := range itemsIn(mask, m) { // piece: which items this mask picks
+            s += a[from+i]
+        }
+        res[s]++
+    }
+    return res
+}
+
+// number of subsets (the empty one included) whose sum is exactly target
+func countSubsetsWithSum(a []int, target int) int {
+    h := len(a) / 2
+    left, right := halfSums(a, 0, h), halfSums(a, h, len(a))
+    total := 0
+    for s, cnt := range left { // for each left sum, look up the partner
+        total += cnt * right[target-s]
+    }
+    return total
+}
 --uses
 u-maskiter
+
 ### coord
 --idea
 Coordinate compression replaces a set of huge or awkward values by small whole numbers that keep the same order. If an input contains values like `5`, `1000000000` and `-7`, you cannot use them as array positions. But only the order and equality of the values matter in many problems, so you can number them by rank: the smallest becomes `0`, the next `1`, and so on. Then every value is a small index you can use in an array, a Fenwick tree or a table.
@@ -2724,8 +3628,40 @@ long long unionLength(const vector<pair<int, int>>& segs) {
     }
     return total;
 }
+--go
+// total length covered by the segments [l, r) on a huge number line; segs[i] = {l, r}
+func unionLength(segs [][2]int) int {
+    m := len(segs)
+    pts := make([]int, 2*m)
+    for i, s := range segs {
+        pts[2*i], pts[2*i+1] = s[0], s[1]
+    }
+    rank := compress(pts) // piece: each end becomes its rank
+    k := 0
+    for _, r := range rank {
+        k = max(k, r+1) // number of distinct ends
+    }
+    value := make([]int, k)
+    for i, p := range pts {
+        value[rank[i]] = p // back from rank to coordinate
+    }
+    diff := make([]int, k+1)
+    for i := 0; i < m; i++ {
+        diff[rank[2*i]]++
+        diff[rank[2*i+1]]--
+    }
+    total, cover := 0, 0
+    for j := 0; j+1 < k; j++ {
+        cover += diff[j] // how many segments cover step j
+        if cover > 0 {
+            total += value[j+1] - value[j]
+        }
+    }
+    return total
+}
 --uses
 u-compressv
+
 ### sweep
 --idea
 A sweep line imagines a vertical line moving across the plane (or a point moving along a number line) from left to right. Instead of looking at all objects at once, you process only the moments where something changes, called events, in order, and you keep a small summary of what is "active" right now. A road with roadworks is a good picture: as you drive, you only care when a work zone starts and when it ends.
@@ -2790,8 +3726,27 @@ int maxOverlap(const vector<pair<int, int>>& intervals) {
     }
     return best;
 }
+--go
+// most intervals that overlap at one moment; intervals[i] = {start, end}, half open [start, end)
+func maxOverlap(intervals [][2]int) int {
+    ev := make([][2]int, 0, 2*len(intervals))
+    for _, iv := range intervals {
+        ev = append(ev, [2]int{iv[0], +1}) // an interval opens
+        ev = append(ev, [2]int{iv[1], -1}) // an interval closes
+    }
+    sort.Slice(ev, func(i, j int) bool {
+        return comparePairs(ev[i], ev[j]) < 0 // piece: by time, then -1 before +1
+    })
+    cur, best := 0, 0
+    for _, e := range ev {
+        cur += e[1]
+        best = max(best, cur)
+    }
+    return best
+}
 --uses
 u-pair
+
 ### offline
 --idea
 Offline processing means you read all the queries first, and then answer them in an order you choose, instead of in the order they arrive. The answers are the same, but the right order can make each one far easier. Think of a postman who collects all the letters first and plans a route, rather than walking to each house the moment a letter is written.
@@ -2915,9 +3870,51 @@ vector<int> distinctInRanges(const vector<int>& a, const vector<pair<int, int>>&
     }
     return ans;
 }
+--go
+var n int // size of the Fenwick tree; the piece add(i, v) uses n and bit
+var bit []int
+
+// the piece (shown here for reference; it uses the variables above):
+//   func add(i, v int) { for i++; i <= n; i += i & -i { bit[i] += v } }
+
+func prefixSum(i int) int { // sum of positions 0..i
+    s := 0
+    for i++; i > 0; i -= i & -i {
+        s += bit[i]
+    }
+    return s
+}
+
+// queries[q] = {l, r}; returns the number of distinct values in a[l..r] for each query
+func distinctInRanges(a []int, queries [][2]int) []int {
+    n = len(a)
+    bit = make([]int, n+1)
+    rights := make([]int, len(queries))
+    for i, q := range queries {
+        rights[i] = q[1]
+    }
+    order := sortIndices(rights) // piece: queries ordered by right end
+    ans := make([]int, len(queries))
+    last := map[int]int{} // value -> latest position so far
+    next := 0
+    for r := 0; r < n; r++ {
+        if prev, ok := last[a[r]]; ok {
+            add(prev, -1) // piece: the old mark moves forward
+        }
+        last[a[r]] = r
+        add(r, 1) // piece: mark the latest position
+        for next < len(order) && queries[order[next]][1] == r {
+            id := order[next]
+            next++
+            ans[id] = prefixSum(r) - prefixSum(queries[id][0]-1)
+        }
+    }
+    return ans
+}
 --uses
 u-sortidx
 u-bitadd
+
 ### mo
 --idea
 Mo's algorithm answers many range queries on an array by reordering them so that a single window `[curL, curR]` can slide from one query's range to the next with very little movement. When adding or removing one item at the end of the window is cheap (update a count, a distinct total), the cost of a query is just the distance the window has to travel. By sorting the queries cleverly, the total travel of all queries is about `n * sqrt(q)` instead of `n * q`.
@@ -3023,8 +4020,59 @@ vector<int> moDistinct(const vector<int>& a, const vector<pair<int, int>>& queri
     }
     return ans;
 }
+--go
+// number of distinct values in a[l..r] for each query {l, r}; values are non-negative ints
+func moDistinct(a []int, queries [][2]int) []int {
+    n, q := len(a), len(queries)
+    block := max(1, int(float64(n)/math.Sqrt(float64(max(1, q)))))
+    key := make([]int, q)
+    for i, qu := range queries {
+        b, r := qu[0]/block, qu[1]
+        if b%2 == 1 { // odd blocks go right to left
+            r = n - r
+        }
+        key[i] = b*(n+1) + r
+    }
+    order := sortIndices(key) // piece: query ids in Mo order
+    maxV := 0
+    for _, x := range a {
+        maxV = max(maxV, x)
+    }
+    cnt, ans := make([]int, maxV+1), make([]int, q)
+    curL, curR, distinct := 0, -1, 0
+    for _, id := range order {
+        l, r := queries[id][0], queries[id][1]
+        for curL > l { // grow first
+            curL--
+            if cnt[a[curL]]++; cnt[a[curL]] == 1 {
+                distinct++
+            }
+        }
+        for curR < r {
+            curR++
+            if cnt[a[curR]]++; cnt[a[curR]] == 1 {
+                distinct++
+            }
+        }
+        for curL < l { // then shrink
+            if cnt[a[curL]]--; cnt[a[curL]] == 0 {
+                distinct--
+            }
+            curL++
+        }
+        for curR > r {
+            if cnt[a[curR]]--; cnt[a[curR]] == 0 {
+                distinct--
+            }
+            curR--
+        }
+        ans[id] = distinct
+    }
+    return ans
+}
 --uses
 u-sortidx
+
 ### moupd
 --idea
 Mo's algorithm with updates handles range queries on an array that also changes over time. Each query asks about a range as it was after the first `t` updates. The trick is to treat the number of applied updates `t` as a third coordinate next to the two ends `l` and `r`. Now the "window" has three moving parts: its left end, its right end, and the point in time, and you can move any of them one step at a time.
@@ -3201,6 +4249,90 @@ vector<int> moWithUpdates(const vector<int>& a, const vector<pair<int, int>>& up
     }
     return ans;
 }
+--go
+var cnt []int
+var distinct int
+
+func addValue(v int) {
+    if cnt[v]++; cnt[v] == 1 {
+        distinct++
+    }
+}
+func removeValue(v int) {
+    if cnt[v]--; cnt[v] == 0 {
+        distinct--
+    }
+}
+
+// updates[i] = {pos, newValue}; queries[j] = {l, r, t}: range l..r after the first t updates
+func moWithUpdates(a []int, updates [][2]int, queries [][3]int) []int {
+    n, q, u := len(a), len(queries), len(updates)
+    cur, oldVal := append([]int(nil), a...), make([]int, u)
+    maxV := 0
+    for _, x := range a {
+        maxV = max(maxV, x)
+    }
+    for k, up := range updates { // old values, found by simulating once
+        oldVal[k] = cur[up[0]]
+        cur[up[0]] = up[1]
+        maxV = max(maxV, up[1])
+    }
+    cur = append([]int(nil), a...)
+    block := max(1, int(math.Pow(float64(n), 2.0/3)))
+    blocks := n/block + 1
+    key := make([]int, q)
+    for i, qu := range queries {
+        key[i] = (qu[0]/block*blocks+qu[1]/block)*(u+1) + qu[2]
+    }
+    order := make([]int, q)
+    for i := range order {
+        order[i] = i
+    }
+    sort.Slice(order, func(x, y int) bool { return key[order[x]] < key[order[y]] })
+    cnt, distinct = make([]int, maxV+1), 0
+    ans := make([]int, q)
+    curL, curR, curT := 0, -1, 0
+    for _, id := range order {
+        l, r, t := queries[id][0], queries[id][1], queries[id][2]
+        for curL > l {
+            curL--
+            addValue(cur[curL])
+        }
+        for curR < r {
+            curR++
+            addValue(cur[curR])
+        }
+        for curL < l {
+            removeValue(cur[curL])
+            curL++
+        }
+        for curR > r {
+            removeValue(cur[curR])
+            curR--
+        }
+        for curT < t { // apply update curT
+            pos := updates[curT][0]
+            if curL <= pos && pos <= curR {
+                removeValue(cur[pos])
+                addValue(updates[curT][1])
+            }
+            cur[pos] = updates[curT][1]
+            curT++
+        }
+        for curT > t { // undo update curT - 1
+            curT--
+            pos := updates[curT][0]
+            if curL <= pos && pos <= curR {
+                removeValue(cur[pos])
+                addValue(oldVal[curT])
+            }
+            cur[pos] = oldVal[curT]
+        }
+        ans[id] = distinct
+    }
+    return ans
+}
+
 ### motree
 --idea
 Mo's algorithm on trees answers queries about the path between two nodes, such as "how many different colours appear on the path from `u` to `v`". The method works on arrays and ranges, so the plan is to turn each tree path into a range of an array. Walk the tree depth first and write down each node twice, once when you enter it and once when you leave it. That list is the Euler tour, of length `2n`.
@@ -3456,8 +4588,146 @@ vector<int> distinctOnPaths(int n, const vector<pair<int, int>>& edges, const ve
     }
     return ans;
 }
+--go
+var adj [][]int
+var tin, tout []int
+var timer int
+
+// the piece dfs(v, p) numbers each node on entry (tin) and on exit (tout) from one counter
+
+var cnt []int
+var on []bool
+var distinct int
+
+func toggle(v int, color []int) {
+    if on[v] {
+        on[v] = false
+        if cnt[color[v]]--; cnt[color[v]] == 0 {
+            distinct--
+        }
+    } else {
+        on[v] = true
+        if cnt[color[v]]++; cnt[color[v]] == 1 {
+            distinct++
+        }
+    }
+}
+
+func lca(u, v int, up [][]int, depth []int) int {
+    if depth[u] < depth[v] {
+        u, v = v, u
+    }
+    for j := range up {
+        if (depth[u]-depth[v])>>j&1 == 1 {
+            u = up[j][u] // lift u to the depth of v
+        }
+    }
+    if u == v {
+        return u
+    }
+    for j := len(up) - 1; j >= 0; j-- {
+        if up[j][u] != up[j][v] {
+            u, v = up[j][u], up[j][v]
+        }
+    }
+    return up[0][u]
+}
+
+// queries[i] = {u, v}; result[i] = distinct colours on the path u..v; colours are 0, 1, 2, ...
+func distinctOnPaths(n int, edges [][2]int, color []int, queries [][2]int) []int {
+    adj = make([][]int, n)
+    for _, e := range edges {
+        adj[e[0]] = append(adj[e[0]], e[1])
+        adj[e[1]] = append(adj[e[1]], e[0])
+    }
+    tin, tout, timer = make([]int, n), make([]int, n), 0
+    dfs(0, -1) // piece: entry and exit times
+    order, par, depth := make([]int, 2*n), make([]int, n), make([]int, n)
+    for v := 0; v < n; v++ {
+        order[tin[v]], order[tout[v]] = v, v
+    }
+    var stack []int
+    for i, v := range order { // parents and depths from the tour
+        if tin[v] == i {
+            par[v], depth[v] = v, len(stack)
+            if len(stack) > 0 {
+                par[v] = stack[len(stack)-1]
+            }
+            stack = append(stack, v)
+        } else {
+            stack = stack[:len(stack)-1]
+        }
+    }
+    lg := 1
+    for 1<<lg < n {
+        lg++
+    }
+    up := make([][]int, lg)
+    up[0] = par
+    for j := 1; j < lg; j++ {
+        up[j] = make([]int, n)
+        for v := 0; v < n; v++ {
+            up[j][v] = up[j-1][up[j-1][v]]
+        }
+    }
+    q, m := len(queries), 2*n
+    ql, qr, extra := make([]int, q), make([]int, q), make([]int, q)
+    for i, qu := range queries { // path -> range (+ maybe the lca)
+        u, v := qu[0], qu[1]
+        if tin[u] > tin[v] {
+            u, v = v, u
+        }
+        if w := lca(u, v, up, depth); w == u {
+            ql[i], qr[i], extra[i] = tin[u], tin[v], -1
+        } else {
+            ql[i], qr[i], extra[i] = tout[u], tin[v], w
+        }
+    }
+    block := max(1, int(float64(m)/math.Sqrt(float64(max(1, q)))))
+    ids, key := make([]int, q), make([]int, q)
+    for i := range ids {
+        ids[i] = i
+        b := ql[i] / block
+        key[i] = b*(m+1) + qr[i]
+        if b%2 == 1 {
+            key[i] = b*(m+1) + m - qr[i]
+        }
+    }
+    sort.Slice(ids, func(x, y int) bool { return key[ids[x]] < key[ids[y]] })
+    maxC := 0
+    for _, c := range color {
+        maxC = max(maxC, c)
+    }
+    cnt, on, distinct = make([]int, maxC+1), make([]bool, n), 0
+    ans := make([]int, q)
+    curL, curR := 0, -1
+    for _, id := range ids {
+        for curL > ql[id] {
+            curL--
+            toggle(order[curL], color)
+        }
+        for curR < qr[id] {
+            curR++
+            toggle(order[curR], color)
+        }
+        for curL < ql[id] {
+            toggle(order[curL], color)
+            curL++
+        }
+        for curR > qr[id] {
+            toggle(order[curR], color)
+            curR--
+        }
+        ans[id] = distinct
+        if extra[id] >= 0 && cnt[color[extra[id]]] == 0 {
+            ans[id]++
+        }
+    }
+    return ans
+}
 --uses
 u-entry
+
 ### cdq
 --idea
 CDQ divide and conquer (named after a Chinese competitive programmer) counts relations between items that depend on several conditions at once, by splitting the items in half by their position (often time), solving each half, and then counting the pairs that straddle the middle. The key is that inside one level, the first condition (earlier index) is already guaranteed by the split, so you only need to handle the remaining conditions for pairs where the left item comes from the left half and the right item from the right half.
@@ -3597,8 +4867,63 @@ long long countDominatingPairs(const vector<int>& a, const vector<int>& b) {
     solve(keys, 0, n);
     return total;
 }
+--go
+var total int
+var bit []int
+var size int // n, the number of items
+
+func bitAdd(i, v int) {
+    for i++; i <= size; i += i & -i {
+        bit[i] += v
+    }
+}
+
+func bitSum(i int) int { // sum over positions 0..i (0 if i < 0)
+    s := 0
+    for i++; i > 0; i -= i & -i {
+        s += bit[i]
+    }
+    return s
+}
+
+// keys[i] = a[i] * n + b[i]; returns the keys of lo..hi-1 sorted and adds the pairs to total
+func solve(keys []int, lo, hi int) []int {
+    if hi-lo == 1 {
+        return []int{keys[lo]}
+    }
+    mid := (lo + hi) / 2
+    left, right := solve(keys, lo, mid), solve(keys, mid, hi)
+    i := 0
+    for _, y := range right { // right items in increasing key order
+        for i < len(left) && left[i]/size < y/size {
+            bitAdd(left[i]%size, 1) // left items with a smaller a
+            i++
+        }
+        total += bitSum(y%size - 1) // ...and a smaller b
+    }
+    for k := 0; k < i; k++ {
+        bitAdd(left[k]%size, -1) // clear the tree
+    }
+    return merge(left, right) // piece: keep the halves sorted
+}
+
+// pairs i < j with a[i] < a[j] and b[i] < b[j]; a and b hold ranks 0..n-1
+func countDominatingPairs(a, b []int) int {
+    n := len(a)
+    if n == 0 {
+        return 0
+    }
+    size, bit, total = n, make([]int, n+1), 0
+    keys := make([]int, n)
+    for i := range keys {
+        keys[i] = a[i]*n + b[i]
+    }
+    solve(keys, 0, n)
+    return total
+}
 --uses
 u-merge
+
 ### smalllarge
 --idea
 Small to large merging is a way to combine many sets cheaply. When you must merge two sets, copy the elements of the smaller into the larger, never the other way around. Each time an element is copied, it ends up in a set at least twice as big as before. A set can only double about `log n` times before it holds everything, so each element is copied at most `log n` times, and the total work over all merges is `O(n log n)`, not `O(n^2)`.
@@ -3702,8 +5027,51 @@ vector<int> distinctInSubtrees(int n, const vector<pair<int, int>>& edges, const
     }
     return ans;
 }
+--go
+// colour counts for the subtree of each node; the tree is rooted at node 0
+func distinctInSubtrees(n int, edges [][2]int, color []int) []int {
+    adj := make([][]int, n)
+    for _, e := range edges {
+        adj[e[0]] = append(adj[e[0]], e[1])
+        adj[e[1]] = append(adj[e[1]], e[0])
+    }
+    parent, order := make([]int, n), make([]int, 0, n)
+    for i := range parent {
+        parent[i] = -1
+    }
+    order = append(order, 0)
+    for head := 0; head < len(order); head++ { // breadth first order: parents come first
+        v := order[head]
+        for _, w := range adj[v] {
+            if w != parent[v] {
+                parent[w] = v
+                order = append(order, w)
+            }
+        }
+    }
+    sets := make([]map[int]int, n)
+    for v := range sets {
+        sets[v] = map[int]int{color[v]: 1} // the node's own colour
+    }
+    ans := make([]int, n)
+    for i := n - 1; i >= 0; i-- { // descendants are processed before the node
+        v, p := order[i], parent[order[i]]
+        ans[v] = len(sets[v])
+        if p < 0 {
+            continue
+        }
+        if len(sets[v]) > len(sets[p]) { // make sets[p] the larger one: swap the maps
+            sets[v], sets[p] = sets[p], sets[v]
+        }
+        for c, k := range sets[v] { // copy only the smaller one
+            sets[p][c] = getOrDefault(sets[p], c, 0) + k // piece
+        }
+    }
+    return ans
+}
 --uses
 u-hget
+
 ### random
 --idea
 Randomization means letting chance make some of the choices in your algorithm so that no fixed input can reliably make it slow or wrong. If a quick-sort always takes the first item as the pivot, an already sorted list makes it take quadratic time. If it takes a random item, no input is bad: the expected time is `n log n` for every input, because a random pivot is usually near the middle.
@@ -3806,8 +5174,47 @@ int kthSmallest(vector<int> b, int k) {
         else return pivot;                         // ... or equals the pivot
     }
 }
+--go
+// needs math/rand for the piece randInt
+// uniformly random order, in place (Fisher-Yates)
+func shuffle(a []int) {
+    for i := 0; i < len(a)-1; i++ {
+        j := randInt(i, len(a)-1) // piece: pick from the not-yet-fixed part
+        a[i], a[j] = a[j], a[i]
+    }
+}
+
+// the k-th smallest value (k counts from 0), without sorting
+func kthSmallest(a []int, k int) int {
+    b := append([]int(nil), a...)
+    lo, hi := 0, len(b)-1
+    for {
+        pivot := b[randInt(lo, hi)] // piece: a random pivot
+        lt, i, gt := lo, lo, hi     // three groups: < pivot, == pivot, > pivot
+        for i <= gt {
+            if b[i] < pivot {
+                b[lt], b[i] = b[i], b[lt]
+                lt++
+                i++
+            } else if b[i] > pivot {
+                b[gt], b[i] = b[i], b[gt]
+                gt--
+            } else {
+                i++
+            }
+        }
+        if k < lt { // the answer is among the smaller ones
+            hi = lt - 1
+        } else if k > gt { // ... among the larger ones
+            lo = gt + 1
+        } else { // ... or equals the pivot
+            return pivot
+        }
+    }
+}
 --uses
 u-rand
+
 ### simulate
 --idea
 Simulation means doing exactly what the statement describes, step by step, and reading off the result. There is no clever formula: you model the state (a grid, a queue, a list), apply the rules one round at a time, and stop when the statement says to. It is the right answer when the number of steps fits the time limit, and it is also the reference solution you compare faster ideas against.
@@ -3913,9 +5320,46 @@ int josephus(int n, int k) {
     }
     return people[0];
 }
+--go
+// one round of Game of Life on a rows x cols grid stored in a flat slice (1 = alive)
+func lifeStep(cell []int, rows, cols int) []int {
+    next := make([]int, len(cell)) // write into a new grid, read from the old one
+    steps := dirs(true)            // piece: the 8 neighbour directions
+    for r := 0; r < rows; r++ {
+        for c := 0; c < cols; c++ {
+            alive := 0
+            for _, d := range steps {
+                rr, cc := r+d[0], c+d[1]
+                if inBounds(rr, cc, rows, cols) { // piece: stay on the board
+                    alive += cell[idx(rr, cc, cols)] // piece: flat position
+                }
+            }
+            me := cell[idx(r, c, cols)]
+            if alive == 3 || (me == 1 && alive == 2) {
+                next[idx(r, c, cols)] = 1
+            }
+        }
+    }
+    return next
+}
+
+// n people in a circle, every k-th is removed; returns the survivor's number (1 to n)
+func josephus(n, k int) int {
+    people := make([]int, n)
+    for i := range people {
+        people[i] = i + 1
+    }
+    pos := 0
+    for len(people) > 1 {
+        pos = (pos + k - 1) % len(people)                // count k people, wrapping around
+        people = append(people[:pos], people[pos+1:]...) // that person leaves; pos now points to the next
+    }
+    return people[0]
+}
 --uses
 u-idx
 u-dirs
+
 ### constructive
 --idea
 A constructive problem asks you to build an object that satisfies some rules: an arrangement, a string, a grid, a list of moves. You are not asked for the best one or how many there are, just to produce one that works (or to say that none exists). The art is to find a pattern that always works, by looking at small cases, and then to prove that the pattern really does satisfy every rule.
@@ -3995,6 +5439,38 @@ vector<long long> distinctWithSum(int n, long long s) {
     a.push_back(s - used);                      // the rest, at least n, so still distinct
     return a;
 }
+--go
+// permutation of 1..n whose neighbouring differences |p[i] - p[i+1]| are all different
+func zigzag(n int) []int {
+    p := make([]int, n)
+    lo, hi := 1, n
+    for i := range p {
+        if i%2 == 0 { // alternate: smallest left, largest left
+            p[i] = lo
+            lo++
+        } else {
+            p[i] = hi
+            hi--
+        }
+    }
+    return p // the gaps are n-1, n-2, ..., 1
+}
+
+// n distinct positive integers with sum exactly s, or nil if impossible
+func distinctWithSum(n, s int) []int {
+    if s < n*(n+1)/2 { // even 1..n is too big: impossible
+        return nil
+    }
+    a := make([]int, n)
+    used := 0
+    for i := 0; i < n-1; i++ { // 1, 2, ..., n-1
+        a[i] = i + 1
+        used += i + 1
+    }
+    a[n-1] = s - used // the rest, at least n, so still distinct
+    return a
+}
+
 ### invariants
 --idea
 An invariant is a quantity that never changes when you apply the allowed moves. If a puzzle lets you change things in complicated ways but some number stays the same, then anything that would need that number to change is impossible, and the final result may be predicted without playing the game at all. A monovariant is a weaker cousin: a quantity that only ever goes one way (always grows, or always shrinks). It proves the process must end, and gives a bound on how many steps it can take.
@@ -4064,6 +5540,26 @@ long long finalBySimulation(const vector<long long>& nums) {
     }
     return q.front();
 }
+--go
+// the last number left, found in one pass: sum - count is unchanged by a move
+func finalByInvariant(nums []int) int {
+    sum := 0
+    for _, x := range nums {
+        sum += x
+    }
+    return sum - len(nums) + 1 // f - 1 = sum - count
+}
+
+// the same result by really playing the moves (first two numbers, result goes to the back)
+func finalBySimulation(nums []int) int {
+    q := append([]int(nil), nums...)
+    for len(q) > 1 {
+        x, y := q[0], q[1]
+        q = append(q[2:], x+y-1) // one move
+    }
+    return q[0]
+}
+
 ### pigeonhole
 --idea
 The pigeonhole principle says: if you put more than `k` items into `k` boxes, some box holds at least two items. It sounds obvious, and its power is in choosing the boxes cleverly so that "two in the same box" means something you want. It proves that something must exist, and often tells you where to look for it.
@@ -4162,6 +5658,42 @@ int findDuplicate(const vector<int>& a) {
     }
     return -1;                                       // cannot happen
 }
+--go
+// indices {l, r} (both included) so that a[l..r] sums to a multiple of n; always exists
+func subarrayDivisibleByN(a []int) [2]int {
+    n := len(a)
+    if n == 0 {
+        return [2]int{-1, -1}
+    }
+    firstSeen := make([]int, n) // remainder -> index where that prefix ended
+    for i := range firstSeen {
+        firstSeen[i] = -2 // -2 means "not seen"
+    }
+    firstSeen[0] = -1 // the empty prefix, before index 0
+    sum := 0
+    for i, v := range a {
+        sum += v
+        rem := ((sum % n) + n) % n // the box of this prefix
+        if firstSeen[rem] != -2 {  // two in one box
+            return [2]int{firstSeen[rem] + 1, i}
+        }
+        firstSeen[rem] = i
+    }
+    return [2]int{-1, -1} // cannot happen: n + 1 prefixes, n boxes
+}
+
+// a number that repeats in a slice of n + 1 values from 1..n
+func findDuplicate(a []int) int {
+    seen := make([]bool, len(a))
+    for _, x := range a {
+        if seen[x-1] { // this box is already taken
+            return x
+        }
+        seen[x-1] = true
+    }
+    return -1 // cannot happen
+}
+
 ### pararg
 --idea
 A parity argument uses odd and even to rule things out (or to prove things). Parity means whether a whole number is odd or even, and it follows simple rules: even plus even is even, odd plus odd is even, even plus odd is odd. If every allowed move changes some count in a way that keeps its parity (or flips it every time), then you know something about every reachable state without exploring any of them.
@@ -4250,6 +5782,48 @@ bool dominoColoursBalanced(int n, int m, const vector<pair<int, int>>& removed) 
         balance -= mod(cell.first + cell.second, 2) == 0 ? 1 : -1;
     return balance == 0;
 }
+--go
+// 15-puzzle style board: tiles in reading order, 0 is the blank, goal is 1..N-1 then 0
+func solvable(tiles []int, width int) bool {
+    height := len(tiles) / width
+    inversions, blankRowFromBottom := 0, 1
+    for i, t := range tiles {
+        if t == 0 {
+            blankRowFromBottom = height - i/width
+            continue
+        }
+        for _, u := range tiles[i+1:] {
+            if u != 0 && t > u { // a pair in the wrong order
+                inversions++
+            }
+        }
+    }
+    if width%2 == 1 {
+        return mod(inversions, 2) == 0 // piece: parity, never negative
+    }
+    return mod(inversions+blankRowFromBottom, 2) == 1
+}
+
+// necessary condition for tiling an n x m board with dominoes after removing some cells (each {r, c})
+func dominoColoursBalanced(n, m int, removed [][2]int) bool {
+    colour := func(r, c int) int { // +1 black, -1 white
+        if mod(r+c, 2) == 0 {
+            return 1
+        }
+        return -1
+    }
+    balance := 0 // black cells minus white cells
+    for r := 0; r < n; r++ {
+        for c := 0; c < m; c++ {
+            balance += colour(r, c)
+        }
+    }
+    for _, cell := range removed {
+        balance -= colour(cell[0], cell[1])
+    }
+    return balance == 0
+}
+
 ### sqrtheur
 --idea
 A square root heuristic splits the work into two cases, "big" and "small", with the border at about the square root of `n`, so that each case is cheap in a different way. Neither strategy is fast on every input, but together they are, because a problem cannot be bad for both. It is like a post office with two counters: parcels under a certain size go through a quick table, big parcels get hand-checked, and there cannot be many big ones.
@@ -4350,8 +5924,44 @@ vector<long long> processOps(vector<int> a, const vector<array<int, 3>>& ops) {
     }
     return answers;
 }
+--go
+// ops[i] = {0, pos, value}: set a[pos] = value.  ops[i] = {1, k, r}: sum of a[j] with j mod k == r.
+// returns the answers of the sum queries, in order
+func processOps(input []int, ops [][3]int) []int {
+    a := append([]int(nil), input...)
+    n := len(a)
+    B := sqrtFloor(n) + 1 // piece: the border between small and big k
+    small := make([][]int, B+1)
+    for k := 1; k <= B; k++ {
+        small[k] = make([]int, k)
+        for i := 0; i < n; i++ {
+            small[k][i%k] += a[i]
+        }
+    }
+    var answers []int
+    for _, op := range ops {
+        if op[0] == 0 { // update: fix every small table
+            pos := op[1]
+            delta := op[2] - a[pos]
+            a[pos] = op[2]
+            for k := 1; k <= B; k++ {
+                small[k][pos%k] += delta
+            }
+        } else if op[1] <= B { // small k: one lookup
+            answers = append(answers, small[op[1]][op[2]])
+        } else { // big k: walk the few matching positions
+            s := 0
+            for j := op[2]; j < n; j += op[1] {
+                s += a[j]
+            }
+            answers = append(answers, s)
+        }
+    }
+    return answers
+}
 --uses
 u-sqrt
+
 ### localsearch
 --idea
 Local search starts from any answer, even a poor one, and keeps improving it with small changes until no small change helps. Picture hiking uphill in fog: you cannot see the peak, but you can always step in the direction that goes up. You stop when every neighbouring step goes down. You are then at a local optimum: the best among the nearby answers, though maybe not the best of all.
@@ -4446,8 +6056,52 @@ int cutSize(const vector<int>& side, const vector<pair<int, int>>& edges) {
     for (auto& e : edges) if (side[e.first] != side[e.second]) cut++;
     return cut;
 }
+--go
+// needs math/rand for the piece randInt
+// a split of the vertices into sides 0 and 1; at least half of the edges cross it
+func localMaxCut(n int, edges [][2]int) []int {
+    adj := make([][]int, n)
+    for _, e := range edges {
+        adj[e[0]] = append(adj[e[0]], e[1])
+        adj[e[1]] = append(adj[e[1]], e[0])
+    }
+    side := make([]int, n)
+    for v := range side {
+        side[v] = randInt(0, 1) // piece: a random start
+    }
+    for improved := true; improved; {
+        improved = false
+        for v := 0; v < n; v++ {
+            same, diff := 0, 0
+            for _, w := range adj[v] {
+                if side[w] == side[v] {
+                    same++
+                } else {
+                    diff++
+                }
+            }
+            if same > diff { // flipping gains same - diff > 0
+                side[v] ^= 1
+                improved = true
+            }
+        }
+    }
+    return side
+}
+
+// number of edges that go between the two sides
+func cutSize(side []int, edges [][2]int) int {
+    cut := 0
+    for _, e := range edges {
+        if side[e[0]] != side[e[1]] {
+            cut++
+        }
+    }
+    return cut
+}
 --uses
 u-rand
+
 ### approx
 --idea
 An approximation algorithm gives an answer that is not always optimal but is guaranteed to be close: within a known factor of the best possible. It is used when finding the exact best answer is too slow (the problem is NP-hard, which means no fast method is known and probably none exists). Instead of giving up, you accept an answer at most, say, twice as bad as the best, and you can prove that, even though you never find out what the best is.
@@ -4507,6 +6161,20 @@ vector<int> vertexCover(int n, const vector<pair<int, int>>& edges) {
     }
     return cover;
 }
+--go
+// a vertex cover with at most twice as many vertices as the smallest possible one
+func vertexCover(n int, edges [][2]int) []int {
+    chosen := make([]bool, n)
+    var cover []int
+    for _, e := range edges {
+        if !chosen[e[0]] && !chosen[e[1]] { // an edge no chosen vertex touches
+            chosen[e[0]], chosen[e[1]] = true, true // take both ends: this edge joins a matching
+            cover = append(cover, e[0], e[1])
+        }
+    }
+    return cover
+}
+
 ### online
 --idea
 An online algorithm must make each decision as the input arrives, without knowing what comes next, and cannot take a decision back. You compare it with an offline algorithm that sees the whole future. The measure is the competitive ratio: the worst case of (your cost) divided by (the best cost with full knowledge). A ratio of 2 means you never pay more than twice what a fortune teller would.
@@ -4678,3 +6346,71 @@ int beladyFaults(int k, const vector<int>& requests) {
     }
     return faults;
 }
+--go
+// needs the slices package
+// cost of "rent until the rent paid equals the price, then buy"
+func skiRentalOnline(buyCost, days int) int {
+    cost := 0
+    for day := 1; day <= days; day++ {
+        if day == buyCost { // still skiing on day B: buy
+            cost += buyCost
+            break
+        }
+        cost++ // otherwise rent
+    }
+    return cost
+}
+
+// best possible cost if the number of days were known in advance
+func skiRentalOptimal(buyCost, days int) int {
+    return min(days, buyCost)
+}
+
+// page faults of LRU with a cache of k pages
+func lruFaults(k int, requests []int) int {
+    var cache []int // front = least recently used
+    faults := 0
+    for _, page := range requests {
+        if i := slices.Index(cache, page); i >= 0 { // hit: it moves to the back
+            cache = append(slices.Delete(cache, i, i+1), page)
+            continue
+        }
+        faults++
+        if len(cache) == k { // full: evict the least recently used
+            cache = cache[1:]
+        }
+        cache = append(cache, page)
+    }
+    return faults
+}
+
+// page faults of the offline best rule: evict the page whose next request is farthest away
+func beladyFaults(k int, requests []int) int {
+    var cache []int
+    faults := 0
+    for i, page := range requests {
+        if slices.Contains(cache, page) {
+            continue
+        }
+        faults++
+        if len(cache) == k {
+            victim, farthest := 0, -1
+            for j, c := range cache {
+                next := len(requests) // never used again
+                for t := i + 1; t < len(requests); t++ {
+                    if requests[t] == c {
+                        next = t
+                        break
+                    }
+                }
+                if next > farthest {
+                    farthest, victim = next, j
+                }
+            }
+            cache = slices.Delete(cache, victim, victim+1)
+        }
+        cache = append(cache, page)
+    }
+    return faults
+}
+

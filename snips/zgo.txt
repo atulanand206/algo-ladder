@@ -1,0 +1,1300 @@
+### u-abs
+--go
+func dist(a, b int) int {
+    if a < b {
+        return b - a
+    }
+    return a - b
+}
+func sign(x int) int { // -1, 0, 1
+    if x > 0 {
+        return 1
+    }
+    if x < 0 {
+        return -1
+    }
+    return 0
+}
+### u-adj
+--go
+func buildAdj(n int, edges [][2]int) [][]int {
+    adj := make([][]int, n)
+    for _, e := range edges {
+        adj[e[0]] = append(adj[e[0]], e[1])
+        adj[e[1]] = append(adj[e[1]], e[0])
+    }
+    return adj
+}
+### u-bfsloop
+--go
+func bfs(adj [][]int, s int) []int { // distance from s, -1 if unreachable
+    dist := make([]int, len(adj))
+    for i := range dist {
+        dist[i] = -1
+    }
+    dist[s] = 0
+    q := []int{s}
+    for len(q) > 0 {
+        v := q[0]
+        q = q[1:]
+        for _, w := range adj[v] {
+            if dist[w] < 0 {
+                dist[w] = dist[v] + 1
+                q = append(q, w)
+            }
+        }
+    }
+    return dist
+}
+### u-bigadd
+--go
+func bigAdd(a, b []int) []int { // digits, least significant first
+    var out []int
+    carry := 0
+    for i := 0; i < len(a) || i < len(b) || carry > 0; i++ {
+        s := carry
+        if i < len(a) {
+            s += a[i]
+        }
+        if i < len(b) {
+            s += b[i]
+        }
+        out = append(out, s%10)
+        carry = s / 10
+    }
+    return out
+}
+### u-bigmul
+--go
+func bigMul(a, b []int) []int { // digits, least significant first
+    c := make([]int, len(a)+len(b))
+    for i := range a {
+        for j := range b {
+            c[i+j] += a[i] * b[j]
+        }
+    }
+    for i := 0; i+1 < len(c); i++ {
+        c[i+1] += c[i] / 10
+        c[i] %= 10
+    }
+    return c
+}
+### u-binlift
+--go
+func buildLift(parent []int, LOG int) [][]int { // up[k][v] = 2^k-th ancestor of v
+    n := len(parent)
+    up := make([][]int, LOG)
+    up[0] = append([]int(nil), parent...)
+    for k := 1; k < LOG; k++ {
+        up[k] = make([]int, n)
+        for v := 0; v < n; v++ {
+            up[k][v] = up[k-1][up[k-1][v]]
+        }
+    }
+    return up
+}
+### u-bit
+--go
+func getBit(x, i int) bool { return x>>i&1 == 1 }
+func setBit(x, i int) int   { return x | 1<<i }
+func clearBit(x, i int) int { return x &^ (1 << i) }
+### u-bitadd
+--go
+// uses the package-level Fenwick tree: var bit []int; var n int (bit has n+1 slots)
+func add(i int, v int) {
+    for i++; i <= n; i += i & -i {
+        bit[i] += v
+    }
+}
+### u-bitsum
+--go
+func sum(i int) int { // sum of a[0..i]
+    s := 0
+    for i++; i > 0; i -= i & -i {
+        s += bit[i]
+    }
+    return s
+}
+### u-ceildiv
+--go
+func ceilDiv(a, b int) int { return (a + b - 1) / b }
+### u-charidx
+--go
+func charIdx(ch byte) int { return int(ch - 'a') }
+### u-cmp
+--go
+func compare(a, b int) int { // -1, 0 or 1
+    if a < b {
+        return -1
+    }
+    if a > b {
+        return 1
+    }
+    return 0
+}
+### u-compressv
+--go
+func compress(a []int) []int { // replace each value by its rank among the distinct values
+    s := append([]int(nil), a...)
+    sort.Ints(s)
+    k := 0
+    for i, x := range s {
+        if i == 0 || x != s[i-1] {
+            s[k] = x
+            k++
+        }
+    }
+    s = s[:k]
+    out := make([]int, len(a))
+    for i, x := range a {
+        out[i] = sort.SearchInts(s, x)
+    }
+    return out
+}
+### u-count26
+--go
+func countLetters(s string) [26]int {
+    var cnt [26]int
+    for i := 0; i < len(s); i++ {
+        cnt[s[i]-'a']++
+    }
+    return cnt
+}
+### u-cross
+--go
+func cross(ax, ay, bx, by int) int { return ax*by - ay*bx }
+### u-dfsvisit
+--go
+// uses package-level state: var adj [][]int; var seen []bool
+func dfs(v int) {
+    seen[v] = true
+    for _, w := range adj[v] {
+        if !seen[w] {
+            dfs(w)
+        }
+    }
+}
+### u-diffadd
+--go
+func rangeAdd(d []int, l, r, v int) { // add v to a[l..r]
+    d[l] += v
+    d[r+1] -= v
+}
+func materialize(d []int) []int { // running sum gives the real array
+    a := make([]int, len(d))
+    s := 0
+    for i := range d {
+        s += d[i]
+        a[i] = s
+    }
+    return a
+}
+### u-digits
+--go
+func digits(n int) []int { // most significant first
+    var d []int
+    for ; n > 0; n /= 10 {
+        d = append(d, n%10)
+    }
+    for i, j := 0, len(d)-1; i < j; i, j = i+1, j-1 {
+        d[i], d[j] = d[j], d[i]
+    }
+    return d
+}
+### u-digsum
+--go
+func digitSum(n int) int {
+    s := 0
+    for ; n > 0; n /= 10 {
+        s += n % 10
+    }
+    return s
+}
+### u-dirs
+--go
+func dirs(eight bool) [][2]int {
+    four := [][2]int{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}
+    if !eight {
+        return four
+    }
+    return append(four, [2]int{1, 1}, [2]int{1, -1}, [2]int{-1, 1}, [2]int{-1, -1})
+}
+### u-dist2
+--go
+func dist2(x1, y1, x2, y2 int) int {
+    dx, dy := x1-x2, y1-y2
+    return dx*dx + dy*dy
+}
+### u-dot
+--go
+func dot(ax, ay, bx, by int) int { return ax*bx + ay*by }
+### u-dsuunion
+--go
+// uses package-level state: var p, sz []int (see find)
+func union(a, b int) {
+    a, b = find(a), find(b)
+    if a == b {
+        return
+    }
+    if sz[a] < sz[b] {
+        a, b = b, a
+    }
+    p[b] = a
+    sz[a] += sz[b]
+}
+### u-edge
+--go
+func addEdge(adj [][]int, u, v int, directed bool) {
+    adj[u] = append(adj[u], v)
+    if !directed {
+        adj[v] = append(adj[v], u)
+    }
+}
+### u-edgesort
+--go
+func sortEdges(edges [][3]int) { // each edge is {u, v, weight}
+    sort.Slice(edges, func(i, j int) bool { return edges[i][2] < edges[j][2] })
+}
+### u-entry
+--go
+// uses package-level state: var adj [][]int; var tin, tout []int; var timer int
+func dfs(v, p int) {
+    tin[v] = timer
+    timer++
+    for _, w := range adj[v] {
+        if w != p {
+            dfs(w, v)
+        }
+    }
+    tout[v] = timer
+    timer++
+}
+// u is inside v's subtree: tin[v] <= tin[u] && tout[u] <= tout[v]
+### u-extgcd
+--go
+// returns g, x, y with a*x + b*y = g
+func extGcd(a, b int) (int, int, int) {
+    if b == 0 {
+        return a, 1, 0
+    }
+    g, x, y := extGcd(b, a%b)
+    return g, y, x - a/b*y
+}
+### u-fact
+--go
+func buildFactorials(n, M int) ([]int, []int) { // fact, invFact
+    f, inv := make([]int, n+1), make([]int, n+1)
+    f[0] = 1
+    for i := 1; i <= n; i++ {
+        f[i] = f[i-1] * i % M
+    }
+    inv[n] = powMod(f[n], M-2, M)
+    for i := n; i > 0; i-- {
+        inv[i-1] = inv[i] * i % M
+    }
+    return f, inv
+}
+### u-factorize
+--go
+func factorize(n int) []int {
+    var fs []int
+    for d := 2; d*d <= n; d++ {
+        for n%d == 0 {
+            fs = append(fs, d)
+            n /= d
+        }
+    }
+    if n > 1 {
+        fs = append(fs, n)
+    }
+    return fs
+}
+### u-fill
+--go
+func filled(n, v int) []int {
+    a := make([]int, n)
+    for i := range a {
+        a[i] = v
+    }
+    return a
+}
+func copyOf(a []int) []int { return append([]int(nil), a...) } // Java name copy would shadow Go's builtin
+### u-find
+--go
+// uses package-level state: var p []int
+func find(x int) int {
+    if p[x] != x {
+        p[x] = find(p[x])
+    }
+    return p[x]
+}
+### u-first
+--go
+func firstTrue(lo, hi int, test func(int) bool) int { // smallest x in [lo, hi] with test(x)
+    for lo < hi {
+        m := lo + (hi-lo)/2
+        if test(m) {
+            hi = m
+        } else {
+            lo = m + 1
+        }
+    }
+    return lo
+}
+### u-freq
+--go
+func countFreq(a []int) map[int]int {
+    f := map[int]int{}
+    for _, x := range a {
+        f[x]++
+    }
+    return f
+}
+### u-gcd
+--go
+func gcd(a, b int) int {
+    if b == 0 {
+        return a
+    }
+    return gcd(b, a%b)
+}
+### u-hashroll
+--go
+const B, M = 131, 1_000_000_007
+
+func buildHash(s string) ([]int, []int) { // h, pw: h[i] = hash of the first i letters
+    n := len(s)
+    h, pw := make([]int, n+1), make([]int, n+1)
+    pw[0] = 1
+    for i := 0; i < n; i++ {
+        h[i+1] = (h[i]*B + int(s[i])) % M
+        pw[i+1] = pw[i] * B % M
+    }
+    return h, pw
+}
+### u-hget
+--go
+func getOrDefault(m map[int]int, key, dflt int) int {
+    if v, ok := m[key]; ok {
+        return v
+    }
+    return dflt
+}
+### u-hpop
+--go
+func (hp *MinHeap) pop() int { // method of MinHeap above
+    top := hp.h[0]
+    last := len(hp.h) - 1
+    hp.h[0] = hp.h[last]
+    hp.h = hp.h[:last]
+    for i := 0; ; {
+        c := 2*i + 1
+        if c >= len(hp.h) {
+            break
+        }
+        if c+1 < len(hp.h) && hp.h[c+1] < hp.h[c] {
+            c++
+        }
+        if hp.h[i] <= hp.h[c] {
+            break
+        }
+        hp.h[i], hp.h[c] = hp.h[c], hp.h[i]
+        i = c
+    }
+    return top
+}
+### u-hpush
+--go
+type MinHeap struct{ h []int }
+
+func (hp *MinHeap) push(x int) {
+    hp.h = append(hp.h, x)
+    hp.up(len(hp.h) - 1)
+}
+func (hp *MinHeap) up(i int) {
+    for i > 0 && hp.h[(i-1)/2] > hp.h[i] {
+        p := (i - 1) / 2
+        hp.h[i], hp.h[p] = hp.h[p], hp.h[i]
+        i = p
+    }
+}
+### u-idx
+--go
+func idx(r, c, cols int) int { return r*cols + c }
+func inBounds(r, c, rows, cols int) bool {
+    return r >= 0 && r < rows && c >= 0 && c < cols
+}
+### u-in
+--go
+func readInts(br *bufio.Reader) []int { // needs bufio, strconv, strings; reads one line of numbers
+    line, _ := br.ReadString('\n')
+    f := strings.Fields(line)
+    a := make([]int, len(f))
+    for i, s := range f {
+        a[i], _ = strconv.Atoi(s)
+    }
+    return a
+}
+### u-inf
+--go
+const INF = 1_000_000_000 // INF + INF still fits in an int32 too
+
+func safeAdd(a, b int) int {
+    if a >= INF || b >= INF {
+        return INF
+    }
+    return a + b
+}
+### u-inorder
+--go
+// Node has left, right *Node; visit is your own function
+func inorder(v *Node) {
+    if v == nil {
+        return
+    }
+    inorder(v.left)
+    visit(v)
+    inorder(v.right)
+}
+### u-ispalin
+--go
+func isPalindrome(s string) bool {
+    for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
+        if s[i] != s[j] {
+            return false
+        }
+    }
+    return true
+}
+### u-isprime
+--go
+func isPrime(n int) bool {
+    if n < 2 {
+        return false
+    }
+    for d := 2; d*d <= n; d++ {
+        if n%d == 0 {
+            return false
+        }
+    }
+    return true
+}
+### u-iterdfs
+--go
+func dfsIter(adj [][]int, s int) []bool { // which nodes can be reached from s
+    seen := make([]bool, len(adj))
+    st := []int{s}
+    for len(st) > 0 {
+        v := st[len(st)-1]
+        st = st[:len(st)-1]
+        if seen[v] {
+            continue
+        }
+        seen[v] = true
+        for _, w := range adj[v] {
+            if !seen[w] {
+                st = append(st, w)
+            }
+        }
+    }
+    return seen
+}
+### u-lcaq
+--go
+// uses package-level state: var depth []int; var up [][]int; var LOG int
+func lca(u, v int) int {
+    if depth[u] < depth[v] {
+        u, v = v, u
+    }
+    for k := LOG - 1; k >= 0; k-- {
+        if depth[u]-(1<<k) >= depth[v] {
+            u = up[k][u]
+        }
+    }
+    if u == v {
+        return u
+    }
+    for k := LOG - 1; k >= 0; k-- {
+        if up[k][u] != up[k][v] {
+            u, v = up[k][u], up[k][v]
+        }
+    }
+    return up[0][u]
+}
+### u-lcm
+--go
+func lcm(a, b int) int {
+    return a / gcd(a, b) * b // divide first so it cannot overflow early
+}
+### u-lcp2
+--go
+func commonPrefix(a, b string) int {
+    k := 0
+    for k < len(a) && k < len(b) && a[k] == b[k] {
+        k++
+    }
+    return k
+}
+### u-listmerge
+--go
+// ListNode has val int and next *ListNode
+func mergeLists(a, b *ListNode) *ListNode {
+    dummy := &ListNode{}
+    t := dummy
+    for a != nil && b != nil {
+        if a.val <= b.val {
+            t.next = a
+            a = a.next
+        } else {
+            t.next = b
+            b = b.next
+        }
+        t = t.next
+    }
+    if a != nil {
+        t.next = a
+    } else {
+        t.next = b
+    }
+    return dummy.next
+}
+### u-listrev
+--go
+func reverseList(head *ListNode) *ListNode {
+    var prev *ListNode
+    for head != nil {
+        nx := head.next
+        head.next = prev
+        prev = head
+        head = nx
+    }
+    return prev
+}
+### u-log2
+--go
+func floorLog2(x int) int { return bits.Len(uint(x)) - 1 } // needs math/bits
+### u-lowbit
+--go
+func lowbit(x int) int {
+    return x & -x // lowest set bit, e.g. 12 -> 4
+}
+### u-lower
+--go
+func lowerBound(a []int, x int) int { // first index with a[i] >= x
+    lo, hi := 0, len(a)
+    for lo < hi {
+        m := lo + (hi-lo)/2
+        if a[m] < x {
+            lo = m + 1
+        } else {
+            hi = m
+        }
+    }
+    return lo
+}
+### u-lru
+--go
+// needs container/list
+type LRU struct {
+    cap   int
+    order *list.List // front = most recently used; elements hold [2]int{key, value}
+    pos   map[int]*list.Element
+}
+
+func newLRU(c int) *LRU { return &LRU{cap: c, order: list.New(), pos: map[int]*list.Element{}} }
+func (l *LRU) get(k int) int {
+    e, ok := l.pos[k]
+    if !ok {
+        return -1
+    }
+    l.order.MoveToFront(e)
+    return e.Value.([2]int)[1]
+}
+func (l *LRU) put(k, v int) {
+    if e, ok := l.pos[k]; ok {
+        l.order.Remove(e)
+    }
+    l.pos[k] = l.order.PushFront([2]int{k, v})
+    if l.order.Len() > l.cap {
+        last := l.order.Back()
+        delete(l.pos, last.Value.([2]int)[0])
+        l.order.Remove(last)
+    }
+}
+### u-maskiter
+--go
+func itemsIn(mask, n int) []int { // which of items 0..n-1 are in the subset
+    var items []int
+    for i := 0; i < n; i++ {
+        if mask>>i&1 == 1 {
+            items = append(items, i)
+        }
+    }
+    return items
+}
+// for mask := 0; mask < 1<<n; mask++ { itemsIn(mask, n) }
+### u-matmul
+--go
+func matMul(a, b [][]int, M int) [][]int {
+    n := len(a)
+    c := make([][]int, n)
+    for i := range c {
+        c[i] = make([]int, n)
+    }
+    for i := 0; i < n; i++ {
+        for k := 0; k < n; k++ {
+            for j := 0; j < n; j++ {
+                c[i][j] = (c[i][j] + a[i][k]*b[k][j]) % M
+            }
+        }
+    }
+    return c
+}
+### u-matpow
+--go
+func matPow(base [][]int, e, M int) [][]int {
+    n := len(base)
+    res := make([][]int, n)
+    for i := range res {
+        res[i] = make([]int, n)
+        res[i][i] = 1 // identity
+    }
+    for ; e > 0; e >>= 1 {
+        if e&1 == 1 {
+            res = matMul(res, base, M)
+        }
+        base = matMul(base, base, M)
+    }
+    return res
+}
+### u-maxupd
+--go
+func chmax(a []int, i, v int) bool {
+    if v > a[i] {
+        a[i] = v
+        return true
+    }
+    return false
+}
+func chmin(a []int, i, v int) bool {
+    if v < a[i] {
+        a[i] = v
+        return true
+    }
+    return false
+}
+### u-merge
+--go
+func merge(a, b []int) []int {
+    out := make([]int, 0, len(a)+len(b))
+    i, j := 0, 0
+    for i < len(a) && j < len(b) {
+        if a[i] <= b[j] {
+            out = append(out, a[i])
+            i++
+        } else {
+            out = append(out, b[j])
+            j++
+        }
+    }
+    out = append(out, a[i:]...)
+    return append(out, b[j:]...)
+}
+### u-mid
+--go
+func mid(lo, hi int) int {
+    return lo + (hi-lo)/2 // never overflows
+}
+### u-minmax
+--go
+func clamp(x, lo, hi int) int {
+    if x > hi {
+        x = hi
+    }
+    if x < lo {
+        x = lo
+    }
+    return x
+}
+### u-mod
+--go
+func mod(a, m int) int { return ((a % m) + m) % m }
+### u-modadd
+--go
+func addMod(a, b, m int) int { return (a + b) % m }
+func subMod(a, b, m int) int { return ((a-b)%m + m) % m }
+### u-modinv
+--go
+func modInverse(a, m int) int { // m prime
+    return powMod(a, m-2, m)
+}
+### u-mulmod
+--go
+func mulMod(a, b, m int) int {
+    return (a % m) * (b % m) % m // safe while m < 2^31
+}
+### u-nbr
+--go
+func neighbors(r, c, rows, cols int) [][2]int {
+    var out [][2]int
+    dx, dy := [4]int{1, -1, 0, 0}, [4]int{0, 0, 1, -1}
+    for d := 0; d < 4; d++ {
+        nr, nc := r+dx[d], c+dy[d]
+        if nr >= 0 && nr < rows && nc >= 0 && nc < cols {
+            out = append(out, [2]int{nr, nc})
+        }
+    }
+    return out
+}
+### u-ncr
+--go
+// uses package-level tables: var f, inv []int (factorials and inverse factorials) and var M int
+func ncr(n, k int) int {
+    if k < 0 || k > n {
+        return 0
+    }
+    return f[n] * inv[k] % M * inv[n-k] % M
+}
+### u-orientf
+--go
+func orient(ax, ay, bx, by, cx, cy int) int { // >0 left, <0 right, 0 straight
+    return (bx-ax)*(cy-ay) - (by-ay)*(cx-ax)
+}
+### u-out
+--go
+func printArray(a []int) {
+    for i, x := range a {
+        if i > 0 {
+            fmt.Print(" ")
+        }
+        fmt.Print(x)
+    }
+    fmt.Println()
+}
+### u-pair
+--go
+func comparePairs(a, b [2]int) int { // first value, then second
+    if a[0] != b[0] {
+        if a[0] < b[0] {
+            return -1
+        }
+        return 1
+    }
+    if a[1] < b[1] {
+        return -1
+    }
+    if a[1] > b[1] {
+        return 1
+    }
+    return 0
+}
+// sort.Slice(pairs, func(i, j int) bool { return comparePairs(pairs[i], pairs[j]) < 0 })
+### u-parentpath
+--go
+func pathTo(parent []int, t int) []int { // parent[start] = -1
+    var path []int
+    for v := t; v != -1; v = parent[v] {
+        path = append(path, v)
+    }
+    for i, j := 0, len(path)-1; i < j; i, j = i+1, j-1 {
+        path[i], path[j] = path[j], path[i]
+    }
+    return path
+}
+### u-part
+--go
+func partition(a []int, lo, hi int) int { // returns the pivot's final index
+    p, i := a[hi], lo
+    for j := lo; j < hi; j++ {
+        if a[j] < p {
+            a[i], a[j] = a[j], a[i]
+            i++
+        }
+    }
+    a[i], a[hi] = a[hi], a[i]
+    return i
+}
+### u-pfx2d
+--go
+func build2d(a [][]int) [][]int { // p[i][j] = sum of the top-left i x j block
+    R, C := len(a), len(a[0])
+    p := make([][]int, R+1)
+    for i := range p {
+        p[i] = make([]int, C+1)
+    }
+    for i := 1; i <= R; i++ {
+        for j := 1; j <= C; j++ {
+            p[i][j] = a[i-1][j-1] + p[i-1][j] + p[i][j-1] - p[i-1][j-1]
+        }
+    }
+    return p
+}
+### u-phi
+--go
+func phi(n int) int { // how many numbers in 1..n share no factor with n
+    r := n
+    for d := 2; d*d <= n; d++ {
+        if n%d == 0 {
+            for n%d == 0 {
+                n /= d
+            }
+            r -= r / d
+        }
+    }
+    if n > 1 {
+        r -= r / n
+    }
+    return r
+}
+### u-polyarea2
+--go
+func polygonArea2(x, y []int) int { // twice the area; take abs and halve
+    s, n := 0, len(x)
+    for i := 0; i < n; i++ {
+        j := (i + 1) % n
+        s += x[i]*y[j] - x[j]*y[i]
+    }
+    return s
+}
+### u-popcount
+--go
+func popcount(x int) int { return bits.OnesCount(uint(x)) } // needs math/bits
+### u-pow2
+--go
+func isPowerOfTwo(x int) bool { return x > 0 && x&(x-1) == 0 }
+### u-powmod
+--go
+func powMod(b, e, m int) int {
+    r := 1
+    b %= m
+    for ; e > 0; e >>= 1 {
+        if e&1 == 1 {
+            r = r * b % m
+        }
+        b = b * b % m
+    }
+    return r
+}
+### u-pq
+--go
+type Pq [][2]int // binary min-heap of {key, val}, ordered by the first value
+
+func newPq() *Pq { return &Pq{} }
+func pushPq(pq *Pq, key, val int) {
+    *pq = append(*pq, [2]int{key, val})
+    h := *pq
+    for i := len(h) - 1; i > 0 && h[(i-1)/2][0] > h[i][0]; i = (i - 1) / 2 {
+        h[i], h[(i-1)/2] = h[(i-1)/2], h[i]
+    }
+}
+func popPq(pq *Pq) [2]int {
+    h := *pq
+    top := h[0]
+    last := len(h) - 1
+    h[0] = h[last]
+    h = h[:last]
+    for i := 0; ; {
+        c := 2*i + 1
+        if c >= len(h) {
+            break
+        }
+        if c+1 < len(h) && h[c+1][0] < h[c][0] {
+            c++
+        }
+        if h[i][0] <= h[c][0] {
+            break
+        }
+        h[i], h[c] = h[c], h[i]
+        i = c
+    }
+    *pq = h
+    return top
+}
+### u-prefix
+--go
+func buildPrefix(a []int) []int {
+    p := make([]int, len(a)+1)
+    for i := range a {
+        p[i+1] = p[i] + a[i]
+    }
+    return p
+}
+### u-prefixfn
+--go
+func prefixFunction(s string) []int { // pi[i] = longest border of s[0..i]
+    n := len(s)
+    pi := make([]int, n)
+    for i := 1; i < n; i++ {
+        k := pi[i-1]
+        for k > 0 && s[i] != s[k] {
+            k = pi[k-1]
+        }
+        if s[i] == s[k] {
+            k++
+        }
+        pi[i] = k
+    }
+    return pi
+}
+### u-queueop
+--go
+func enqueue(q *[]int, x int) { *q = append(*q, x) }
+func dequeue(q *[]int) int {
+    x := (*q)[0]
+    *q = (*q)[1:]
+    return x
+}
+### u-rand
+--go
+// needs math/rand (auto-seeded since Go 1.20)
+func randInt(lo, hi int) int { // inclusive
+    return lo + rand.Intn(hi-lo+1)
+}
+### u-rangesum
+--go
+func rangeSum(p []int, l, r int) int { // sum of a[l..r]
+    return p[r+1] - p[l]
+}
+### u-recon
+--go
+func reconstruct(from []int, end int) []int { // from[s] = the state we came from, 0 = start
+    var steps []int
+    for s := end; s != 0; s = from[s] {
+        steps = append(steps, s)
+    }
+    for i, j := 0, len(steps)-1; i < j; i, j = i+1, j-1 {
+        steps[i], steps[j] = steps[j], steps[i]
+    }
+    return steps
+}
+### u-relax
+--go
+func relax(dist, parent []int, u, v, w int) bool {
+    if dist[u]+w >= dist[v] {
+        return false
+    }
+    dist[v] = dist[u] + w
+    parent[v] = u
+    return true
+}
+### u-reverse
+--go
+func reverse(a []int, i, j int) {
+    for ; i < j; i, j = i+1, j-1 {
+        a[i], a[j] = a[j], a[i]
+    }
+}
+### u-rolling
+--go
+func knapsack(w, val []int, cap int) int { // one row instead of a full table
+    dp := make([]int, cap+1)
+    for i := range w {
+        for c := cap; c >= w[i]; c-- {
+            if dp[c-w[i]]+val[i] > dp[c] {
+                dp[c] = dp[c-w[i]] + val[i]
+            }
+        }
+    }
+    return dp[cap]
+}
+### u-rotate
+--go
+func rotate(a []int, k int) { // shift right by k
+    n := len(a)
+    k %= n
+    reverse(a, 0, n-1)
+    reverse(a, 0, k-1)
+    reverse(a, k, n-1)
+}
+### u-segbuild
+--go
+func buildSeg(a []int) []int { // leaves live at n..2n-1
+    n := len(a)
+    t := make([]int, 2*n)
+    copy(t[n:], a)
+    for i := n - 1; i > 0; i-- {
+        t[i] = t[2*i] + t[2*i+1]
+    }
+    return t
+}
+### u-segon
+--go
+func onSegment(ax, ay, bx, by, px, py int) bool {
+    return (bx-ax)*(py-ay)-(by-ay)*(px-ax) == 0 &&
+        min(ax, bx) <= px && px <= max(ax, bx) &&
+        min(ay, by) <= py && py <= max(ay, by)
+}
+### u-segq
+--go
+// uses package-level state: var t []int; var n int (leaves at n..2n-1)
+func query(l, r int) int { // sum of [l, r)
+    s := 0
+    for l, r = l+n, r+n; l < r; l, r = l>>1, r>>1 {
+        if l&1 == 1 {
+            s += t[l]
+            l++
+        }
+        if r&1 == 1 {
+            r--
+            s += t[r]
+        }
+    }
+    return s
+}
+### u-segupd
+--go
+func update(i, v int) {
+    i += n
+    t[i] = v
+    for ; i > 1; i >>= 1 {
+        t[i>>1] = t[i] + t[i^1]
+    }
+}
+### u-shuffle
+--go
+func shuffle(a []int, rnd *rand.Rand) { // Fisher-Yates; needs math/rand
+    for i := len(a) - 1; i > 0; i-- {
+        j := rnd.Intn(i + 1)
+        a[i], a[j] = a[j], a[i]
+    }
+}
+### u-sift
+--go
+// uses the package-level heap: var h []int
+func up(i int) {
+    for i > 0 && h[(i-1)/2] > h[i] {
+        h[i], h[(i-1)/2] = h[(i-1)/2], h[i]
+        i = (i - 1) / 2
+    }
+}
+func down(i, n int) {
+    for {
+        c := 2*i + 1
+        if c >= n {
+            break
+        }
+        if c+1 < n && h[c+1] < h[c] {
+            c++
+        }
+        if h[i] <= h[c] {
+            break
+        }
+        h[i], h[c] = h[c], h[i]
+        i = c
+    }
+}
+### u-sortang
+--go
+func sortByAngle(pts [][2]float64, cx, cy float64) { // needs sort and math
+    sort.Slice(pts, func(i, j int) bool {
+        return math.Atan2(pts[i][1]-cy, pts[i][0]-cx) < math.Atan2(pts[j][1]-cy, pts[j][0]-cx)
+    })
+}
+### u-sortidx
+--go
+func sortIndices(a []int) []int { // positions ordered by value
+    id := make([]int, len(a))
+    for i := range id {
+        id[i] = i
+    }
+    sort.Slice(id, func(x, y int) bool { return a[id[x]] < a[id[y]] })
+    return id
+}
+### u-spf
+--go
+func buildSpf(N int) []int { // spf[x] = smallest prime factor of x
+    spf := make([]int, N+1)
+    for i := 2; i <= N; i++ {
+        if spf[i] == 0 {
+            for j := i; j <= N; j += i {
+                if spf[j] == 0 {
+                    spf[j] = i
+                }
+            }
+        }
+    }
+    return spf
+}
+### u-sqrt
+--go
+func sqrtFloor(n int) int { // needs math
+    r := int(math.Sqrt(float64(n)))
+    for r*r > n {
+        r--
+    }
+    for (r+1)*(r+1) <= n {
+        r++
+    }
+    return r
+}
+### u-stackop
+--go
+func push(st *[]int, x int) { *st = append(*st, x) }
+func peek(st *[]int) int    { return (*st)[len(*st)-1] }
+func pop(st *[]int) int {
+    x := (*st)[len(*st)-1]
+    *st = (*st)[:len(*st)-1]
+    return x
+}
+### u-submask
+--go
+func submasks(mask int) []int { // every non-empty subset of mask
+    var out []int
+    for sub := mask; sub > 0; sub = (sub - 1) & mask {
+        out = append(out, sub)
+    }
+    return out
+}
+### u-substrhash
+--go
+// uses the tables from buildHash: var h, pw []int, and the modulus M
+func get(l, r int) int { // hash of s[l..r)
+    return ((h[r]-h[l]*pw[r-l])%M + M) % M
+}
+### u-swap
+--go
+func swap(a []int, i, j int) {
+    a[i], a[j] = a[j], a[i]
+}
+### u-table
+--go
+func newTable(n, initVal int) []int {
+    dp := make([]int, n+1)
+    for i := range dp {
+        dp[i] = initVal
+    }
+    return dp
+}
+### u-toposort
+--go
+func topoOrder(adj [][]int) []int { // shorter than n means a cycle
+    n := len(adj)
+    indeg := make([]int, n)
+    for v := 0; v < n; v++ {
+        for _, w := range adj[v] {
+            indeg[w]++
+        }
+    }
+    var q, order []int
+    for v := 0; v < n; v++ {
+        if indeg[v] == 0 {
+            q = append(q, v)
+        }
+    }
+    for len(q) > 0 {
+        v := q[0]
+        q = q[1:]
+        order = append(order, v)
+        for _, w := range adj[v] {
+            indeg[w]--
+            if indeg[w] == 0 {
+                q = append(q, w)
+            }
+        }
+    }
+    return order
+}
+### u-treeh
+--go
+// Node has left, right *Node
+func height(v *Node) int {
+    if v == nil {
+        return 0
+    }
+    return 1 + max(height(v.left), height(v.right))
+}
+### u-treeins
+--go
+// Node has key int and left, right *Node
+func insert(v *Node, x int) *Node {
+    if v == nil {
+        return &Node{key: x}
+    }
+    if x < v.key {
+        v.left = insert(v.left, x)
+    } else if x > v.key {
+        v.right = insert(v.right, x)
+    }
+    return v
+}
+### u-trieins
+--go
+type Trie struct {
+    nxt [][26]int // nxt[v][c] = child of node v by letter c, 0 = none
+    end []bool
+}
+
+func newTrie() *Trie { return &Trie{nxt: make([][26]int, 1), end: make([]bool, 1)} }
+func (t *Trie) insert(w string) {
+    v := 0
+    for i := 0; i < len(w); i++ {
+        c := w[i] - 'a'
+        if t.nxt[v][c] == 0 {
+            t.nxt[v][c] = len(t.nxt)
+            t.nxt = append(t.nxt, [26]int{})
+            t.end = append(t.end, false)
+        }
+        v = t.nxt[v][c]
+    }
+    t.end[v] = true
+}
+func (t *Trie) search(w string) bool {
+    v := 0
+    for i := 0; i < len(w); i++ {
+        v = t.nxt[v][w[i]-'a']
+        if v == 0 {
+            return false
+        }
+    }
+    return t.end[v]
+}
+### u-upper
+--go
+func upperBound(a []int, x int) int { // first index with a[i] > x
+    lo, hi := 0, len(a)
+    for lo < hi {
+        m := lo + (hi-lo)/2
+        if a[m] <= x {
+            lo = m + 1
+        } else {
+            hi = m
+        }
+    }
+    return lo
+}
+### u-windowmv
+--go
+func longestWindow(a []int, k int) int { // longest stretch with at most k distinct values
+    cnt := map[int]int{}
+    best := 0
+    for l, r := 0, 0; r < len(a); r++ {
+        cnt[a[r]]++ // add the new item
+        for len(cnt) > k { // drop old ones
+            cnt[a[l]]--
+            if cnt[a[l]] == 0 {
+                delete(cnt, a[l])
+            }
+            l++
+        }
+        best = max(best, r-l+1)
+    }
+    return best
+}
+### u-zfn
+--go
+func zFunction(s string) []int { // z[i] = how far s matches its own start from i
+    n := len(s)
+    z := make([]int, n)
+    for i, l, r := 1, 0, 0; i < n; i++ {
+        if i < r {
+            z[i] = min(r-i, z[i-l])
+        }
+        for i+z[i] < n && s[z[i]] == s[i+z[i]] {
+            z[i]++
+        }
+        if i+z[i] > r {
+            l, r = i, i+z[i]
+        }
+    }
+    return z
+}

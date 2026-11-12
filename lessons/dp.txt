@@ -64,7 +64,30 @@ int ways(int n, const vector<int>& steps) {
 }
 --uses
 u-hget
+--go
+const MOD = 1_000_000_007
 
+func ways(n int, steps []int) int {
+    memo := map[int]int{} // the notebook
+    var rec func(k int) int
+    rec = func(k int) int {
+        if k == 0 {
+            return 1 // base: one way to finish
+        }
+        if known := getOrDefault(memo, k, -1); known != -1 { // piece: -1 means "not computed yet"
+            return known
+        }
+        total := 0
+        for _, s := range steps {
+            if s <= k {
+                total = (total + rec(k-s)) % MOD
+            }
+        }
+        memo[k] = total // write it in the notebook
+        return total
+    }
+    return rec(n)
+}
 ### dp1
 --idea
 One-dimensional DP means the state is a single index, usually a position in a list, and the answer at that position is built from answers at earlier positions. The picture is a row of boxes. You fill them left to right, and each box is computed from boxes you already filled.
@@ -114,7 +137,16 @@ long long maxSubarray(const vector<int>& a) {
 }
 --uses
 u-maxupd
-
+--go
+func maxSubarray(a []int) int {
+    cur := a[0]
+    best := []int{a[0]} // best[0] = answer so far
+    for _, x := range a[1:] {
+        cur = x + max(0, cur) // extend, or start fresh
+        chmax(best, 0, cur)   // the run may end anywhere
+    }
+    return best[0]
+}
 ### coin
 --idea
 Coin change asks for the fewest coins that add up to a target amount, given coin values you can use any number of times. Greedy (always take the biggest coin) fails for values like 1, 3, 4 and target 6: greedy gives 4+1+1 (three coins), but 3+3 needs two.
@@ -164,7 +196,25 @@ int coinChange(const vector<int>& coins, int target) {
 --uses
 u-inf
 u-maxupd
-
+--go
+func coinChange(coins []int, target int) int {
+    dp := make([]int, target+1)
+    for i := range dp {
+        dp[i] = INF // INF from the code piece u-inf
+    }
+    dp[0] = 0 // zero coins make zero
+    for x := 1; x <= target; x++ {
+        for _, c := range coins {
+            if c <= x {
+                chmin(dp, x, safeAdd(dp[x-c], 1))
+            }
+        }
+    }
+    if dp[target] >= INF {
+        return -1
+    }
+    return dp[target]
+}
 ### coinways
 --idea
 Count the ways (modulo 1,000,000,007, since counts grow huge) to make a target amount from coin values you can reuse. Two ways are the same if they use the same number of each coin, so 1+2 and 2+1 count once. This is "combinations", not "ordered sequences".
@@ -215,7 +265,18 @@ int coinWays(const vector<int>& coins, int target) {
 }
 --uses
 u-modadd
-
+--go
+func coinWays(coins []int, target int) int {
+    const M = 1_000_000_007
+    dp := make([]int, target+1)
+    dp[0] = 1 // the empty combination
+    for _, c := range coins { // coins outside: no double counting
+        for x := c; x <= target; x++ {
+            dp[x] = addMod(dp[x], dp[x-c], M) // upward: coin reusable
+        }
+    }
+    return dp[target]
+}
 ### houserob
 --idea
 A row of houses each holds some money. You may take from any set of houses as long as no two are next to each other (the alarm rings). Find the largest total. The same pattern shows up whenever choosing an item forbids its neighbours.
@@ -264,7 +325,20 @@ long long rob(const vector<int>& a) {
 }
 --uses
 u-maxupd
-
+--go
+func rob(a []int) int {
+    n := len(a)
+    dp := make([]int, n+1) // dp[i]: best using the first i houses
+    for i := 1; i <= n; i++ {
+        dp[i] = dp[i-1] // skip house i
+        take := a[i-1]
+        if i >= 2 {
+            take += dp[i-2]
+        }
+        chmax(dp, i, take) // or take it
+    }
+    return dp[n]
+}
 ### dp2
 --idea
 Two-dimensional DP keeps answers in a table with two indexes, for example a row and a column of a grid. Each cell is filled from cells above it, to its left, or both. The picture: you sweep the grid row by row, and each cell asks its already-filled neighbours.
@@ -325,7 +399,24 @@ long long largestSquare(const vector<vector<int>>& g) {
 }
 --uses
 u-table
-
+--go
+func largestSquare(g [][]int) int {
+    n, m := len(g), len(g[0])
+    best := 0
+    dp := make([][]int, n+1)
+    for i := range dp {
+        dp[i] = newTable(m, 0) // padded with zeros
+    }
+    for i := 1; i <= n; i++ {
+        for j := 1; j <= m; j++ {
+            if g[i-1][j-1] == 1 {
+                dp[i][j] = 1 + min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1])
+                best = max(best, dp[i][j])
+            }
+        }
+    }
+    return best * best // area of the biggest square
+}
 ### minpath
 --idea
 You walk from the top-left of a grid of costs to the bottom-right, moving only right or down, and pay the cost of every cell you step on. Find the cheapest total. Every route enters a cell from above or from the left, so the cheapest route to a cell is its own cost plus the cheaper of those two.
@@ -387,7 +478,26 @@ long long minPath(const vector<vector<int>>& g) {
 }
 --uses
 u-table
-
+--go
+func minPath(g [][]int) int {
+    n, m := len(g), len(g[0])
+    dp := newTable(m-1, 0) // one row of m zeros
+    for i := 0; i < n; i++ {
+        for j := 0; j < m; j++ {
+            switch {
+            case i == 0 && j == 0:
+                dp[j] = g[0][0]
+            case i == 0:
+                dp[j] = dp[j-1] + g[i][j] // only from the left
+            case j == 0:
+                dp[j] += g[i][j] // only from above
+            default:
+                dp[j] = min(dp[j], dp[j-1]) + g[i][j] // dp[j] is "above"
+            }
+        }
+    }
+    return dp[m-1]
+}
 ### lcs
 --idea
 The longest common subsequence (LCS) of two strings is the longest sequence of characters that appears in both, in the same order but not necessarily next to each other. For "ABCBDAB" and "BDCABA", one answer is "BCBA", length 4. Think of it as lining the two strings up and drawing non-crossing lines between equal letters.
@@ -451,7 +561,25 @@ int lcs(const string& a, const string& b) {
 --uses
 u-table
 u-maxupd
-
+--go
+func lcs(a, b string) int {
+    n, m := len(a), len(b)
+    dp := make([][]int, n+1)
+    for i := range dp {
+        dp[i] = newTable(m, 0) // row 0 and column 0 stay 0
+    }
+    for i := 1; i <= n; i++ {
+        for j := 1; j <= m; j++ {
+            if a[i-1] == b[j-1] {
+                dp[i][j] = dp[i-1][j-1] + 1 // match them
+            } else {
+                dp[i][j] = dp[i-1][j]          // drop a letter of a
+                chmax(dp[i], j, dp[i][j-1])    // or a letter of b
+            }
+        }
+    }
+    return dp[n][m]
+}
 ### editdist
 --idea
 Edit distance (also called Levenshtein distance) is the fewest single-character edits needed to turn one string into another. An edit is an insert, a delete, or a replace of one character. It measures how different two words are, and powers spell checkers and diff tools.
@@ -526,7 +654,30 @@ int editDistance(const string& a, const string& b) {
 --uses
 u-table
 u-maxupd
-
+--go
+func editDistance(a, b string) int {
+    n, m := len(a), len(b)
+    dp := make([][]int, n+1)
+    for i := range dp {
+        dp[i] = newTable(m, 0)
+        dp[i][0] = i // delete everything
+    }
+    for j := 0; j <= m; j++ {
+        dp[0][j] = j // insert everything
+    }
+    for i := 1; i <= n; i++ {
+        for j := 1; j <= m; j++ {
+            if a[i-1] == b[j-1] {
+                dp[i][j] = dp[i-1][j-1] // free match
+            } else {
+                dp[i][j] = 1 + dp[i-1][j-1]      // replace
+                chmin(dp[i], j, 1+dp[i-1][j])    // delete
+                chmin(dp[i], j, 1+dp[i][j-1])    // insert
+            }
+        }
+    }
+    return dp[n][m]
+}
 ### lps
 --idea
 A subsequence keeps the original order but may skip characters. The longest palindromic subsequence (LPS) is the longest subsequence that reads the same forwards and backwards. In "BBABCBCAB" it is "BABCBAB", length 7. Unlike a substring, the letters need not be adjacent.
@@ -599,7 +750,29 @@ int lps(const string& s) {
 --uses
 u-table
 u-maxupd
-
+--go
+func lps(s string) int {
+    n := len(s)
+    if n == 0 {
+        return 0
+    }
+    dp := make([][]int, n)
+    for i := range dp {
+        dp[i] = newTable(n-1, 0) // empty ranges stay 0
+    }
+    for i := n - 1; i >= 0; i-- {
+        dp[i][i] = 1 // a single letter
+        for j := i + 1; j < n; j++ {
+            if s[i] == s[j] {
+                dp[i][j] = dp[i+1][j-1] + 2 // both ends used
+            } else {
+                dp[i][j] = dp[i+1][j]       // drop the left end
+                chmax(dp[i], j, dp[i][j-1]) // or the right end
+            }
+        }
+    }
+    return dp[0][n-1]
+}
 ### palindp
 --idea
 A palindromic substring is a block of consecutive characters that reads the same both ways. To count or find them all, mark which ranges `[i, j]` are palindromes. A range is a palindrome when its two end letters match and the range inside them is also a palindrome. This is the same picture as peeling a mirror from the outside in.
@@ -657,7 +830,27 @@ int countPalindromes(const string& s) {
 }
 --uses
 u-ispalin
-
+--go
+func countPalindromes(s string) int {
+    n, count := len(s), 0
+    ok := make([][]bool, n)
+    for i := range ok {
+        ok[i] = make([]bool, n)
+    }
+    for i := n - 1; i >= 0; i-- {
+        for j := i; j < n; j++ {
+            if j-i < 2 {
+                ok[i][j] = isPalindrome(s[i : j+1]) // piece: length 1 or 2
+            } else {
+                ok[i][j] = s[i] == s[j] && ok[i+1][j-1] // ends match, inside is a palindrome
+            }
+            if ok[i][j] {
+                count++
+            }
+        }
+    }
+    return count
+}
 ### unbounded
 --idea
 The unbounded knapsack is the knapsack where every item can be taken as many times as you like (think of a shop with unlimited stock). You have a bag of limited weight and want the most total value. The 0/1 version lets you take each item once; here the supply never runs out.
@@ -701,7 +894,16 @@ long long unboundedKnapsack(const vector<int>& w, const vector<int>& v, int cap)
             dp[c] = max(dp[c], dp[c - w[i]] + v[i]);
     return dp[cap];
 }
-
+--go
+func unboundedKnapsack(w, v []int, cap int) int {
+    dp := make([]int, cap+1) // at most c: all start at 0
+    for i := range w {
+        for c := w[i]; c <= cap; c++ { // upward: item can repeat
+            dp[c] = max(dp[c], dp[c-w[i]]+v[i])
+        }
+    }
+    return dp[cap]
+}
 ### subsetsum
 --idea
 Subset sum asks: given some numbers, can you pick some of them (each at most once) that add up to exactly a target? Picture a row of switches, each adding its number to a running total when on. You want to know if the total can land exactly on the target.
@@ -737,7 +939,11 @@ bool subsetSum(const vector<int>& a, int target) {
 }
 --uses
 u-rolling
-
+--go
+func subsetSum(a []int, target int) bool {
+    // numbers as both weights and values: best total <= target, via the knapsack piece
+    return knapsack(a, a, target) == target
+}
 ### partition
 --idea
 Partition problems split a set of numbers into two groups so that the sums are as balanced as possible, or exactly equal. Say the numbers total `T`. If one group sums to `s`, the other sums to `T - s`, and the gap is `T - 2s`. So you only need to know which `s` values can be built, and pick the one closest to `T / 2`.
@@ -779,7 +985,15 @@ int minDifference(const vector<int>& a) {
 }
 --uses
 u-rolling
-
+--go
+func minDifference(a []int) int {
+    total := 0
+    for _, x := range a {
+        total += x
+    }
+    s := knapsack(a, a, total/2) // best group sum not above half
+    return total - 2*s
+}
 ### statem
 --idea
 State machine DP is for problems where, besides the position, you are in one of a few modes, and the rules say which mode can follow which. Think of a small diagram of boxes (modes) with arrows (allowed moves). At each step you ask: "what is the best total if I end this step in mode `m`?"
@@ -839,7 +1053,23 @@ int paintHouses(const vector<array<int, 3>>& cost) {
 }
 --uses
 u-maxupd
-
+--go
+func paintHouses(cost [][3]int) int {
+    const inf = 1 << 60
+    prev := []int{cost[0][0], cost[0][1], cost[0][2]} // best ending in each colour
+    for i := 1; i < len(cost); i++ {
+        cur := []int{inf, inf, inf}
+        for m := 0; m < 3; m++ {
+            for k := 0; k < 3; k++ {
+                if k != m {
+                    chmin(cur, m, prev[k]+cost[i][m]) // piece: previous colour k differs from m
+                }
+            }
+        }
+        prev = cur
+    }
+    return min(prev[0], prev[1], prev[2])
+}
 ### stock
 --idea
 Stock trading DP finds the best profit from a list of daily prices when you may buy and sell under rules, for example "at most `k` trades" (a trade is one buy followed by one sell), and you can hold only one share at a time. It is a state machine: each day you are either holding a share or not.
@@ -898,7 +1128,22 @@ int maxProfit(int k, const vector<int>& prices) {
 --uses
 u-maxupd
 u-inf
-
+--go
+func maxProfit(k int, prices []int) int {
+    k = min(k, len(prices)/2) // more trades than this never help
+    hold := make([]int, k+1)  // hold: not holding anything yet
+    free := make([]int, k+1)  // free starts at 0
+    for i := range hold {
+        hold[i] = -INF
+    }
+    for _, p := range prices {
+        for j := 1; j <= k; j++ {
+            chmax(hold, j, safeAdd(free[j-1], -p)) // buy: start trade j
+            chmax(free, j, hold[j]+p)              // sell: finish trade j
+        }
+    }
+    return free[k] // free[0] = 0 when k = 0
+}
 ### dppref
 --idea
 Some DP transitions add up a whole range of earlier answers, such as "the sum of `dp[i - m]` through `dp[i - 1]`". Done naively, each one costs O(m). A prefix sum (a running total array, so any range sum is one subtraction) makes each transition O(1).
@@ -964,7 +1209,24 @@ long long diceWays(int n, int m, int s) {
 }
 --uses
 u-rangesum
-
+--go
+func diceWays(n, m, s int) int {
+    const P = 1_000_000_007
+    dp := make([]int, s+1)
+    dp[0] = 1 // zero dice, total 0
+    for i := 1; i <= n; i++ {
+        pre := make([]int, s+2) // pre[t] = dp[0] + ... + dp[t-1]
+        for t := 0; t <= s; t++ {
+            pre[t+1] = (pre[t] + dp[t]) % P
+        }
+        nd := make([]int, s+1)
+        for t := 1; t <= s; t++ { // sum of dp[t-m .. t-1]
+            nd[t] = (rangeSum(pre, max(0, t-m), t-1)%P + P) % P
+        }
+        dp = nd
+    }
+    return dp[s]
+}
 ### countpaths
 --idea
 Counting paths asks how many different routes lead from a start to an end. On a grid where you may only move right or down, the number of ways to reach a cell is the ways to reach the cell above plus the ways to reach the cell on its left, because every route arrives from one of those two. Blocked cells have zero ways.
@@ -1031,7 +1293,30 @@ long long countPaths(const vector<vector<int>>& g) {     // g[i][j] == 1 means b
 --uses
 u-modadd
 u-table
-
+--go
+func countPaths(g [][]int) int { // g[i][j] == 1 means blocked
+    const M = 1_000_000_007
+    n, m := len(g), len(g[0])
+    row := newTable(m-1, 0) // m zeros
+    if g[0][0] == 0 {
+        row[0] = 1
+    }
+    for i := 0; i < n; i++ {
+        for j := 0; j < m; j++ {
+            if g[i][j] == 1 { // blocked: no way in
+                row[j] = 0
+                continue
+            }
+            if i == 0 && j == 0 {
+                continue
+            }
+            if j > 0 {
+                row[j] = addMod(row[j], row[j-1], M) // left + above
+            }
+        }
+    }
+    return row[m-1]
+}
 ### dpstrings
 --idea
 DP on strings uses a table indexed by prefixes (the first `i` characters), so the answer for a long string is built from answers for shorter prefixes. A prefix is the string cut off at some point. The example is word break: in how many ways can a string be cut into pieces so that every piece is a word from a given dictionary? (A result of 0 means it cannot be split.)
@@ -1089,7 +1374,26 @@ long long countBreaks(const string& s, const vector<string>& words) {
 }
 --uses
 u-table
-
+--go
+func countBreaks(s string, words []string) int {
+    dict := map[string]bool{}
+    maxLen := 0
+    for _, w := range words {
+        dict[w] = true
+        maxLen = max(maxLen, len(w))
+    }
+    n := len(s)
+    ways := newTable(n, 0)
+    ways[0] = 1 // empty prefix: one split
+    for i := 1; i <= n; i++ {
+        for j := max(0, i-maxLen); j < i; j++ {
+            if dict[s[j:i]] {
+                ways[i] += ways[j]
+            }
+        }
+    }
+    return ways[n]
+}
 ### lis
 --idea
 The longest increasing subsequence (LIS) is the longest list of numbers you can pick from a sequence, keeping their order, so that each is bigger than the one before. In 10, 9, 2, 5, 3, 7, 101, 18 one answer is 2, 3, 7, 18 with length 4. They do not have to be next to each other.
@@ -1145,7 +1449,22 @@ int lis(const vector<int>& a) {
 }
 --uses
 u-maxupd
-
+--go
+func lis(a []int) int {
+    n := len(a)
+    length := make([]int, n)
+    best := []int{0}
+    for i := 0; i < n; i++ {
+        length[i] = 1 // the element alone
+        for j := 0; j < i; j++ {
+            if a[j] < a[i] {
+                chmax(length, i, length[j]+1)
+            }
+        }
+        chmax(best, 0, length[i]) // may end anywhere
+    }
+    return best[0]
+}
 ### lisfast
 --idea
 LIS in n log n keeps a short list called `tails`. For each length `L`, `tails[L-1]` stores the smallest possible last value of an increasing subsequence of length `L`. A smaller last value is always better, because it is easier to extend.
@@ -1190,7 +1509,18 @@ int lisFast(const vector<int>& a) {
 }
 --uses
 u-lower
-
+--go
+func lisFast(a []int) int {
+    const unused = 1 << 62 // slot not used yet
+    tails := make([]int, len(a))
+    for i := range tails {
+        tails[i] = unused
+    }
+    for _, x := range a {
+        tails[lowerBound(tails, x)] = x // first slot with tails[pos] >= x
+    }
+    return lowerBound(tails, unused) // number of used slots
+}
 ### boundedk
 --idea
 Bounded knapsack: each item type has a limited count, for example 3 copies of an item. You still want the most value in a bag of limited weight. You could repeat the item 3 times in a 0/1 knapsack, but with big counts that is slow.
@@ -1254,7 +1584,20 @@ long long boundedKnapsack(const vector<int>& w, const vector<int>& v, const vect
 }
 --uses
 u-rolling
-
+--go
+func boundedKnapsack(w, v, cnt []int, cap int) int {
+    var cw, cv []int
+    for i := range w {
+        c := cnt[i]
+        for k := 1; c > 0; k <<= 1 {
+            t := min(k, c) // chunk of t copies
+            c -= t
+            cw = append(cw, t*w[i])
+            cv = append(cv, t*v[i])
+        }
+    }
+    return knapsack(cw, cv, cap) // 0/1 knapsack on the chunks
+}
 ### knapbitset
 --idea
 A bitset is a row of bits stored many to a machine word, so one instruction handles 64 of them at once. For subset sum, store the set of reachable totals as bits: bit `s` is 1 when the total `s` can be made. Adding a number `x` means "every reachable total, shifted up by `x`, is reachable too", which is one shift and one OR on the whole row.
@@ -1319,7 +1662,29 @@ int reachableSums(const vector<int>& a, int cap) {
 }
 --uses
 u-bit
-
+--go
+func reachableSums(a []int, cap int) int {
+    words := cap/32 + 1
+    bits := make([]int, words)  // 32 usable bits per word
+    bits[0] = setBit(bits[0], 0) // piece: only the empty sum
+    for _, x := range a {
+        q, r := x/32, x%32
+        for i := words - 1; i >= q; i-- { // high to low: old values still unread
+            add := bits[i-q] << r & 0xFFFFFFFF
+            if r > 0 && i-q-1 >= 0 {
+                add |= bits[i-q-1] >> (32 - r)
+            }
+            bits[i] |= add
+        }
+    }
+    count := 0
+    for s := 0; s <= cap; s++ {
+        if getBit(bits[s>>5], s&31) { // piece: is total s reachable?
+            count++
+        }
+    }
+    return count
+}
 ### multiknap
 --idea
 In a multi-dimensional knapsack each item uses several kinds of resource at once, for example weight and volume, and the bag has a separate limit for each. You must stay within every limit. The picture is a table with one axis per resource.
@@ -1367,7 +1732,21 @@ int multiKnapsack(const vector<int>& c1, const vector<int>& c2, const vector<int
 }
 --uses
 u-table
-
+--go
+func multiKnapsack(c1, c2, v []int, cap1, cap2 int) int {
+    dp := make([][]int, cap1+1)
+    for a := range dp {
+        dp[a] = newTable(cap2, 0) // all zeros
+    }
+    for i := range v {
+        for a := cap1; a >= c1[i]; a-- { // both downward: item once
+            for b := cap2; b >= c2[i]; b-- {
+                dp[a][b] = max(dp[a][b], dp[a-c1[i]][b-c2[i]]+v[i])
+            }
+        }
+    }
+    return dp[cap1][cap2]
+}
 ### interval
 --idea
 Interval DP stores an answer for every range (interval) `[i, j]` of a sequence, and builds the answer for a long range from the answers of shorter ranges inside it. The picture: a long rope that you cut into two shorter ropes at some point, solve each piece, and join the results.
@@ -1434,7 +1813,29 @@ long long mergeCost(const vector<int>& a) {
 }
 --uses
 u-table
-
+--go
+func mergeCost(a []int) int {
+    n := len(a)
+    pre := make([]int, n+1)
+    for i, x := range a {
+        pre[i+1] = pre[i] + x
+    }
+    dp := make([][]int, n)
+    for i := range dp {
+        dp[i] = newTable(n-1, 0) // single piles cost 0
+    }
+    for length := 2; length <= n; length++ {
+        for i := 0; i+length-1 < n; i++ {
+            j := i + length - 1
+            best := 1 << 60
+            for k := i; k < j; k++ { // last merge joins [i..k] and [k+1..j]
+                best = min(best, dp[i][k]+dp[k+1][j])
+            }
+            dp[i][j] = best + pre[j+1] - pre[i]
+        }
+    }
+    return dp[0][n-1]
+}
 ### matrixchain
 --idea
 Multiplying a chain of matrices gives the same result whichever way you put the brackets, but the number of scalar multiplications (single number times number) changes a lot. A matrix with `p` rows and `q` columns times one with `q` rows and `r` columns costs `p * q * r`. For three matrices, (A B) C and A (B C) can differ by a factor of ten or more. The task is to pick the bracketing with the fewest multiplications.
@@ -1495,7 +1896,25 @@ long long matrixChain(const vector<int>& p) {
 }
 --uses
 u-table
-
+--go
+func matrixChain(p []int) int {
+    n := len(p) - 1 // number of matrices
+    dp := make([][]int, n)
+    for i := range dp {
+        dp[i] = newTable(n-1, 0) // one matrix costs 0
+    }
+    for length := 2; length <= n; length++ {
+        for i := 0; i+length-1 < n; i++ {
+            j := i + length - 1
+            best := 1 << 60
+            for k := i; k < j; k++ { // last multiplication splits at k
+                best = min(best, dp[i][k]+dp[k+1][j]+p[i]*p[k+1]*p[j+1])
+            }
+            dp[i][j] = best
+        }
+    }
+    return dp[0][n-1]
+}
 ### burst
 --idea
 Burst balloons: balloons in a row have numbers. Bursting balloon `k` earns `left * k * right` coins, where `left` and `right` are its current neighbours (a missing neighbour counts as 1). Find the order of bursts that earns the most.
@@ -1559,7 +1978,26 @@ int burst(const vector<int>& nums) {
 }
 --uses
 u-table
-
+--go
+func burst(nums []int) int {
+    n := len(nums)
+    a := make([]int, n+2)
+    a[0], a[n+1] = 1, 1 // walls
+    copy(a[1:], nums)
+    dp := make([][]int, n+2)
+    for i := range dp {
+        dp[i] = newTable(n+1, 0) // empty ranges stay 0
+    }
+    for gap := 2; gap <= n+1; gap++ {
+        for l := 0; l+gap <= n+1; l++ {
+            r := l + gap
+            for k := l + 1; k < r; k++ { // k is the LAST balloon burst
+                dp[l][r] = max(dp[l][r], dp[l][k]+dp[k][r]+a[l]*a[k]*a[r])
+            }
+        }
+    }
+    return dp[0][n+1]
+}
 ### bitmask
 --idea
 A bitmask is one integer whose binary digits say which items of a small set are chosen: bit `i` is 1 when item `i` is in. With `n` items there are 2 to the power `n` masks, so this works for `n` up to about 20. Bitmask DP uses the mask as the state, so the DP can remember exactly which items are already used.
@@ -1636,7 +2074,33 @@ int elevatorTrips(const vector<int>& w, int W) {
 }
 --uses
 u-maskiter
-
+--go
+func elevatorTrips(w []int, W int) int {
+    n, full := len(w), 1<<len(w)-1
+    const unseen = 1 << 30
+    trips, load := make([]int, full+1), make([]int, full+1)
+    for i := range trips {
+        trips[i] = unseen
+    }
+    trips[0], load[0] = 1, 0 // one open trip, empty
+    for mask := 0; mask < full; mask++ {
+        if trips[mask] == unseen {
+            continue
+        }
+        for _, i := range itemsIn(full^mask, n) { // people not carried yet
+            nt, nl := trips[mask], load[mask]+w[i]
+            if nl > W { // start a new trip
+                nt++
+                nl = w[i]
+            }
+            nm := mask | 1<<i
+            if nt < trips[nm] || (nt == trips[nm] && nl < load[nm]) {
+                trips[nm], load[nm] = nt, nl
+            }
+        }
+    }
+    return trips[full]
+}
 ### tspdp
 --idea
 The travelling salesman problem (TSP): visit every city exactly once, return to the start, and keep the total distance as small as possible. Trying all orders takes `n!` steps. The Held-Karp DP does it in about `n squared times 2^n`, fine for `n` up to about 20.
@@ -1711,7 +2175,35 @@ int tsp(const vector<vector<int>>& d) {
 --uses
 u-maskiter
 u-inf
-
+--go
+func tsp(d [][]int) int {
+    n := len(d)
+    full := 1<<n - 1
+    dp := make([][]int, full+1)
+    for mask := range dp {
+        dp[mask] = make([]int, n)
+        for j := range dp[mask] {
+            dp[mask][j] = INF // INF from the code piece u-inf
+        }
+    }
+    dp[1][0] = 0 // start at city 0
+    for mask := 1; mask <= full; mask += 2 { // only masks containing city 0
+        for _, j := range itemsIn(mask, n) { // standing at j
+            if dp[mask][j] >= INF {
+                continue
+            }
+            for _, k := range itemsIn(full^mask, n) { // go on to unvisited k
+                nm := mask | 1<<k
+                dp[nm][k] = min(dp[nm][k], safeAdd(dp[mask][j], d[j][k]))
+            }
+        }
+    }
+    ans := INF
+    for j := 0; j < n; j++ {
+        ans = min(ans, safeAdd(dp[full][j], d[j][0])) // come home
+    }
+    return ans
+}
 ### assigndp
 --idea
 The assignment problem: `n` workers and `n` jobs, and `cost[i][j]` is what it costs for worker `i` to do job `j`. Give each worker one job, each job to one worker, and minimise the total. Trying all matchings is `n!`.
@@ -1780,7 +2272,28 @@ long long assignment(const vector<vector<int>>& cost) {
 }
 --uses
 u-maskiter
-
+--go
+func assignment(cost [][]int) int {
+    n := len(cost)
+    full := 1<<n - 1
+    const inf = 1 << 60
+    dp := make([]int, full+1) // dp[mask]: cheapest way to fill the jobs in mask
+    for i := range dp {
+        dp[i] = inf
+    }
+    dp[0] = 0
+    for mask := 0; mask < full; mask++ {
+        if dp[mask] >= inf {
+            continue
+        }
+        i := len(itemsIn(mask, n)) // next worker to place
+        for _, j := range itemsIn(full^mask, n) { // jobs still free
+            nm := mask | 1<<j
+            dp[nm] = min(dp[nm], dp[mask]+cost[i][j])
+        }
+    }
+    return dp[full]
+}
 ### treedp
 --idea
 Tree DP computes, for every node, an answer about the subtree below it (the node and everything beneath it), using the answers of its children. A tree has no cycles, so the subtrees of different children never overlap, and combining them is simple.
@@ -1865,7 +2378,36 @@ long long maxIndependent(int n, const vector<pair<int, int>>& edges, const vecto
     }
     return max(take[0], skip[0]);
 }
-
+--go
+func maxIndependent(n int, edges [][2]int, w []int) int {
+    adj := make([][]int, n)
+    for _, e := range edges {
+        adj[e[0]] = append(adj[e[0]], e[1])
+        adj[e[1]] = append(adj[e[1]], e[0])
+    }
+    parent := make([]int, n)
+    parent[0] = -1
+    order := []int{0}
+    for h := 0; h < len(order); h++ { // breadth-first: parents before children
+        u := order[h]
+        for _, v := range adj[u] {
+            if v != parent[u] {
+                parent[v] = u
+                order = append(order, v)
+            }
+        }
+    }
+    take, skip := append([]int(nil), w...), make([]int, n)
+    for i := n - 1; i >= 0; i-- { // children before parents
+        u := order[i]
+        p := parent[u]
+        if p >= 0 {
+            take[p] += skip[u] // parent chosen: child skipped
+            skip[p] += max(take[u], skip[u])
+        }
+    }
+    return max(take[0], skip[0])
+}
 ### dagdp
 --idea
 A DAG (directed acyclic graph) is a graph with one-way edges and no cycles. Because there are no cycles, you can list the nodes in a topological order: every edge goes from an earlier node to a later one. If you process nodes in that order, by the time you reach a node, everything that can lead to it is already finished. That makes any "best over incoming edges" DP work directly.
@@ -1937,7 +2479,30 @@ vector<long long> dagShortest(int n, const vector<array<int, 3>>& edges) {   // 
 }
 --uses
 u-toposort
-
+--go
+func dagShortest(n int, edges [][3]int) []int { // edge = {u, v, w}
+    const inf = 1 << 60
+    adj := make([][]int, n)
+    wadj := make([][][2]int, n)
+    for _, e := range edges {
+        adj[e[0]] = append(adj[e[0]], e[1])
+        wadj[e[0]] = append(wadj[e[0]], [2]int{e[1], e[2]})
+    }
+    dist := make([]int, n)
+    for i := range dist {
+        dist[i] = inf
+    }
+    dist[0] = 0
+    for _, u := range topoOrder(adj) { // code piece: topological order
+        if dist[u] >= inf { // unreachable from node 0
+            continue
+        }
+        for _, e := range wadj[u] {
+            dist[e[0]] = min(dist[e[0]], dist[u]+e[1])
+        }
+    }
+    return dist
+}
 ### longestdag
 --idea
 The longest path in a DAG (a directed graph with no cycles) is the heaviest chain of edges you can follow, such as the longest chain of dependent tasks, which is the minimum time to finish a project if tasks run in parallel (the critical path). On general graphs the longest path is very hard, because cycles let you loop. In a DAG there are no loops, so it is easy.
@@ -2003,7 +2568,24 @@ long long longestPath(int n, const vector<array<int, 3>>& edges) {   // {u, v, w
 }
 --uses
 u-toposort
-
+--go
+func longestPath(n int, edges [][3]int) int { // edge = {u, v, w}
+    adj := make([][]int, n)
+    wadj := make([][][2]int, n)
+    for _, e := range edges {
+        adj[e[0]] = append(adj[e[0]], e[1])
+        wadj[e[0]] = append(wadj[e[0]], [2]int{e[1], e[2]})
+    }
+    best := make([]int, n) // path of one node weighs 0
+    ans := 0
+    for _, u := range topoOrder(adj) { // code piece: topological order
+        ans = max(ans, best[u])
+        for _, e := range wadj[u] {
+            best[e[0]] = max(best[e[0]], best[u]+e[1])
+        }
+    }
+    return ans
+}
 ### probdp
 --idea
 Probability DP tracks, for every state, the chance of being in that state at a given moment. You start with probability 1 in the starting state, and each step spreads that probability to the next states, multiplying by the chance of each move. At the end you add up the probabilities of the states you care about.
@@ -2049,7 +2631,20 @@ double probHeads(int n, int h, double p) {
             dp[j] = dp[j] * (1 - p) + (j > 0 ? dp[j - 1] * p : 0.0);
     return dp[h];
 }
-
+--go
+func probHeads(n, h int, p float64) float64 {
+    dp := make([]float64, n+1)
+    dp[0] = 1.0 // before any toss: zero heads for sure
+    for i := 1; i <= n; i++ {
+        for j := i; j >= 0; j-- { // downward: use the previous row
+            dp[j] *= 1 - p
+            if j > 0 {
+                dp[j] += dp[j-1] * p
+            }
+        }
+    }
+    return dp[h]
+}
 ### expdp
 --idea
 Expected value DP computes the average outcome of a random process. The expected value of something is the sum of each possible result times its probability. For a state, the expected future cost equals the cost of one step plus the probability-weighted average of the expected costs of the states you can land in. That is one equation per state.
@@ -2097,7 +2692,18 @@ double expectedRolls(int n, int f) {
     }
     return e[n];
 }
-
+--go
+func expectedRolls(n, f int) float64 {
+    e := make([]float64, n+1) // e[0] = 0: already reached
+    for r := 1; r <= n; r++ {
+        sum := 0.0
+        for k := 1; k <= f; k++ {
+            sum += e[max(0, r-k)] // overshoot leaves 0 needed
+        }
+        e[r] = 1 + sum/float64(f) // one roll, then the average
+    }
+    return e[n]
+}
 ### gamedp
 --idea
 Game DP solves two-player games where both play perfectly and take turns. A state is winning for the player to move if there is some move to a state that is losing for the opponent. A state is losing if every move leads to a winning state for the opponent (or there is no move at all and the rules say that player loses).
@@ -2142,7 +2748,19 @@ bool firstPlayerWins(int n, const vector<int>& moves) {
 }
 --uses
 u-table
-
+--go
+func firstPlayerWins(n int, moves []int) bool {
+    win := newTable(n, 0) // piece: win[0] = 0, cannot move
+    for s := 1; s <= n; s++ {
+        for _, m := range moves {
+            if m <= s && win[s-m] == 0 { // hand over a loss
+                win[s] = 1
+                break
+            }
+        }
+    }
+    return win[n] == 1
+}
 ### mqdp
 --idea
 Some DP transitions take the best value over a sliding window of earlier states: `dp[i] = a[i] + max(dp[i-k .. i-1])`. Scanning the window each time costs O(k) per state. A monotonic queue (a deque, a queue you can add to and remove from at both ends, that keeps its values in sorted order) gives the window maximum in O(1) amortised.
@@ -2208,7 +2826,24 @@ long long jumpGame(const vector<int>& a, int k) {
     }
     return dp[n - 1];
 }
-
+--go
+func jumpGame(a []int, k int) int {
+    n := len(a)
+    dp := make([]int, n)
+    dp[0] = a[0]
+    dq := []int{0} // indices, dp values decreasing from the front
+    for i := 1; i < n; i++ {
+        for dq[0] < i-k { // left the window
+            dq = dq[1:]
+        }
+        dp[i] = a[i] + dp[dq[0]] // front = window maximum
+        for len(dq) > 0 && dp[dq[len(dq)-1]] <= dp[i] { // dominated
+            dq = dq[:len(dq)-1]
+        }
+        dq = append(dq, i)
+    }
+    return dp[n-1]
+}
 ### wildcard
 --idea
 Wildcard matching asks whether a text matches a pattern where `?` matches any single character and `*` matches any run of characters, including none. Check "abcd" against "a*d": yes, `*` swallows "bc". The table is the same as for the two-sequence DP: rows are prefixes of the text and columns are prefixes of the pattern.
@@ -2274,7 +2909,28 @@ bool wildcard(const string& s, const string& p) {
 }
 --uses
 u-table
-
+--go
+func wildcard(s, p string) bool {
+    n, m := len(s), len(p)
+    ok := make([][]int, n+1)
+    for i := range ok {
+        ok[i] = newTable(m, 0) // 0 = no match yet
+    }
+    ok[0][0] = 1 // empty matches empty
+    for i := 0; i <= n; i++ {
+        for j := 1; j <= m; j++ {
+            c := p[j-1]
+            if c == '*' { // star: match nothing, or eat one char
+                if ok[i][j-1] == 1 || (i > 0 && ok[i-1][j] == 1) {
+                    ok[i][j] = 1
+                }
+            } else if i > 0 && (c == '?' || c == s[i-1]) {
+                ok[i][j] = ok[i-1][j-1] // one char matched
+            }
+        }
+    }
+    return ok[n][m] == 1
+}
 ### distinctsub
 --idea
 Count how many ways the string `t` appears as a subsequence of the string `s` (a subsequence keeps the order but may skip characters, and two ways are different when they use different positions). In "rabbbit" the word "rabbit" appears 3 times, depending on which of the three b's is skipped.
@@ -2334,7 +2990,26 @@ int distinctSubseq(const string& s, const string& t) {
 --uses
 u-table
 u-modadd
-
+--go
+func distinctSubseq(s, t string) int {
+    const M = 1_000_000_007
+    n, m := len(s), len(t)
+    dp := make([][]int, n+1)
+    for i := range dp {
+        dp[i] = newTable(m, 0)
+        dp[i][0] = 1 // empty t: 1 way
+    }
+    for i := 1; i <= n; i++ {
+        for j := 1; j <= m; j++ {
+            use := 0
+            if s[i-1] == t[j-1] {
+                use = dp[i-1][j-1]
+            }
+            dp[i][j] = addMod(dp[i-1][j], use, M) // skip, plus use
+        }
+    }
+    return dp[n][m]
+}
 ### digit
 --idea
 Digit DP counts the numbers up to `N` that have some property of their digits, by building each number one digit at a time from the left. The example: count the integers from 0 to `N` whose digits add up to `S`. There can be billions of numbers, so we cannot test them one by one.
@@ -2413,7 +3088,42 @@ long long countDigitSum(long long N, int S) {
 --uses
 u-digits
 u-table
-
+--go
+func countDigitSum(N, S int) int {
+    d := digits(N) // code piece: digits, most significant first
+    memo := make([][]int, len(d))
+    for i := range memo {
+        memo[i] = newTable(S, -1) // -1 = not computed
+    }
+    var rec func(pos, sum int, tight bool) int
+    rec = func(pos, sum int, tight bool) int {
+        if sum > S {
+            return 0
+        }
+        if pos == len(d) {
+            if sum == S {
+                return 1
+            }
+            return 0
+        }
+        if !tight && memo[pos][sum] != -1 {
+            return memo[pos][sum]
+        }
+        limit := 9
+        if tight {
+            limit = d[pos]
+        }
+        total := 0
+        for x := 0; x <= limit; x++ {
+            total += rec(pos+1, sum+x, tight && x == limit)
+        }
+        if !tight { // only free states are remembered
+            memo[pos][sum] = total
+        }
+        return total
+    }
+    return rec(0, 0, true)
+}
 ### reroot
 --idea
 Rerooting computes, for every node of a tree, an answer as if that node were the root. Doing the tree DP separately from each root costs O(n squared). Rerooting does it in two passes: first compute the usual answer with one fixed root (from the leaves up), then walk down and, for each child, derive its answer from its parent's full answer by removing the child's part and adding "everything else" as a new subtree.
@@ -2525,7 +3235,55 @@ vector<long long> sumDistances(int n, const vector<pair<int, int>>& edges) {
 }
 --uses
 u-entry
+--go
+var adj [][]int // the arrays the piece dfs works on
+var tin, tout []int
+var timer int
+// the piece dfs(v, p) numbers each node on entry (tin) and on exit (tout) from one counter
 
+func sumDistances(n int, edges [][2]int) []int {
+    adj = make([][]int, n)
+    for _, e := range edges {
+        adj[e[0]] = append(adj[e[0]], e[1])
+        adj[e[1]] = append(adj[e[1]], e[0])
+    }
+    tin, tout, timer = make([]int, n), make([]int, n), 0
+    dfs(0, -1) // piece: entry and exit times
+    at, order, parent := make([]int, 2*n), make([]int, 0, n), make([]int, n)
+    for i := range at {
+        at[i] = -1
+    }
+    for v := 0; v < n; v++ {
+        at[tin[v]] = v
+    }
+    for _, v := range at {
+        if v >= 0 {
+            order = append(order, v) // parents before children
+        }
+    }
+    parent[0] = -1
+    for v := 1; v < n; v++ {
+        for _, w := range adj[v] {
+            if tin[w] < tin[v] && tout[v] < tout[w] {
+                parent[v] = w // the neighbour above v
+            }
+        }
+    }
+    size, down, ans := make([]int, n), make([]int, n), make([]int, n)
+    for v := 0; v < n; v++ {
+        size[v] = (tout[v] - tin[v] + 1) / 2 // nodes in v's subtree
+    }
+    for i := n - 1; i > 0; i-- { // pass 1: children before parents
+        v, p := order[i], parent[order[i]]
+        down[p] += down[v] + size[v]
+    }
+    ans[0] = down[0]
+    for i := 1; i < n; i++ { // pass 2: parents before children
+        v, p := order[i], parent[order[i]]
+        ans[v] = ans[p] + n - 2*size[v]
+    }
+    return ans
+}
 ### dpopt
 --idea
 A DP optimisation is a trick that makes a slow DP fast by exploiting structure in the transition. Many DPs have the form `dp[i] = min over j of (dp[j] + cost(j, i))`, which takes O(n) per state and O(n squared) in total (or O(k times n squared) with `k` layers). If the best `j` moves in a predictable way as `i` grows, or `cost` has a special shape, most of that search is wasted.
@@ -2606,7 +3364,34 @@ long long splitSquares(const vector<int>& a, int k) {
     }
     return prev[n];
 }
-
+--go
+func splitSquares(a []int, k int) int {
+    n := len(a)
+    pre := make([]int, n+1)
+    for i, x := range a {
+        pre[i+1] = pre[i] + x
+    }
+    const inf = 1 << 60
+    prev := make([]int, n+1)
+    for i := range prev {
+        prev[i] = inf
+    }
+    prev[0] = 0 // zero groups cover zero numbers
+    for t := 1; t <= k; t++ {
+        cur := make([]int, n+1)
+        for i := range cur {
+            cur[i] = inf
+        }
+        for i := t; i <= n; i++ {
+            for j := t - 1; j < i; j++ { // last group is numbers j..i-1
+                s := pre[i] - pre[j]
+                cur[i] = min(cur[i], prev[j]+s*s)
+            }
+        }
+        prev = cur
+    }
+    return prev[n]
+}
 ### dcopt
 --idea
 Divide and conquer optimisation speeds up a layered DP `cur[i] = min over j < i of prev[j] + cost(j, i)` from O(n squared) per layer to O(n log n) per layer. It needs one property: the best split point `opt(i)` never moves left as `i` grows (`opt(i) <= opt(i+1)`).
@@ -2721,7 +3506,46 @@ long long dcSplit(const vector<int>& a, int k) {
 }
 --uses
 u-mid
+--go
+func dcSplit(a []int, k int) int {
+    n := len(a)
+    pre := make([]int, n+1)
+    for i, x := range a {
+        pre[i+1] = pre[i] + x
+    }
+    const inf = 1 << 60
+    prev := make([]int, n+1)
+    for i := range prev {
+        prev[i] = inf
+    }
+    prev[0] = 0
+    for t := 1; t <= k; t++ {
+        cur := make([]int, n+1)
+        for i := range cur {
+            cur[i] = inf
+        }
+        dcCompute(t, n, t-1, n-1, prev, cur, pre)
+        prev = cur
+    }
+    return prev[n]
+}
 
+func dcCompute(lo, hi, optLo, optHi int, prev, cur, pre []int) {
+    if lo > hi {
+        return
+    }
+    m := mid(lo, hi) // code piece: middle without overflow
+    best, bestJ := 1<<62, optLo
+    for j := optLo; j <= min(m-1, optHi); j++ {
+        s := pre[m] - pre[j]
+        if v := prev[j] + s*s; v < best {
+            best, bestJ = v, j // first best wins ties
+        }
+    }
+    cur[m] = best
+    dcCompute(lo, m-1, optLo, bestJ, prev, cur, pre)
+    dcCompute(m+1, hi, bestJ, optHi, prev, cur, pre)
+}
 ### knuth
 --idea
 Knuth optimisation speeds up an interval DP of the form `dp[i][j] = min over k in [i, j-1] of dp[i][k] + dp[k+1][j] + w(i, j)` from O(n cubed) to O(n squared). The split point `k` is not searched across the whole range: it is limited between the best split of the range one shorter on the right and the best split of the range one shorter on the left.
@@ -2817,7 +3641,34 @@ long long mergeKnuth(const vector<int>& a) {
 }
 --uses
 u-table
-
+--go
+func mergeKnuth(a []int) int {
+    n := len(a)
+    pre := make([]int, n+1)
+    for i, x := range a {
+        pre[i+1] = pre[i] + x
+    }
+    dp, opt := make([][]int, n), make([][]int, n)
+    for i := range dp {
+        dp[i] = newTable(n-1, 0)
+        opt[i] = newTable(n-1, 0)
+        opt[i][i] = i // a single pile splits at itself
+    }
+    for length := 2; length <= n; length++ {
+        for i := 0; i+length-1 < n; i++ {
+            j := i + length - 1
+            best, bestK := 1<<60, i
+            for k := opt[i][j-1]; k <= min(opt[i+1][j], j-1); k++ { // Knuth: opt range
+                if v := dp[i][k] + dp[k+1][j]; v < best {
+                    best, bestK = v, k
+                }
+            }
+            dp[i][j] = best + pre[j+1] - pre[i]
+            opt[i][j] = bestK
+        }
+    }
+    return dp[0][n-1]
+}
 ### cht
 --idea
 The convex hull trick (CHT) speeds up DPs of the form `dp[i] = min over j < i of (m_j * x_i + b_j)`: each earlier state `j` acts as a line `y = m_j * x + b_j`, and each new state asks "which line is lowest at the point `x_i`?". The lower envelope (the lowest line at every `x`) is a convex shape, and only a few lines ever appear on it. Keeping just those lines turns an O(n) search into O(1) amortised.
@@ -2910,7 +3761,32 @@ long long frog(const vector<long long>& h, long long C) {
 }
 --uses
 u-cross
-
+--go
+func frog(h []int, C int) int {
+    n := len(h)
+    dp := make([]int, n)
+    M, B := make([]int, n), make([]int, n) // lines kept in the deque M[front..back)
+    front, back := 0, 1
+    M[0], B[0] = -2*h[0], h[0]*h[0] // line of stone 0 (dp[0] = 0)
+    for i := 1; i < n; i++ {
+        x := h[i]
+        for back-front >= 2 && M[front+1]*x+B[front+1] <= M[front]*x+B[front] {
+            front++ // the next line is at least as low
+        }
+        dp[i] = x*x + C + M[front]*x + B[front]
+        m3, b3 := -2*h[i], dp[i]+h[i]*h[i]
+        for back-front >= 2 {
+            m1, b1, m2, b2 := M[back-2], B[back-2], M[back-1], B[back-1]
+            if cross(m2-m1, b2-b1, m3-m1, b3-b1) < 0 {
+                break
+            }
+            back-- // l2 never lowest
+        }
+        M[back], B[back] = m3, b3
+        back++
+    }
+    return dp[n-1]
+}
 ### aliens
 --idea
 The Aliens trick (also called Lagrangian relaxation or lambda optimisation) removes the "exactly `k` pieces" dimension from a DP. Suppose `f(k)` is the best cost of splitting into exactly `k` pieces, and `f` is convex in `k` (the savings from each extra piece keep shrinking). Instead of tracking `k`, charge a penalty `lambda` for every piece used and solve the plain problem "minimise cost plus `lambda` times the number of pieces". A bigger `lambda` makes fewer pieces worthwhile. Binary search `lambda` until the best plan uses exactly `k` pieces.
@@ -3007,7 +3883,41 @@ long long aliensSplit(const vector<int>& a, int k) {
 }
 --uses
 u-mid
+--go
+func aliensSplit(a []int, k int) int {
+    n := len(a)
+    pre := make([]int, n+1)
+    for i, x := range a {
+        pre[i+1] = pre[i] + x
+    }
+    lo, hi := 0, pre[n]*pre[n]+1 // the penalty lambda lies in [0, total squared]
+    for lo < hi { // smallest lambda with cnt <= k
+        lam := mid(lo, hi) // code piece
+        if _, cnt := aliensInner(pre, lam); cnt <= k {
+            hi = lam
+        } else {
+            lo = lam + 1
+        }
+    }
+    g, _ := aliensInner(pre, lo)
+    return g - lo*k
+}
 
+func aliensInner(pre []int, lam int) (cost, groups int) {
+    n := len(pre) - 1
+    g, cnt := make([]int, n+1), make([]int, n+1)
+    for i := 1; i <= n; i++ {
+        g[i] = 1 << 62
+        for j := 0; j < i; j++ {
+            s := pre[i] - pre[j]
+            v := g[j] + s*s + lam
+            if v < g[i] || (v == g[i] && cnt[j]+1 < cnt[i]) {
+                g[i], cnt[i] = v, cnt[j]+1
+            }
+        }
+    }
+    return g[n], cnt[n]
+}
 ### matdp
 --idea
 Matrix exponentiation DP handles a DP whose next state is a fixed linear combination of the current state, when you need the state after a huge number of steps (like 10 to the 18). Write the state as a column vector `v`. One step is `v_next = T * v` for a fixed square matrix `T` (the transition matrix). Then `n` steps are `T^n * v`, and `T^n` is computed by repeated squaring in O(log n) matrix multiplications.
@@ -3052,7 +3962,13 @@ long long noAdjacentOnes(long long n) {
 }
 --uses
 u-matpow
-
+--go
+func noAdjacentOnes(n int) int {
+    const M = 1_000_000_007
+    T := [][]int{{1, 1}, {1, 0}} // v' = T * v, v = (ends in 0, ends in 1)
+    P := matPow(T, n, M)         // code piece: T to the power n
+    return (P[0][0] + P[1][0]) % M // start vector is (1, 0)
+}
 ### incldp
 --idea
 Inclusion-exclusion counts objects that must satisfy a "nothing is missing" kind of condition by starting from an easy over-count and correcting it. A DP version applies the correction in a table: first compute the easy count for each smaller case, then subtract the parts that really belong to those smaller cases.
@@ -3143,7 +4059,41 @@ int surjections(int n, int m) {
 }
 --uses
 u-modadd
+--go
+func surjections(n, m int) int {
+    const M = 1_000_000_007
+    C := make([][]int, m+1) // Pascal's triangle
+    for j := range C {
+        C[j] = make([]int, m+1)
+        C[j][0] = 1
+        for i := 1; i <= j; i++ {
+            up := 0
+            if i <= j-1 {
+                up = C[j-1][i]
+            }
+            C[j][i] = addMod(C[j-1][i-1], up, M)
+        }
+    }
+    exact := make([]int, m+1)
+    for j := 0; j <= m; j++ {
+        v := powMod(j, n, M) // strings over j letters, no condition
+        for i := 0; i < j; i++ { // remove those using only i of the letters
+            v = subMod(v, C[j][i]*exact[i]%M, M)
+        }
+        exact[j] = v
+    }
+    return exact[m]
+}
 
+func powMod(b, e, M int) int {
+    r := 1
+    for b %= M; e > 0; e, b = e>>1, b*b%M {
+        if e&1 == 1 {
+            r = r * b % M
+        }
+    }
+    return r
+}
 ### sos
 --idea
 SOS DP (sum over subsets) computes, for every mask (a number whose bits mark a chosen set of items), the sum of a value `a[s]` over all subsets `s` of that mask. Doing it directly costs 3 to the power `n` (every mask against all its submasks). SOS DP does it in `n * 2^n`.
@@ -3216,7 +4166,29 @@ vector<long long> sumOverSubsetsSlow(const vector<long long>& a, int n) {   // r
 --uses
 u-bit
 u-submask
+--go
+func sumOverSubsets(a []int, n int) []int {
+    f := append([]int(nil), a...) // before any bit: only s = mask
+    for i := 0; i < n; i++ {      // bits outside
+        for mask := 0; mask < 1<<n; mask++ {
+            if getBit(mask, i) { // code piece: is bit i set?
+                f[mask] += f[clearBit(mask, i)] // add the subsets with bit i off
+            }
+        }
+    }
+    return f
+}
 
+func sumOverSubsetsSlow(a []int, n int) []int { // reference, 3^n
+    f := make([]int, 1<<n)
+    for mask := range f {
+        f[mask] = a[0] // the empty subset
+        for _, sub := range submasks(mask) { // code piece: non-empty submasks
+            f[mask] += a[sub]
+        }
+    }
+    return f
+}
 ### profile
 --idea
 Broken profile DP counts tilings of a grid (here, with 1 by 2 dominoes) by sweeping over the cells one at a time, row by row, and remembering a profile: for the next `m` cells in sweep order (a whole row's width), which are already covered by a domino placed earlier. The profile is a bitmask of `m` bits, so the table has `2^m` entries, and `m` should be at most about 15 to 20. "Broken" means the boundary is a staircase that moves one cell at a time, not a straight line between rows.
@@ -3302,7 +4274,33 @@ long long domino(int n, int m) {
 }
 --uses
 u-bit
-
+--go
+func domino(n, m int) int {
+    dp := make([]int, 1<<m)
+    dp[0] = 1 // nothing covered yet
+    for i := 0; i < n; i++ {
+        for j := 0; j < m; j++ {
+            nx := make([]int, 1<<m)
+            for mask, ways := range dp {
+                if ways == 0 {
+                    continue
+                }
+                if getBit(mask, j) { // already covered
+                    nx[clearBit(mask, j)] += ways
+                    continue
+                }
+                if i+1 < n { // vertical
+                    nx[setBit(mask, j)] += ways
+                }
+                if j+1 < m && !getBit(mask, j+1) { // horizontal
+                    nx[setBit(mask, j+1)] += ways
+                }
+            }
+            dp = nx
+        }
+    }
+    return dp[0]
+}
 ### dpperm
 --idea
 DP on permutations builds an ordering of `n` items one position at a time, remembering only which items are already placed (a bitmask) and, when the rule looks at neighbours, which item was placed last. There are `n!` orderings but only `2^n` subsets, so with `n` up to about 20 the DP is much cheaper than listing them.
@@ -3370,7 +4368,35 @@ long long countOrders(const vector<vector<int>>& ok) {
 }
 --uses
 u-maskiter
-
+--go
+func countOrders(ok [][]int) int {
+    n := len(ok)
+    full := 1<<n - 1
+    dp := make([][]int, full+1)
+    for mask := range dp {
+        dp[mask] = make([]int, n)
+    }
+    for i := 0; i < n; i++ {
+        dp[1<<i][i] = 1 // an order of one item
+    }
+    for mask := 1; mask < full; mask++ {
+        for _, last := range itemsIn(mask, n) {
+            if dp[mask][last] == 0 {
+                continue
+            }
+            for _, nxt := range itemsIn(full^mask, n) { // items not placed yet
+                if ok[last][nxt] == 1 {
+                    dp[mask|1<<nxt][nxt] += dp[mask][last]
+                }
+            }
+        }
+    }
+    total := 0
+    for last := 0; last < n; last++ {
+        total += dp[full][last]
+    }
+    return total
+}
 ### optbst
 --idea
 An optimal binary search tree (BST) arranges sorted keys in a search tree so that the expected search cost is smallest, given how often each key is looked up. A key at depth 1 (the root) costs 1 comparison per lookup, a key at depth 2 costs 2, and so on. The total cost is the sum of `frequency * depth`. Frequent keys should sit near the top, but the tree must stay a valid search tree (smaller keys to the left, larger to the right).
@@ -3441,7 +4467,29 @@ long long optimalBst(const vector<int>& f) {     // f[0..n-1] are the frequencie
 }
 --uses
 u-table
-
+--go
+func optimalBst(f []int) int { // f[0..n-1] are the frequencies
+    n := len(f)
+    pre := make([]int, n+1)
+    for i, x := range f {
+        pre[i+1] = pre[i] + x
+    }
+    dp := make([][]int, n+2)
+    for i := range dp {
+        dp[i] = newTable(n+1, 0) // empty ranges cost 0
+    }
+    for length := 1; length <= n; length++ {
+        for i := 1; i+length-1 <= n; i++ {
+            j := i + length - 1
+            best := 1 << 60
+            for r := i; r <= j; r++ { // r is the root
+                best = min(best, dp[i][r-1]+dp[r+1][j])
+            }
+            dp[i][j] = best + pre[j] - pre[i-1]
+        }
+    }
+    return dp[1][n]
+}
 ### submask
 --idea
 A submask of a mask is a mask whose set bits are a subset of the mask's set bits. Submask enumeration DP is a bitmask DP whose transition looks at every subset of the current set: `dp[mask] = best over submasks sub of mask of dp[mask without sub] + cost[sub]`. Summed over all masks, the number of (mask, submask) pairs is 3 to the power `n`, because each item is either outside the mask, in the mask but not in the submask, or in both. So it works for `n` up to about 15 to 18.
@@ -3499,4 +4547,19 @@ long long minPartitionCost(const vector<long long>& cost, int n) {   // cost[sub
 }
 --uses
 u-submask
-
+--go
+func minPartitionCost(cost []int, n int) int { // cost[sub] for every mask sub >= 1
+    full := 1<<n - 1
+    const inf = 1 << 60
+    dp := make([]int, full+1)
+    for i := range dp {
+        dp[i] = inf
+    }
+    dp[0] = 0 // no items, no groups
+    for mask := 1; mask <= full; mask++ {
+        for _, sub := range submasks(mask) { // code piece: non-empty submasks
+            dp[mask] = min(dp[mask], dp[mask^sub]+cost[sub])
+        }
+    }
+    return dp[full]
+}

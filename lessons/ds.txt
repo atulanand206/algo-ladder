@@ -81,6 +81,29 @@ long long maxRun(const vector<int>& a) {
     }
     return best;
 }
+--go
+// insert v at position p; the slice grows by one
+func insertAt(a []int, p, v int) []int {
+    a = append(a, 0)          // make room
+    copy(a[p+1:], a[p:])      // shift right (copy handles the overlap)
+    a[p] = v
+    return a
+}
+
+func deleteAt(a []int, p int) []int {
+    copy(a[p:], a[p+1:])      // shift left
+    return a[:len(a)-1]
+}
+
+// one pass: largest sum of any non-empty run (Kadane)
+func maxRun(a []int) int {
+    best, cur := a[0], a[0]
+    for _, x := range a[1:] {
+        cur = max(x, cur+x)   // extend the run or restart here
+        best = max(best, cur)
+    }
+    return best
+}
 
 ### matrix
 --idea
@@ -188,6 +211,44 @@ void rotate(vector<vector<int>>& a) {
 }
 --uses
 u-idx
+--go
+var DR = [4]int{-1, 1, 0, 0}
+var DC = [4]int{0, 0, -1, 1}
+
+// number of land cells ('1') connected to (r, c), marking them visited with an explicit stack
+func floodFill(g [][]byte, r, c int) int {
+    count := 0
+    g[r][c] = '0'
+    st := [][2]int{{r, c}}
+    for len(st) > 0 {
+        cur := st[len(st)-1]
+        st = st[:len(st)-1]
+        count++
+        for k := 0; k < 4; k++ {
+            nr, nc := cur[0]+DR[k], cur[1]+DC[k]
+            if inBounds(nr, nc, len(g), len(g[0])) && g[nr][nc] == '1' {
+                g[nr][nc] = '0' // mark when pushing, so no cell is pushed twice
+                st = append(st, [2]int{nr, nc})
+            }
+        }
+    }
+    return count
+}
+
+// rotate an n x n grid 90 degrees clockwise in place
+func rotate(a [][]int) {
+    n := len(a)
+    for i := 0; i < n; i++ {
+        for j := i + 1; j < n; j++ {
+            a[i][j], a[j][i] = a[j][i], a[i][j] // transpose
+        }
+    }
+    for _, row := range a {
+        for i, j := 0, n-1; i < j; i, j = i+1, j-1 {
+            row[i], row[j] = row[j], row[i] // reverse rows
+        }
+    }
+}
 
 ### hash
 --idea
@@ -336,6 +397,65 @@ long long pairsWithSum(const vector<int>& a, int target) {
 --uses
 u-freq
 u-hget
+--go
+// a small chained hash table from int keys to int values (shows the mechanism)
+type pair struct{ k, v int }
+
+type IntMap struct {
+    buckets [][]pair
+    size    int
+}
+
+func NewIntMap() *IntMap { return &IntMap{buckets: make([][]pair, 16)} }
+
+func (m *IntMap) bucket(k int) int {
+    return int(uint32(k)*0x9E3779B9>>7) & (len(m.buckets) - 1) // cap is a power of two
+}
+
+func (m *IntMap) Get(k int) (int, bool) {
+    for _, p := range m.buckets[m.bucket(k)] {
+        if p.k == k {
+            return p.v, true
+        }
+    }
+    return 0, false
+}
+
+func (m *IntMap) Put(k, v int) {
+    b := m.bucket(k)
+    for i := range m.buckets[b] {
+        if m.buckets[b][i].k == k {
+            m.buckets[b][i].v = v
+            return
+        }
+    }
+    m.buckets[b] = append(m.buckets[b], pair{k, v})
+    m.size++
+    if m.size > len(m.buckets)*3/4 { // load factor above 0.75: double and re-insert
+        old := m.buckets
+        m.buckets, m.size = make([][]pair, len(old)*2), 0
+        for _, chain := range old {
+            for _, p := range chain {
+                m.Put(p.k, p.v)
+            }
+        }
+    }
+}
+
+// pairs (i < j) with a[i] + a[j] == target; countFreq (u-freq) and getOrDefault (u-hget)
+func pairsWithSum(a []int, target int) int {
+    f := countFreq(a)
+    pairs := 0
+    for x, c := range f {
+        y := target - x
+        if x < y {
+            pairs += c * getOrDefault(f, y, 0) // each unordered pair once
+        } else if x == y {
+            pairs += c * (c - 1) / 2 // pairs inside one value
+        }
+    }
+    return pairs
+}
 
 ### hset
 --idea
@@ -418,6 +538,38 @@ int firstRepeat(const vector<int>& a) {
     for (int x : a)
         if (!seen.insert(x).second) return x;         // insert reports whether it was new
     return -1;
+}
+--go
+// length of the longest run of consecutive integers (like 4, 5, 6, 7) in an unsorted slice
+func longestConsecutive(a []int) int {
+    set := map[int]bool{}
+    for _, x := range a {
+        set[x] = true
+    }
+    best := 0
+    for x := range set {
+        if set[x-1] {
+            continue // not the start of a run
+        }
+        n := 1
+        for set[x+n] {
+            n++
+        }
+        best = max(best, n)
+    }
+    return best
+}
+
+// first value that appears twice, or -1
+func firstRepeat(a []int) int {
+    seen := map[int]bool{}
+    for _, x := range a {
+        if seen[x] {
+            return x
+        }
+        seen[x] = true
+    }
+    return -1
 }
 
 ### stack
@@ -558,6 +710,63 @@ int evalPostfix(const string& expr) {
 }
 --uses
 u-stackop
+--go
+// slice-backed stack of ints (the mechanism; append doubles the capacity for us)
+type IntStack struct{ data []int }
+
+func (s *IntStack) Push(x int) { s.data = append(s.data, x) }
+func (s *IntStack) Pop() int {
+    if len(s.data) == 0 {
+        panic("empty")
+    }
+    x := s.data[len(s.data)-1]
+    s.data = s.data[:len(s.data)-1]
+    return x
+}
+func (s *IntStack) Peek() int     { return s.data[len(s.data)-1] }
+func (s *IntStack) IsEmpty() bool { return len(s.data) == 0 }
+
+// are the brackets in s balanced? Uses the stack moves push, peek and pop (piece u-stackop)
+func balanced(s string) bool {
+    var st []int
+    for _, c := range s {
+        switch c {
+        case '(', '[', '{':
+            push(&st, int(c))
+        case ')', ']', '}':
+            if len(st) == 0 {
+                return false
+            }
+            o := rune(pop(&st))
+            if (c == ')' && o != '(') || (c == ']' && o != '[') || (c == '}' && o != '{') {
+                return false
+            }
+        }
+    }
+    return len(st) == 0 // leftover openers mean unbalanced
+}
+
+// value of a postfix expression such as "3 4 + 2 *" (tokens separated by spaces)
+func evalPostfix(expr string) int {
+    var st []int
+    for _, tok := range strings.Fields(expr) {
+        if tok == "+" || tok == "-" || tok == "*" {
+            b, a := pop(&st), pop(&st) // the right operand was pushed last
+            switch tok {
+            case "+":
+                push(&st, a+b)
+            case "-":
+                push(&st, a-b)
+            default:
+                push(&st, a*b)
+            }
+        } else {
+            v, _ := strconv.Atoi(tok)
+            push(&st, v)
+        }
+    }
+    return peek(&st)
+}
 
 ### queue
 --idea
@@ -659,6 +868,40 @@ vector<int> bfs(const vector<vector<int>>& adj, int src) {
 }
 --uses
 u-queueop
+--go
+// array queue when the total number of pushes is at most cap (the mechanism)
+type IntQueue struct {
+    data       []int
+    head, tail int
+}
+
+func NewIntQueue(cap int) *IntQueue { return &IntQueue{data: make([]int, cap)} }
+
+func (q *IntQueue) Enqueue(x int)  { q.data[q.tail] = x; q.tail++ }
+func (q *IntQueue) Dequeue() int   { x := q.data[q.head]; q.head++; return x }
+func (q *IntQueue) IsEmpty() bool  { return q.head == q.tail }
+func (q *IntQueue) Size() int      { return q.tail - q.head }
+
+// breadth-first distances from src (-1 = unreachable); uses enqueue and dequeue (piece u-queueop)
+func bfs(adj [][]int, src int) []int {
+    dist := make([]int, len(adj))
+    for i := range dist {
+        dist[i] = -1
+    }
+    q := []int{}
+    dist[src] = 0
+    enqueue(&q, src)
+    for len(q) > 0 {
+        u := dequeue(&q)
+        for _, v := range adj[u] {
+            if dist[v] < 0 {
+                dist[v] = dist[u] + 1
+                enqueue(&q, v) // mark on enqueue
+            }
+        }
+    }
+    return dist
+}
 
 ### deque
 --idea
@@ -770,6 +1013,55 @@ vector<int> bfs01(const vector<vector<pair<int,int>>>& adj, int src) {
             }
     }
     return dist;
+}
+--go
+// max of every window of width k
+func slidingMax(a []int, k int) []int {
+    var res []int
+    dq := []int{} // indexes, values decreasing; front is dq[0]
+    for i, x := range a {
+        for len(dq) > 0 && a[dq[len(dq)-1]] <= x {
+            dq = dq[:len(dq)-1] // smaller items are useless now
+        }
+        dq = append(dq, i)
+        if dq[0] <= i-k {
+            dq = dq[1:] // left the window
+        }
+        if i >= k-1 {
+            res = append(res, a[dq[0]])
+        }
+    }
+    return res
+}
+
+// shortest distances when each edge costs 0 or 1; adj[u] has {v, w} pairs
+func bfs01(adj [][][2]int, src int) []int {
+    const inf = int(^uint(0) >> 1)
+    dist := make([]int, len(adj))
+    for i := range dist {
+        dist[i] = inf
+    }
+    dist[src] = 0
+    front, back, bi := []int{src}, []int{}, 0 // front is a stack (addFirst), back a queue
+    for len(front) > 0 || bi < len(back) {
+        var u int
+        if len(front) > 0 {
+            u, front = front[len(front)-1], front[:len(front)-1]
+        } else {
+            u, bi = back[bi], bi+1
+        }
+        for _, e := range adj[u] {
+            if dist[u]+e[1] < dist[e[0]] {
+                dist[e[0]] = dist[u] + e[1]
+                if e[1] == 0 {
+                    front = append(front, e[0]) // free edge goes to the front
+                } else {
+                    back = append(back, e[0])
+                }
+            }
+        }
+    }
+    return dist
 }
 
 ### linked
@@ -926,6 +1218,65 @@ bool isPalindrome(ListNode* head) {
 --uses
 u-listrev
 u-listmerge
+--go
+type ListNode struct {
+    val  int
+    next *ListNode
+}
+
+// second middle if the length is even
+func middle(head *ListNode) *ListNode {
+    slow, fast := head, head
+    for fast != nil && fast.next != nil {
+        slow, fast = slow.next, fast.next.next
+    }
+    return slow
+}
+
+func hasCycle(head *ListNode) bool {
+    slow, fast := head, head
+    for fast != nil && fast.next != nil {
+        slow, fast = slow.next, fast.next.next
+        if slow == fast {
+            return true // the fast runner lapped the slow one
+        }
+    }
+    return false
+}
+
+// merge sort on a list: cut in half, sort both, join with mergeLists (piece u-listmerge)
+func sortList(head *ListNode) *ListNode {
+    if head == nil || head.next == nil {
+        return head
+    }
+    slow, fast := head, head.next // slow stops at the end of the first half
+    for fast != nil && fast.next != nil {
+        slow, fast = slow.next, fast.next.next
+    }
+    second := slow.next
+    slow.next = nil // cut the list in two
+    return mergeLists(sortList(head), sortList(second))
+}
+
+// palindrome test with O(1) extra space: reverse the second half with reverseList (piece u-listrev)
+func isPalindrome(head *ListNode) bool {
+    if head == nil || head.next == nil {
+        return true
+    }
+    slow, fast := head, head
+    for fast.next != nil && fast.next.next != nil {
+        slow, fast = slow.next, fast.next.next
+    }
+    second := reverseList(slow.next) // flip the back half
+    ok := true
+    for p, q := head, second; q != nil; p, q = p.next, q.next {
+        if p.val != q.val {
+            ok = false
+        }
+    }
+    slow.next = reverseList(second) // put the list back as it was
+    return ok
+}
 
 ### dll
 --idea
@@ -1030,6 +1381,42 @@ struct DList {
         remove(n); return n;
     }
 };
+--go
+type Node struct {
+    key, val   int
+    prev, next *Node
+}
+
+type DList struct{ head, tail *Node }
+
+func NewDList() *DList {
+    h, t := &Node{}, &Node{} // sentinels hold no data
+    h.next, t.prev = t, h
+    return &DList{h, t}
+}
+
+func (d *DList) insertAfter(p, n *Node) {
+    n.prev, n.next = p, p.next
+    p.next.prev = n
+    p.next = n
+}
+
+func (d *DList) remove(n *Node) {
+    n.prev.next = n.next
+    n.next.prev = n.prev
+}
+
+func (d *DList) pushFront(n *Node)   { d.insertAfter(d.head, n) }
+func (d *DList) moveToFront(n *Node) { d.remove(n); d.pushFront(n) }
+
+func (d *DList) popBack() *Node { // nil when empty
+    n := d.tail.prev
+    if n == d.head {
+        return nil
+    }
+    d.remove(n)
+    return n
+}
 
 ### circbuf
 --idea
@@ -1121,6 +1508,36 @@ struct Ring {
     }
     int get(int i) const { return data[(head + i) % data.size()]; }   // i-th oldest
 };
+--go
+type Ring struct {
+    data       []int
+    head, size int
+}
+
+func NewRing(cap int) *Ring { return &Ring{data: make([]int, cap)} }
+
+// returns false if full and overwrite is false
+func (r *Ring) Push(x int, overwrite bool) bool {
+    if r.size == len(r.data) {
+        if !overwrite {
+            return false
+        }
+        r.head = (r.head + 1) % len(r.data) // drop the oldest
+        r.size--
+    }
+    r.data[(r.head+r.size)%len(r.data)] = x
+    r.size++
+    return true
+}
+
+func (r *Ring) Pop() int { // caller checks size > 0
+    x := r.data[r.head]
+    r.head = (r.head + 1) % len(r.data)
+    r.size--
+    return x
+}
+
+func (r *Ring) Get(i int) int { return r.data[(r.head+i)%len(r.data)] } // i-th oldest
 
 ### bitset
 --idea
@@ -1210,6 +1627,46 @@ struct Bits {
     bool get(int i) const { return (w[i >> 6] >> (i & 63)) & 1; }
     int count() const { int c = 0; for (auto x : w) c += __builtin_popcountll(x); return c; }
 };
+--go
+type Bits struct {
+    w []uint64
+    n int
+}
+
+func NewBits(n int) *Bits { return &Bits{make([]uint64, (n+63)>>6), n} }
+
+func (b *Bits) Set(i int)      { b.w[i>>6] |= 1 << (i & 63) }
+func (b *Bits) Clear(i int)    { b.w[i>>6] &^= 1 << (i & 63) } // &^ is "and not"
+func (b *Bits) Get(i int) bool { return b.w[i>>6]>>(i&63)&1 != 0 }
+
+func (b *Bits) Count() int {
+    c := 0
+    for _, x := range b.w {
+        c += bits.OnesCount64(x)
+    }
+    return c
+}
+
+func (b *Bits) Or(o *Bits) {
+    for i := range b.w {
+        b.w[i] |= o.w[i]
+    }
+}
+
+// b |= b << s   (the subset-sum step); bits shifted past n are dropped
+func (b *Bits) OrShiftLeft(s int) {
+    ws, bs := s>>6, uint(s&63)
+    for i := len(b.w) - 1; i >= ws; i-- { // from the top so sources are still old
+        v := b.w[i-ws] << bs
+        if bs > 0 && i-ws-1 >= 0 {
+            v |= b.w[i-ws-1] >> (64 - bs) // carry from the lower word
+        }
+        b.w[i] |= v
+    }
+    if extra := len(b.w)*64 - b.n; extra > 0 { // clear unused top bits
+        b.w[len(b.w)-1] &= ^uint64(0) >> uint(extra)
+    }
+}
 
 ### heap
 --idea
@@ -1301,6 +1758,28 @@ struct MinHeap {
 --uses
 u-sift
 u-swap
+--go
+// min-heap of ints, array based. up and down come from the piece u-sift, swap from u-swap.
+// they work on this package-level heap array
+var h []int
+
+func push(x int) {
+    h = append(h, x)
+    up(len(h) - 1) // float the new item up
+}
+
+func peek() int { return h[0] }
+
+func pop() int {
+    top := h[0]
+    last := len(h) - 1
+    swap(h, 0, last) // last item goes to the top
+    h = h[:last]
+    down(0, last) // sink it to its place
+    return top
+}
+
+func isEmpty() bool { return len(h) == 0 }
 
 ### tree
 --idea
@@ -1427,6 +1906,62 @@ vector<vector<int>> levels(Node* root) {
 }
 --uses
 u-treeh
+--go
+type Node struct {
+    val         int
+    left, right *Node
+}
+
+// height(v) comes from the piece u-treeh; everything below is built on it
+func size(t *Node) int {
+    if t == nil {
+        return 0
+    }
+    return 1 + size(t.left) + size(t.right)
+}
+
+// is every node's left and right height within 1 of each other?
+func isBalanced(t *Node) bool {
+    if t == nil {
+        return true
+    }
+    d := height(t.left) - height(t.right)
+    return d >= -1 && d <= 1 && isBalanced(t.left) && isBalanced(t.right)
+}
+
+func inorder(t *Node, out *[]int) {
+    if t == nil {
+        return
+    }
+    inorder(t.left, out)
+    *out = append(*out, t.val)
+    inorder(t.right, out)
+}
+
+// values level by level, one list per level
+func levels(root *Node) [][]int {
+    var res [][]int
+    if root == nil {
+        return res
+    }
+    q := []*Node{root}
+    for len(q) > 0 {
+        var lv []int
+        for cnt := len(q); cnt > 0; cnt-- { // exactly one level
+            n := q[0]
+            q = q[1:]
+            lv = append(lv, n.val)
+            if n.left != nil {
+                q = append(q, n.left)
+            }
+            if n.right != nil {
+                q = append(q, n.right)
+            }
+        }
+        res = append(res, lv)
+    }
+    return res
+}
 
 ### bst
 --idea
@@ -1577,6 +2112,74 @@ Node* build(const vector<int>& values) {
 }
 --uses
 u-treeins
+--go
+type Node struct {
+    key         int
+    left, right *Node
+}
+
+// insert(v, x) comes from the piece u-treeins: walk left or right, attach at the empty spot.
+// The functions below are built on the same tree shape.
+
+func contains(t *Node, k int) bool {
+    for t != nil {
+        if k == t.key {
+            return true
+        }
+        if k < t.key {
+            t = t.left
+        } else {
+            t = t.right
+        }
+    }
+    return false
+}
+
+// (named remove: delete is a Go built-in)
+func remove(t *Node, k int) *Node {
+    if t == nil {
+        return nil
+    }
+    if k < t.key {
+        t.left = remove(t.left, k)
+    } else if k > t.key {
+        t.right = remove(t.right, k)
+    } else {
+        if t.left == nil { // zero or one child
+            return t.right
+        }
+        if t.right == nil {
+            return t.left
+        }
+        s := t.right
+        for s.left != nil {
+            s = s.left // successor: leftmost in the right subtree
+        }
+        t.key = s.key
+        t.right = remove(t.right, s.key)
+    }
+    return t
+}
+
+// call with math.MinInt, math.MaxInt
+func isBst(t *Node, lo, hi int) bool {
+    if t == nil {
+        return true
+    }
+    if t.key <= lo || t.key >= hi {
+        return false
+    }
+    return isBst(t.left, lo, t.key) && isBst(t.right, t.key, hi)
+}
+
+// build a tree from values, one insert at a time
+func build(values []int) *Node {
+    var root *Node
+    for _, x := range values {
+        root = insert(root, x)
+    }
+    return root
+}
 
 ### trie
 --idea
@@ -1691,6 +2294,59 @@ struct PrefixTrie : Trie {
 };
 --uses
 u-trieins
+--go
+// extends the piece u-trieins (insert and search over arrays nxt and end) with prefix questions
+type PrefixTrie struct{ *Trie }
+
+func newPrefixTrie() *PrefixTrie { return &PrefixTrie{newTrie()} }
+
+func (t *PrefixTrie) walk(s string) int { // node reached by s, or -1
+    v := 0
+    for i := 0; i < len(s); i++ {
+        v = t.nxt[v][s[i]-'a']
+        if v == 0 {
+            return -1
+        }
+    }
+    return v
+}
+
+func (t *PrefixTrie) startsWith(p string) bool { return t.walk(p) >= 0 }
+
+func (t *PrefixTrie) countWords(v int) int { // words stored at or below node v
+    c := 0
+    if t.end[v] {
+        c = 1
+    }
+    for k := 0; k < 26; k++ {
+        if t.nxt[v][k] != 0 {
+            c += t.countWords(t.nxt[v][k])
+        }
+    }
+    return c
+}
+
+func (t *PrefixTrie) countPrefix(p string) int {
+    if v := t.walk(p); v >= 0 {
+        return t.countWords(v)
+    }
+    return 0
+}
+
+// length of the longest stored word that is a prefix of text, or -1
+func (t *PrefixTrie) longestWordPrefix(text string) int {
+    v, best := 0, -1
+    for i := 0; i < len(text); i++ {
+        v = t.nxt[v][text[i]-'a']
+        if v == 0 {
+            break
+        }
+        if t.end[v] {
+            best = i + 1
+        }
+    }
+    return best
+}
 
 ### mono
 --idea
@@ -1801,6 +2457,46 @@ long long largestRectangle(const vector<int>& h) {
 }
 --uses
 u-stackop
+--go
+// nxt[i] = index of the next item strictly greater than a[i], or n if none
+// (stack moves push, peek, pop come from the piece u-stackop)
+func nextGreater(a []int) []int {
+    n := len(a)
+    nxt := make([]int, n)
+    for i := range nxt {
+        nxt[i] = n
+    }
+    var st []int // indexes, values decreasing
+    for i := 0; i < n; i++ {
+        for len(st) > 0 && a[peek(&st)] < a[i] {
+            nxt[pop(&st)] = i // i answers these
+        }
+        push(&st, i)
+    }
+    return nxt
+}
+
+// area of the largest rectangle in a histogram
+func largestRectangle(h []int) int {
+    n, best := len(h), 0
+    var st []int // indexes, heights increasing
+    for i := 0; i <= n; i++ {
+        cur := 0 // a height-0 sentinel flushes the stack
+        if i < n {
+            cur = h[i]
+        }
+        for len(st) > 0 && h[peek(&st)] >= cur {
+            height := h[pop(&st)]
+            left := -1 // nearest shorter bar on the left
+            if len(st) > 0 {
+                left = peek(&st)
+            }
+            best = max(best, height*(i-left-1))
+        }
+        push(&st, i)
+    }
+    return best
+}
 
 ### tmap
 --idea
@@ -1901,6 +2597,42 @@ bool book(map<int,int>& bookings, int start, int end) {
     }
     bookings[start] = end;
     return true;
+}
+--go
+// Go has no built-in ordered map; keep sorted slices and binary search with sort.SearchInts.
+// the smallest stored value that is >= x, or -1 if none (s is sorted)
+func ceilingOf(s []int, x int) int {
+    i := sort.SearchInts(s, x) // first index with s[i] >= x
+    if i == len(s) {
+        return -1
+    }
+    return s[i]
+}
+
+// the largest stored value that is <= x, or -1 if none
+func floorOf(s []int, x int) int {
+    i := sort.SearchInts(s, x+1) // first index with s[i] > x
+    if i == 0 {
+        return -1
+    }
+    return s[i-1]
+}
+
+// can [start, end) be booked without overlapping? starts is sorted, ends[start] is its end
+func book(starts *[]int, ends map[int]int, start, end int) bool {
+    s := *starts
+    if b := floorOf(s, start); b != -1 && ends[b] > start {
+        return false // an earlier booking runs into us
+    }
+    if a := ceilingOf(s, start); a != -1 && a < end {
+        return false // we run into a later booking
+    }
+    i := sort.SearchInts(s, start)
+    s = append(s, 0)
+    copy(s[i+1:], s[i:]) // insert keeping the order
+    s[i] = start
+    *starts, ends[start] = s, end
+    return true
 }
 
 ### multiset
@@ -2021,6 +2753,64 @@ vector<int> windowMax(const vector<int>& a, int k) {
         if (i >= k - 1) res.push_back(ms.max());
     }
     return res;
+}
+--go
+// multiset of ints: value -> count, plus a sorted slice of the distinct values
+// (Go has no ordered map, so the order lives in the slice)
+type MultiSet struct {
+    cnt  map[int]int
+    keys []int
+    size int
+}
+
+func NewMultiSet() *MultiSet { return &MultiSet{cnt: map[int]int{}} }
+
+func (m *MultiSet) Add(x int) {
+    c := getOrDefault(m.cnt, x, 0) // piece u-hget
+    if c == 0 {
+        i := sort.SearchInts(m.keys, x)
+        m.keys = append(m.keys, 0)
+        copy(m.keys[i+1:], m.keys[i:])
+        m.keys[i] = x // new distinct value goes in order
+    }
+    m.cnt[x] = c + 1
+    m.size++
+}
+
+func (m *MultiSet) RemoveOne(x int) bool {
+    c := getOrDefault(m.cnt, x, 0)
+    if c == 0 {
+        return false
+    }
+    if c == 1 {
+        delete(m.cnt, x)
+        i := sort.SearchInts(m.keys, x)
+        m.keys = append(m.keys[:i], m.keys[i+1:]...)
+    } else {
+        m.cnt[x] = c - 1
+    }
+    m.size--
+    return true
+}
+
+func (m *MultiSet) Min() int          { return m.keys[0] }
+func (m *MultiSet) Max() int          { return m.keys[len(m.keys)-1] }
+func (m *MultiSet) CountOf(x int) int { return getOrDefault(m.cnt, x, 0) }
+
+// max of every window of width k
+func windowMax(a []int, k int) []int {
+    ms := NewMultiSet()
+    var res []int
+    for i, x := range a {
+        ms.Add(x)
+        if i >= k {
+            ms.RemoveOne(a[i-k]) // the item that just left the window
+        }
+        if i >= k-1 {
+            res = append(res, ms.Max())
+        }
+    }
+    return res
 }
 
 ### lru
@@ -2157,6 +2947,68 @@ int cachedSquare(LRU& cache, int x, int& calls) {
 }
 --uses
 u-lru
+--go
+type lruNode struct {
+    key, val   int
+    prev, next *lruNode
+}
+
+type LRUCache struct {
+    cap        int
+    m          map[int]*lruNode
+    head, tail *lruNode // sentinels
+}
+
+func NewLRUCache(cap int) *LRUCache {
+    h, t := &lruNode{}, &lruNode{}
+    h.next, t.prev = t, h
+    return &LRUCache{cap, map[int]*lruNode{}, h, t}
+}
+
+func (c *LRUCache) unlink(n *lruNode) { n.prev.next, n.next.prev = n.next, n.prev }
+func (c *LRUCache) pushFront(n *lruNode) {
+    n.next, n.prev = c.head.next, c.head
+    c.head.next.prev, c.head.next = n, n
+}
+
+func (c *LRUCache) Get(key int) int { // -1 if absent
+    n, ok := c.m[key]
+    if !ok {
+        return -1
+    }
+    c.unlink(n)
+    c.pushFront(n) // now the most recent
+    return n.val
+}
+
+func (c *LRUCache) Put(key, val int) {
+    if n, ok := c.m[key]; ok {
+        n.val = val
+        c.unlink(n)
+        c.pushFront(n)
+        return
+    }
+    n := &lruNode{key: key, val: val}
+    c.m[key] = n
+    c.pushFront(n)
+    if len(c.m) > c.cap { // evict the oldest
+        old := c.tail.prev
+        c.unlink(old)
+        delete(c.m, old.key)
+    }
+}
+
+// the ready-made cache LRU (piece u-lru) in use: keep slow results so repeats are cheap.
+// calls counts how often the slow work really ran.
+func cachedSquare(cache *LRU, x int, calls *int) int {
+    if hit := cache.get(x); hit != -1 {
+        return hit // found: no slow work
+    }
+    *calls++ // pretend this is expensive
+    v := x * x
+    cache.put(x, v)
+    return v
+}
 
 ### topk
 --idea
@@ -2261,6 +3113,43 @@ vector<string> topWords(const vector<string>& words, int k) {
 --uses
 u-hpush
 u-hpop
+--go
+// the k largest values of a, in descending order. MinHeap (push, pop) is the piece u-hpush, u-hpop
+func topK(a []int, k int) []int {
+    h := &MinHeap{}
+    for _, x := range a {
+        if len(h.h) < k {
+            h.push(x)
+        } else if x > h.h[0] {
+            h.pop() // beats the weakest of the best k
+            h.push(x)
+        }
+    }
+    res := make([]int, len(h.h))
+    for i := len(res) - 1; i >= 0; i-- {
+        res[i] = h.pop() // pops smallest first, fill from the back
+    }
+    return res
+}
+
+// the k most frequent words: count, then order by count (descending), ties alphabetical
+func topWords(words []string, k int) []string {
+    cnt := map[string]int{}
+    for _, w := range words {
+        cnt[w]++
+    }
+    keys := make([]string, 0, len(cnt))
+    for w := range cnt {
+        keys = append(keys, w)
+    }
+    sort.Slice(keys, func(i, j int) bool {
+        if cnt[keys[i]] != cnt[keys[j]] {
+            return cnt[keys[i]] > cnt[keys[j]]
+        }
+        return keys[i] < keys[j]
+    })
+    return keys[:min(k, len(keys))]
+}
 
 ### medstream
 --idea
@@ -2339,6 +3228,30 @@ struct MedianStream {
 --uses
 u-hpush
 u-hpop
+--go
+// two heaps built from the piece MinHeap (u-hpush, u-hpop). The lower half is stored negated,
+// so a min-heap acts as a max-heap.
+type MedianStream struct{ lo, hi MinHeap }
+
+func (m *MedianStream) Add(x int) {
+    if len(m.lo.h) == 0 || x <= -m.lo.h[0] {
+        m.lo.push(-x)
+    } else {
+        m.hi.push(x)
+    }
+    if len(m.lo.h) > len(m.hi.h)+1 { // move the boundary item across
+        m.hi.push(-m.lo.pop())
+    } else if len(m.hi.h) > len(m.lo.h) {
+        m.lo.push(-m.hi.pop())
+    }
+}
+
+func (m *MedianStream) Median() float64 { // needs at least one item
+    if len(m.lo.h) > len(m.hi.h) {
+        return float64(-m.lo.h[0])
+    }
+    return float64(-m.lo.h[0]+m.hi.h[0]) / 2
+}
 
 ### fenwick
 --idea
@@ -2448,6 +3361,38 @@ long long inversions(const vector<int>& a, int maxVal) {
 --uses
 u-bitadd
 u-bitsum
+--go
+// the tree is package-level state, as the pieces u-bitadd and u-bitsum expect.
+// add(i, v) and sum(i) (0-based: sum(i) = a[0] + ... + a[i]) are those pieces
+var bit []int // bit[1..n] holds the block sums
+var n int
+
+func initBit(size int) { n, bit = size, make([]int, size+1) }
+
+func rangeSum(l, r int) int { return sum(r) - sum(l-1) } // sum(-1) is 0
+
+// first index i with sum(i) >= k (items >= 0), n if none
+func lowerBound(k int) int {
+    pos := 0
+    for step := 1 << (bits.Len(uint(n)) - 1); step > 0; step >>= 1 {
+        if pos+step <= n && bit[pos+step] < k {
+            pos += step
+            k -= bit[pos]
+        }
+    }
+    return pos
+}
+
+// number of pairs i < j with a[i] > a[j], for values in 0..maxVal-1
+func inversions(a []int, maxVal int) int {
+    initBit(maxVal)
+    inv := 0
+    for i, x := range a {
+        inv += i - sum(x) // earlier items minus those <= a[i]
+        add(x, 1)
+    }
+    return inv
+}
 
 ### fenwick2d
 --idea
@@ -2534,6 +3479,43 @@ struct Fenwick2D {
         return prefix(r2, c2) - prefix(r1 - 1, c2) - prefix(r2, c1 - 1) + prefix(r1 - 1, c1 - 1);
     }
 };
+--go
+type Fenwick2D struct {
+    R, C int
+    t    [][]int
+}
+
+func NewFenwick2D(R, C int) *Fenwick2D {
+    t := make([][]int, R+1)
+    for i := range t {
+        t[i] = make([]int, C+1)
+    }
+    return &Fenwick2D{R, C, t}
+}
+
+func (f *Fenwick2D) Add(r, c, delta int) {
+    for i := r; i <= f.R; i += i & -i {
+        for j := c; j <= f.C; j += j & -j {
+            f.t[i][j] += delta
+        }
+    }
+}
+
+// sum of rectangle (1,1)..(r,c)
+func (f *Fenwick2D) Prefix(r, c int) int {
+    s := 0
+    for i := r; i > 0; i -= i & -i {
+        for j := c; j > 0; j -= j & -j {
+            s += f.t[i][j]
+        }
+    }
+    return s
+}
+
+// inclusion and exclusion
+func (f *Fenwick2D) Rect(r1, c1, r2, c2 int) int {
+    return f.Prefix(r2, c2) - f.Prefix(r1-1, c2) - f.Prefix(r2, c1-1) + f.Prefix(r1-1, c1-1)
+}
 
 ### sparse
 --idea
@@ -2606,6 +3588,29 @@ struct SparseMin {
 };
 --uses
 u-log2
+--go
+type SparseMin struct{ t [][]int }
+
+func NewSparseMin(a []int) *SparseMin {
+    n := len(a)
+    K := floorLog2(n) + 1 // number of levels (piece u-log2)
+    t := make([][]int, K)
+    t[0] = append([]int{}, a...)
+    for k := 1; k < K; k++ {
+        ln := n - (1 << k) + 1 // starting points that fit
+        t[k] = make([]int, max(ln, 0))
+        for i := 0; i < ln; i++ {
+            t[k][i] = min(t[k-1][i], t[k-1][i+(1<<(k-1))])
+        }
+    }
+    return &SparseMin{t}
+}
+
+// inclusive
+func (s *SparseMin) Min(l, r int) int {
+    k := floorLog2(r - l + 1) // biggest power of two that fits
+    return min(s.t[k][l], s.t[k][r-(1<<k)+1]) // two overlapping blocks
+}
 
 ### segment
 --idea
@@ -2717,6 +3722,53 @@ struct MinSegTree {
 u-segbuild
 u-segq
 u-segupd
+--go
+// the sum tree is package-level state, as the pieces expect: leaves at t[n..2n-1].
+// buildSeg(a), query(l, r) over [l, r) and update(i, v) are the pieces u-segbuild, u-segq, u-segupd
+var t []int
+var n int
+
+func initSeg(a []int) { n, t = len(a), buildSeg(a) }
+
+// the same tree for the smallest value instead of the sum: only the combine rule
+// and the neutral value change
+type MinSegTree struct {
+    n int
+    t []int
+}
+
+func NewMinSegTree(a []int) *MinSegTree {
+    m := &MinSegTree{len(a), make([]int, 2*len(a))}
+    copy(m.t[m.n:], a)
+    for p := m.n - 1; p >= 1; p-- {
+        m.t[p] = min(m.t[2*p], m.t[2*p+1])
+    }
+    return m
+}
+
+func (m *MinSegTree) Update(i, v int) {
+    i += m.n
+    m.t[i] = v
+    for ; i > 1; i >>= 1 {
+        m.t[i>>1] = min(m.t[i], m.t[i^1])
+    }
+}
+
+// min over [l, r), the neutral value is "infinity"
+func (m *MinSegTree) Query(l, r int) int {
+    res := math.MaxInt
+    for l, r = l+m.n, r+m.n; l < r; l, r = l>>1, r>>1 {
+        if l&1 == 1 {
+            res = min(res, m.t[l])
+            l++
+        }
+        if r&1 == 1 {
+            r--
+            res = min(res, m.t[r])
+        }
+    }
+    return res
+}
 
 ### wdsu
 --idea
@@ -2849,6 +3901,62 @@ struct WDSU {
         return true;
     }
 };
+--go
+type WDSU struct {
+    parent, size []int
+    diff         []int // diff[x] = value(x) - value(parent[x])
+}
+
+func NewWDSU(n int) *WDSU {
+    d := &WDSU{make([]int, n), make([]int, n), make([]int, n)}
+    for i := range d.parent {
+        d.parent[i], d.size[i] = i, 1
+    }
+    return d
+}
+
+func (d *WDSU) Find(x int) int {
+    root := x
+    for d.parent[root] != root {
+        root = d.parent[root]
+    }
+    // record the path first, then fix it from the node nearest the root outward
+    var path []int
+    for v := x; d.parent[v] != v; v = d.parent[v] {
+        path = append(path, v)
+    }
+    for k := len(path) - 1; k >= 0; k-- {
+        v := path[k]
+        if p := d.parent[v]; p != root {
+            d.diff[v] += d.diff[p] // p is already relative to the root
+        }
+        d.parent[v] = root
+    }
+    return root
+}
+
+// record value(b) - value(a) = dv. Returns false if it contradicts earlier facts.
+func (d *WDSU) Union(a, b, dv int) bool {
+    ra, rb := d.Find(a), d.Find(b)
+    if ra == rb {
+        return d.diff[b]-d.diff[a] == dv
+    }
+    if d.size[ra] < d.size[rb] {
+        a, b, ra, rb, dv = b, a, rb, ra, -dv
+    }
+    d.parent[rb] = ra
+    d.diff[rb] = dv + d.diff[a] - d.diff[b]
+    d.size[ra] += d.size[rb]
+    return true
+}
+
+// value(b) - value(a); ok is false if not connected
+func (d *WDSU) Query(a, b int) (int, bool) {
+    if d.Find(a) != d.Find(b) {
+        return 0, false
+    }
+    return d.diff[b] - d.diff[a], true
+}
 
 ### avl
 --idea
@@ -2989,6 +4097,64 @@ Node* insert(Node* t, int k) {
     else return t;                       // duplicates ignored
     return rebalance(t);
 }
+--go
+type Node struct {
+    key, h      int
+    left, right *Node
+}
+
+func ht(t *Node) int {
+    if t == nil {
+        return 0
+    }
+    return t.h
+}
+func fix(t *Node)     { t.h = 1 + max(ht(t.left), ht(t.right)) }
+func bal(t *Node) int { return ht(t.left) - ht(t.right) }
+
+func rotateRight(y *Node) *Node {
+    x := y.left
+    y.left, x.right = x.right, y
+    fix(y); fix(x) // child first, then the new root
+    return x
+}
+func rotateLeft(x *Node) *Node {
+    y := x.right
+    x.right, y.left = y.left, x
+    fix(x); fix(y)
+    return y
+}
+
+func rebalance(t *Node) *Node {
+    fix(t)
+    if bal(t) > 1 {
+        if bal(t.left) < 0 {
+            t.left = rotateLeft(t.left) // left-right case
+        }
+        return rotateRight(t)
+    }
+    if bal(t) < -1 {
+        if bal(t.right) > 0 {
+            t.right = rotateRight(t.right) // right-left case
+        }
+        return rotateLeft(t)
+    }
+    return t
+}
+
+func insert(t *Node, k int) *Node {
+    switch {
+    case t == nil:
+        return &Node{key: k, h: 1}
+    case k < t.key:
+        t.left = insert(t.left, k)
+    case k > t.key:
+        t.right = insert(t.right, k)
+    default:
+        return t // duplicates ignored
+    }
+    return rebalance(t)
+}
 
 ### rbt
 --idea
@@ -3120,6 +4286,55 @@ Node* insertKey(Node* root, int k) {
     root = insertRec(root, k);
     root->red = false;                                                // the root is always black
     return root;
+}
+--go
+type Node struct {
+    key         int
+    left, right *Node
+    red         bool
+}
+
+func isRed(t *Node) bool { return t != nil && t.red }
+
+func rotateLeft(h *Node) *Node {
+    x := h.right
+    h.right, x.left = x.left, h
+    x.red, h.red = h.red, true // x takes h's colour, h becomes red
+    return x
+}
+func rotateRight(h *Node) *Node {
+    x := h.left
+    h.left, x.right = x.right, h
+    x.red, h.red = h.red, true
+    return x
+}
+func flip(h *Node) { h.red, h.left.red, h.right.red = true, false, false }
+
+func insert(h *Node, k int) *Node {
+    if h == nil {
+        return &Node{key: k, red: true} // new nodes are red
+    }
+    if k < h.key {
+        h.left = insert(h.left, k)
+    } else if k > h.key {
+        h.right = insert(h.right, k)
+    }
+    if isRed(h.right) && !isRed(h.left) {
+        h = rotateLeft(h) // fix 1
+    }
+    if isRed(h.left) && isRed(h.left.left) {
+        h = rotateRight(h) // fix 2
+    }
+    if isRed(h.left) && isRed(h.right) {
+        flip(h) // fix 3
+    }
+    return h
+}
+
+func insertRoot(root *Node, k int) *Node {
+    root = insert(root, k)
+    root.red = false // the root is always black
+    return root
 }
 
 ### btree
@@ -3293,6 +4508,65 @@ struct BTree {
         insertNonFull(root, k);
     }
 };
+--go
+type BNode struct {
+    keys     []int
+    children []*BNode
+    leaf     bool
+}
+
+type BTree struct {
+    t    int
+    root *BNode
+}
+
+func NewBTree(t int) *BTree { return &BTree{t, &BNode{leaf: true}} }
+
+func (b *BTree) Contains(x *BNode, k int) bool {
+    i := sort.SearchInts(x.keys, k) // first index with keys[i] >= k
+    if i < len(x.keys) && x.keys[i] == k {
+        return true
+    }
+    return !x.leaf && b.Contains(x.children[i], k)
+}
+
+func (b *BTree) splitChild(x *BNode, i int) {
+    t, y := b.t, x.children[i]
+    z := &BNode{leaf: y.leaf}
+    mid := y.keys[t-1]
+    z.keys = append(z.keys, y.keys[t:]...) // upper t-1 keys
+    y.keys = y.keys[:t-1]                  // y keeps the lower t-1
+    if !y.leaf {
+        z.children = append(z.children, y.children[t:]...)
+        y.children = y.children[:t]
+    }
+    x.keys = append(x.keys[:i], append([]int{mid}, x.keys[i:]...)...) // middle key moves up
+    x.children = append(x.children[:i+1], append([]*BNode{z}, x.children[i+1:]...)...)
+}
+
+func (b *BTree) insertNonFull(x *BNode, k int) {
+    i := sort.SearchInts(x.keys, k)
+    if x.leaf {
+        x.keys = append(x.keys[:i], append([]int{k}, x.keys[i:]...)...)
+        return
+    }
+    if len(x.children[i].keys) == 2*b.t-1 {
+        b.splitChild(x, i)
+        if k > x.keys[i] {
+            i++
+        }
+    }
+    b.insertNonFull(x.children[i], k)
+}
+
+func (b *BTree) Insert(k int) {
+    if len(b.root.keys) == 2*b.t-1 { // full root: the tree grows here
+        s := &BNode{children: []*BNode{b.root}}
+        b.root = s
+        b.splitChild(s, 0)
+    }
+    b.insertNonFull(b.root, k)
+}
 
 ### skiplist
 --idea
@@ -3454,6 +4728,74 @@ struct SkipList {
 };
 --uses
 u-rand
+--go
+const maxLevel = 16
+
+type slNode struct {
+    key  int
+    next []*slNode // next[i] is the next node in lane i
+}
+
+type SkipList struct {
+    head  *slNode
+    level int
+}
+
+func NewSkipList() *SkipList { return &SkipList{&slNode{next: make([]*slNode, maxLevel)}, 1} }
+
+// walk down the lanes; update[i] is the last node before k in lane i
+func (s *SkipList) find(k int, update []*slNode) *slNode {
+    cur := s.head
+    for i := s.level - 1; i >= 0; i-- {
+        for cur.next[i] != nil && cur.next[i].key < k {
+            cur = cur.next[i]
+        }
+        if update != nil {
+            update[i] = cur
+        }
+    }
+    return cur.next[0]
+}
+
+func (s *SkipList) Contains(k int) bool {
+    c := s.find(k, nil)
+    return c != nil && c.key == k
+}
+
+func (s *SkipList) Insert(k int) {
+    update := make([]*slNode, maxLevel)
+    if c := s.find(k, update); c != nil && c.key == k {
+        return // already present
+    }
+    h := 1
+    for h < maxLevel && randInt(0, 1) == 1 { // coin flips decide the height
+        h++
+    }
+    for ; s.level < h; s.level++ {
+        update[s.level] = s.head
+    }
+    n := &slNode{k, make([]*slNode, h)}
+    for i := 0; i < h; i++ {
+        n.next[i], update[i].next[i] = update[i].next[i], n
+    }
+}
+
+func (s *SkipList) Erase(k int) bool {
+    update := make([]*slNode, maxLevel)
+    t := s.find(k, update)
+    if t == nil || t.key != k {
+        return false
+    }
+    for i := 0; i < s.level; i++ {
+        if update[i].next[i] == t {
+            update[i].next[i] = t.next[i]
+        }
+    }
+    for s.level > 1 && s.head.next[s.level-1] == nil {
+        s.level--
+    }
+    return true
+}
 
 ### itree
 --idea
@@ -3538,6 +4880,40 @@ void query(Node* t, int l, int r, vector<pair<int,int>>& out) {
     if (t->left && t->left->maxHi >= l) query(t->left, l, r, out);   // something there may reach l
     if (t->lo <= r && t->hi >= l) out.push_back({t->lo, t->hi});
     if (t->lo <= r) query(t->right, l, r, out);                      // right side starts at lo >= t->lo
+}
+--go
+type Node struct {
+    lo, hi, maxHi int
+    left, right   *Node
+}
+
+func insert(t *Node, lo, hi int) *Node {
+    if t == nil {
+        return &Node{lo: lo, hi: hi, maxHi: hi}
+    }
+    if lo < t.lo {
+        t.left = insert(t.left, lo, hi)
+    } else {
+        t.right = insert(t.right, lo, hi)
+    }
+    t.maxHi = max(t.maxHi, hi) // the new interval lives below us
+    return t
+}
+
+// add every stored interval overlapping [l, r] to out
+func query(t *Node, l, r int, out *[][2]int) {
+    if t == nil {
+        return
+    }
+    if t.left != nil && t.left.maxHi >= l { // something there may reach l
+        query(t.left, l, r, out)
+    }
+    if t.lo <= r && t.hi >= l {
+        *out = append(*out, [2]int{t.lo, t.hi})
+    }
+    if t.lo <= r { // right side starts at lo >= t.lo
+        query(t.right, l, r, out)
+    }
 }
 
 ### mergetree
@@ -3656,6 +5032,50 @@ struct MergeTree {
 u-merge
 u-lower
 u-first
+--go
+type MergeTree struct {
+    n, minV, maxV int
+    t             [][]int // t[node] = sorted values of the node's range
+}
+
+func NewMergeTree(a []int) *MergeTree {
+    m := &MergeTree{n: len(a), minV: math.MaxInt, maxV: math.MinInt, t: make([][]int, 4*len(a))}
+    for _, x := range a {
+        m.minV, m.maxV = min(m.minV, x), max(m.maxV, x)
+    }
+    m.build(1, 0, m.n, a)
+    return m
+}
+
+func (m *MergeTree) build(node, lo, hi int, a []int) {
+    if hi-lo == 1 {
+        m.t[node] = []int{a[lo]}
+        return
+    }
+    mid := (lo + hi) / 2
+    m.build(2*node, lo, mid, a)
+    m.build(2*node+1, mid, hi, a)
+    m.t[node] = merge(m.t[2*node], m.t[2*node+1]) // piece u-merge
+}
+
+// values < x in a[l, r)
+func (m *MergeTree) countLess(node, lo, hi, l, r, x int) int {
+    if r <= lo || hi <= l {
+        return 0
+    }
+    if l <= lo && hi <= r {
+        return lowerBound(m.t[node], x) // piece u-lower
+    }
+    mid := (lo + hi) / 2
+    return m.countLess(2*node, lo, mid, l, r, x) + m.countLess(2*node+1, mid, hi, l, r, x)
+}
+
+func (m *MergeTree) CountLess(l, r, x int) int { return m.countLess(1, 0, m.n, l, r, x) }
+
+// k-th smallest in a[l, r), k from 1
+func (m *MergeTree) Kth(l, r, k int) int {
+    return firstTrue(m.minV, m.maxV, func(v int) bool { return m.CountLess(l, r, v+1) >= k }) // piece u-first
+}
 
 ### ostat
 --idea
@@ -3826,6 +5246,84 @@ Node* erase(Node* t, int k) {
     fix(t);
     return t;
 }
+--go
+type Node struct {
+    key, size   int
+    left, right *Node
+}
+
+func size(t *Node) int {
+    if t == nil {
+        return 0
+    }
+    return t.size
+}
+func fix(t *Node) { t.size = 1 + size(t.left) + size(t.right) }
+
+func insert(t *Node, k int) *Node {
+    switch {
+    case t == nil:
+        return &Node{key: k, size: 1}
+    case k < t.key:
+        t.left = insert(t.left, k)
+    case k > t.key:
+        t.right = insert(t.right, k)
+    default:
+        return t // duplicate: nothing changes
+    }
+    fix(t) // restore the size on the way up
+    return t
+}
+
+// k-th smallest, k from 1; k must be in range
+func kth(t *Node, k int) int {
+    for s := size(t.left); k != s+1; s = size(t.left) {
+        if k <= s {
+            t = t.left
+        } else {
+            k -= s + 1
+            t = t.right
+        }
+    }
+    return t.key
+}
+
+// number of keys smaller than key
+func rank(t *Node, key int) (r int) {
+    for t != nil {
+        if key <= t.key {
+            t = t.left
+        } else {
+            r += size(t.left) + 1
+            t = t.right
+        }
+    }
+    return r
+}
+
+func erase(t *Node, k int) *Node {
+    switch {
+    case t == nil:
+        return nil
+    case k < t.key:
+        t.left = erase(t.left, k)
+    case k > t.key:
+        t.right = erase(t.right, k)
+    case t.left == nil:
+        return t.right
+    case t.right == nil:
+        return t.left
+    default:
+        s := t.right
+        for s.left != nil {
+            s = s.left // successor
+        }
+        t.key = s.key
+        t.right = erase(t.right, s.key)
+    }
+    fix(t)
+    return t
+}
 
 ### sqrt
 --idea
@@ -3951,6 +5449,63 @@ struct SqrtArray {
 };
 --uses
 u-sqrt
+--go
+type SqrtArray struct {
+    n, B                int
+    a, blockSum, lazy []int
+}
+
+func NewSqrtArray(v []int) *SqrtArray {
+    n := len(v)
+    B := max(1, sqrtFloor(n)) // piece u-sqrt
+    nb := (n + B - 1) / B
+    s := &SqrtArray{n, B, make([]int, n), make([]int, nb), make([]int, nb)}
+    for i, x := range v {
+        s.a[i] = x
+        s.blockSum[i/B] += x
+    }
+    return s
+}
+
+// add d to every item in [l, r)
+func (s *SqrtArray) RangeAdd(l, r, d int) {
+    for i := l; i < r; {
+        b := i / s.B
+        bs := b * s.B
+        be := min(s.n, bs+s.B)
+        end := min(r, be)
+        if i == bs && end == be { // whole block
+            s.lazy[b] += d
+            s.blockSum[b] += d * (be - bs)
+        } else {
+            for j := i; j < end; j++ { // loose items
+                s.a[j] += d
+                s.blockSum[b] += d
+            }
+        }
+        i = end
+    }
+}
+
+// sum of items in [l, r)
+func (s *SqrtArray) RangeSum(l, r int) int {
+    sum := 0
+    for i := l; i < r; {
+        b := i / s.B
+        bs := b * s.B
+        be := min(s.n, bs+s.B)
+        end := min(r, be)
+        if i == bs && end == be {
+            sum += s.blockSum[b]
+        } else {
+            for j := i; j < end; j++ {
+                sum += s.a[j] + s.lazy[b]
+            }
+        }
+        i = end
+    }
+    return sum
+}
 
 ### bloom
 --idea
@@ -4051,6 +5606,49 @@ struct Bloom {
 --uses
 u-hashroll
 u-bit
+--go
+const W = 30 // bits used per int word
+
+type Bloom struct {
+    m, k  int
+    words []int
+}
+
+func NewBloom(m, k int) *Bloom { return &Bloom{m, k, make([]int, m/W+1)} }
+
+func rev(s string) string { // reverse the bytes of s
+    b := []byte(s)
+    for i, j := 0, len(b)-1; i < j; i, j = i+1, j-1 {
+        b[i], b[j] = b[j], b[i]
+    }
+    return string(b)
+}
+
+func hashOf(s string) int { // piece u-hashroll: hash of the whole string
+    h, _ := buildHash(s)
+    return h[len(s)]
+}
+
+func (b *Bloom) pos(h1, h2, i int) int { return (h1 + i*(h2|1)) % b.m } // double hashing
+
+func (b *Bloom) Add(s string) {
+    h1, h2 := hashOf(s), hashOf(rev(s))
+    for i := 0; i < b.k; i++ {
+        p := b.pos(h1, h2, i)
+        b.words[p/W] = setBit(b.words[p/W], p%W) // piece u-bit
+    }
+}
+
+func (b *Bloom) MightContain(s string) bool {
+    h1, h2 := hashOf(s), hashOf(rev(s))
+    for i := 0; i < b.k; i++ {
+        p := b.pos(h1, h2, i)
+        if !getBit(b.words[p/W], p%W) {
+            return false // a missing bit means never added
+        }
+    }
+    return true
+}
 
 ### cms
 --idea
@@ -4141,6 +5739,50 @@ struct CountMin {
 };
 --uses
 u-hashroll
+--go
+type CountMin struct {
+    w, d int
+    cnt  [][]int
+}
+
+func NewCountMin(w, d int) *CountMin {
+    cnt := make([][]int, d)
+    for r := range cnt {
+        cnt[r] = make([]int, w)
+    }
+    return &CountMin{w, d, cnt}
+}
+
+func rev(s string) string { // reverse the bytes of s
+    b := []byte(s)
+    for i, j := 0, len(b)-1; i < j; i, j = i+1, j-1 {
+        b[i], b[j] = b[j], b[i]
+    }
+    return string(b)
+}
+
+func hashOf(s string) int { // piece u-hashroll
+    h, _ := buildHash(s)
+    return h[len(s)]
+}
+
+func (c *CountMin) col(h1, h2, r int) int { return (h1 + r*(h2|1)) % c.w } // row r's own hash
+
+func (c *CountMin) Add(s string, n int) {
+    h1, h2 := hashOf(s), hashOf(rev(s))
+    for r := 0; r < c.d; r++ {
+        c.cnt[r][c.col(h1, h2, r)] += n
+    }
+}
+
+func (c *CountMin) Estimate(s string) int {
+    h1, h2 := hashOf(s), hashOf(rev(s))
+    best := math.MaxInt
+    for r := 0; r < c.d; r++ {
+        best = min(best, c.cnt[r][c.col(h1, h2, r)]) // smallest counter
+    }
+    return best
+}
 
 ### lazy
 --idea
@@ -4286,6 +5928,70 @@ struct LazySeg {
     void rangeAdd(int l, int r, long long d) { rangeAdd(1, 0, n, l, r, d); }   // on [l, r)
     long long rangeSum(int l, int r) { return rangeSum(1, 0, n, l, r); }
 };
+--go
+type LazySeg struct {
+    n        int
+    sum, add []int
+}
+
+func NewLazySeg(a []int) *LazySeg {
+    s := &LazySeg{len(a), make([]int, 4*len(a)), make([]int, 4*len(a))}
+    s.build(1, 0, s.n, a)
+    return s
+}
+
+func (s *LazySeg) build(o, lo, hi int, a []int) {
+    if hi-lo == 1 {
+        s.sum[o] = a[lo]
+        return
+    }
+    mid := (lo + hi) / 2
+    s.build(2*o, lo, mid, a)
+    s.build(2*o+1, mid, hi, a)
+    s.sum[o] = s.sum[2*o] + s.sum[2*o+1]
+}
+
+func (s *LazySeg) apply(o, lo, hi, d int) { s.sum[o] += d * (hi - lo); s.add[o] += d } // note only
+
+func (s *LazySeg) push(o, lo, hi int) { // hand the note to the children
+    if s.add[o] == 0 {
+        return
+    }
+    mid := (lo + hi) / 2
+    s.apply(2*o, lo, mid, s.add[o])
+    s.apply(2*o+1, mid, hi, s.add[o])
+    s.add[o] = 0
+}
+
+func (s *LazySeg) rangeAdd(o, lo, hi, l, r, d int) {
+    if r <= lo || hi <= l {
+        return
+    }
+    if l <= lo && hi <= r {
+        s.apply(o, lo, hi, d)
+        return
+    }
+    s.push(o, lo, hi)
+    mid := (lo + hi) / 2
+    s.rangeAdd(2*o, lo, mid, l, r, d)
+    s.rangeAdd(2*o+1, mid, hi, l, r, d)
+    s.sum[o] = s.sum[2*o] + s.sum[2*o+1]
+}
+
+func (s *LazySeg) rangeSum(o, lo, hi, l, r int) int {
+    if r <= lo || hi <= l {
+        return 0
+    }
+    if l <= lo && hi <= r {
+        return s.sum[o]
+    }
+    s.push(o, lo, hi)
+    mid := (lo + hi) / 2
+    return s.rangeSum(2*o, lo, mid, l, r) + s.rangeSum(2*o+1, mid, hi, l, r)
+}
+
+func (s *LazySeg) RangeAdd(l, r, d int)  { s.rangeAdd(1, 0, s.n, l, r, d) } // on [l, r)
+func (s *LazySeg) RangeSum(l, r int) int { return s.rangeSum(1, 0, s.n, l, r) }
 
 ### treap
 --idea
@@ -4434,6 +6140,69 @@ Node* erase(Node* t, int k) {
 }
 --uses
 u-rand
+--go
+type Node struct {
+    key, pri    int
+    left, right *Node
+}
+
+func newNode(k int) *Node { return &Node{key: k, pri: randInt(0, 1_000_000_000)} } // piece u-rand
+
+// split into (keys < k, keys >= k)
+func split(t *Node, k int) (*Node, *Node) {
+    if t == nil {
+        return nil, nil
+    }
+    if t.key < k {
+        a, b := split(t.right, k)
+        t.right = a
+        return t, b
+    }
+    a, b := split(t.left, k)
+    t.left = b
+    return a, t
+}
+
+// every key in a is smaller than every key in b
+func merge(a, b *Node) *Node {
+    if a == nil {
+        return b
+    }
+    if b == nil {
+        return a
+    }
+    if a.pri > b.pri {
+        a.right = merge(a.right, b)
+        return a
+    }
+    b.left = merge(a, b.left)
+    return b
+}
+
+func contains(t *Node, k int) bool {
+    for t != nil && t.key != k {
+        if k < t.key {
+            t = t.left
+        } else {
+            t = t.right
+        }
+    }
+    return t != nil
+}
+
+func insert(t *Node, k int) *Node {
+    if contains(t, k) {
+        return t
+    }
+    a, b := split(t, k)
+    return merge(merge(a, newNode(k)), b)
+}
+
+func erase(t *Node, k int) *Node {
+    a, rest := split(t, k)
+    _, c := split(rest, k+1) // the middle part holds only the key k
+    return merge(a, c)
+}
 
 ### splay
 --idea
@@ -4628,6 +6397,92 @@ struct SplayTree {
         root = l;
     }
 };
+--go
+type Node struct {
+    key         int
+    left, right *Node
+}
+
+type SplayTree struct{ root *Node }
+
+func rotR(t *Node) *Node { x := t.left; t.left, x.right = x.right, t; return x }
+func rotL(t *Node) *Node { x := t.right; t.right, x.left = x.left, t; return x }
+
+// key k (or its neighbour) becomes the root
+func splay(t *Node, k int) *Node {
+    if t == nil || t.key == k {
+        return t
+    }
+    if k < t.key {
+        if t.left == nil {
+            return t
+        }
+        if k < t.left.key { // zig-zig
+            t.left.left = splay(t.left.left, k)
+            t = rotR(t)
+        } else if k > t.left.key { // zig-zag
+            t.left.right = splay(t.left.right, k)
+            if t.left.right != nil {
+                t.left = rotL(t.left)
+            }
+        }
+        if t.left == nil {
+            return t
+        }
+        return rotR(t)
+    }
+    if t.right == nil {
+        return t
+    }
+    if k > t.right.key { // zig-zig
+        t.right.right = splay(t.right.right, k)
+        t = rotL(t)
+    } else if k < t.right.key { // zig-zag
+        t.right.left = splay(t.right.left, k)
+        if t.right.left != nil {
+            t.right = rotR(t.right)
+        }
+    }
+    if t.right == nil {
+        return t
+    }
+    return rotL(t)
+}
+
+func (s *SplayTree) Contains(k int) bool {
+    s.root = splay(s.root, k)
+    return s.root != nil && s.root.key == k
+}
+
+func (s *SplayTree) Insert(k int) {
+    s.root = splay(s.root, k)
+    if s.root != nil && s.root.key == k {
+        return
+    }
+    n := &Node{key: k}
+    if s.root != nil {
+        if k < s.root.key {
+            n.right, n.left, s.root.left = s.root, s.root.left, nil
+        } else {
+            n.left, n.right, s.root.right = s.root, s.root.right, nil
+        }
+    }
+    s.root = n
+}
+
+func (s *SplayTree) Erase(k int) {
+    s.root = splay(s.root, k)
+    if s.root == nil || s.root.key != k {
+        return
+    }
+    if s.root.left == nil {
+        s.root = s.root.right
+        return
+    }
+    l := splay(s.root.left, k) // the largest key of the left part comes to its top
+    l.right = s.root.right
+    s.root = l
+}
 
 ### persist
 --idea
@@ -4743,6 +6598,58 @@ struct PersistentSeg {
         return lo;
     }
 };
+--go
+type PersistentSeg struct {
+    m, used        int // node 0 is the shared empty node
+    lc, rc, cnt    []int
+    roots          []int
+}
+
+func NewPersistentSeg(a []int, m int) *PersistentSeg { // values must be in [0, m)
+    levels := 1
+    for 1<<(levels-1) < m {
+        levels++ // nodes created per insert
+    }
+    cp := len(a)*levels + 1
+    p := &PersistentSeg{m: m, used: 1, lc: make([]int, cp), rc: make([]int, cp), cnt: make([]int, cp), roots: make([]int, len(a)+1)}
+    for i, v := range a {
+        p.roots[i+1] = p.insert(p.roots[i], 0, m, v)
+    }
+    return p
+}
+
+// new version of prev with one more v
+func (p *PersistentSeg) insert(prev, lo, hi, v int) int {
+    cur := p.used
+    p.used++
+    p.lc[cur], p.rc[cur], p.cnt[cur] = p.lc[prev], p.rc[prev], p.cnt[prev]+1 // copy, never edit prev
+    if hi-lo == 1 {
+        return cur
+    }
+    mid := (lo + hi) / 2
+    if v < mid {
+        p.lc[cur] = p.insert(p.lc[prev], lo, mid, v)
+    } else {
+        p.rc[cur] = p.insert(p.rc[prev], mid, hi, v)
+    }
+    return cur
+}
+
+// k-th smallest (k from 1) in a[l, r)
+func (p *PersistentSeg) Kth(l, r, k int) int {
+    A, B, lo, hi := p.roots[l], p.roots[r], 0, p.m
+    for hi-lo > 1 {
+        mid := (lo + hi) / 2
+        inLeft := p.cnt[p.lc[B]] - p.cnt[p.lc[A]]
+        if k <= inLeft {
+            A, B, hi = p.lc[A], p.lc[B], mid
+        } else {
+            k -= inLeft
+            A, B, lo = p.rc[A], p.rc[B], mid
+        }
+    }
+    return lo
+}
 
 ### dynseg
 --idea
@@ -4858,6 +6765,59 @@ struct DynSeg {
     }
     long long query(int l, int r) const { return query(1, 0, N, l, r); }
 };
+--go
+const N = 1 << 30 // positions 0 .. N-1
+
+type DynSeg struct {
+    lc, rc []int // node 0 = none, node 1 = root
+    sum    []int
+}
+
+func NewDynSeg() *DynSeg { return &DynSeg{make([]int, 2), make([]int, 2), make([]int, 2)} }
+
+func (d *DynSeg) newNode() int { // append to all arrays together
+    d.lc, d.rc, d.sum = append(d.lc, 0), append(d.rc, 0), append(d.sum, 0)
+    return len(d.lc) - 1
+}
+
+// iterative: walk down, creating missing nodes
+func (d *DynSeg) Add(pos, delta int) {
+    x, lo, hi := 1, 0, N
+    for {
+        d.sum[x] += delta
+        if hi-lo == 1 {
+            return
+        }
+        mid := lo + (hi-lo)/2
+        if pos < mid {
+            if d.lc[x] == 0 {
+                c := d.newNode()
+                d.lc[x] = c
+            }
+            x, hi = d.lc[x], mid
+        } else {
+            if d.rc[x] == 0 {
+                c := d.newNode()
+                d.rc[x] = c
+            }
+            x, lo = d.rc[x], mid
+        }
+    }
+}
+
+// sum over [l, r)
+func (d *DynSeg) query(x, lo, hi, l, r int) int {
+    if x == 0 || r <= lo || hi <= l { // missing node means all zeros
+        return 0
+    }
+    if l <= lo && hi <= r {
+        return d.sum[x]
+    }
+    mid := lo + (hi-lo)/2
+    return d.query(d.lc[x], lo, mid, l, r) + d.query(d.rc[x], mid, hi, l, r)
+}
+
+func (d *DynSeg) Query(l, r int) int { return d.query(1, 0, N, l, r) }
 
 ### beats
 --idea
@@ -5028,6 +6988,83 @@ struct Beats {
     void chmin(int l, int r, int x) { chmin(1, 0, n, l, r, x); }          // on [l, r)
     long long rangeSum(int l, int r) { return rangeSum(1, 0, n, l, r); }
 };
+--go
+const NEG = math.MinInt // "minus infinity"
+
+type Beats struct {
+    n          int
+    sum        []int
+    mx, se, cn []int // max, strict second max, how many items equal the max
+}
+
+func NewBeats(a []int) *Beats {
+    n := len(a)
+    b := &Beats{n, make([]int, 4*n), make([]int, 4*n), make([]int, 4*n), make([]int, 4*n)}
+    b.build(1, 0, n, a)
+    return b
+}
+
+func (b *Beats) build(o, lo, hi int, a []int) {
+    if hi-lo == 1 {
+        b.sum[o], b.mx[o], b.se[o], b.cn[o] = a[lo], a[lo], NEG, 1
+        return
+    }
+    mid := (lo + hi) / 2
+    b.build(2*o, lo, mid, a)
+    b.build(2*o+1, mid, hi, a)
+    b.pull(o)
+}
+
+func (b *Beats) pull(o int) {
+    x, y := 2*o, 2*o+1
+    b.sum[o] = b.sum[x] + b.sum[y]
+    if b.mx[x] > b.mx[y] {
+        b.mx[o], b.cn[o], b.se[o] = b.mx[x], b.cn[x], max(b.se[x], b.mx[y])
+    } else if b.mx[x] < b.mx[y] {
+        b.mx[o], b.cn[o], b.se[o] = b.mx[y], b.cn[y], max(b.mx[x], b.se[y])
+    } else {
+        b.mx[o], b.cn[o], b.se[o] = b.mx[x], b.cn[x]+b.cn[y], max(b.se[x], b.se[y])
+    }
+}
+
+func (b *Beats) applyMin(o, x int) { // only valid when x > se[o]
+    if x < b.mx[o] {
+        b.sum[o] -= (b.mx[o] - x) * b.cn[o]
+        b.mx[o] = x
+    }
+}
+
+func (b *Beats) push(o int) { b.applyMin(2*o, b.mx[o]); b.applyMin(2*o+1, b.mx[o]) }
+
+func (b *Beats) chmin(o, lo, hi, l, r, x int) {
+    if r <= lo || hi <= l || b.mx[o] <= x {
+        return
+    }
+    if l <= lo && hi <= r && b.se[o] < x {
+        b.applyMin(o, x)
+        return
+    }
+    b.push(o)
+    mid := (lo + hi) / 2
+    b.chmin(2*o, lo, mid, l, r, x)
+    b.chmin(2*o+1, mid, hi, l, r, x)
+    b.pull(o)
+}
+
+func (b *Beats) rangeSum(o, lo, hi, l, r int) int {
+    if r <= lo || hi <= l {
+        return 0
+    }
+    if l <= lo && hi <= r {
+        return b.sum[o]
+    }
+    b.push(o)
+    mid := (lo + hi) / 2
+    return b.rangeSum(2*o, lo, mid, l, r) + b.rangeSum(2*o+1, mid, hi, l, r)
+}
+
+func (b *Beats) Chmin(l, r, x int)       { b.chmin(1, 0, b.n, l, r, x) } // on [l, r)
+func (b *Beats) RangeSum(l, r int) int { return b.rangeSum(1, 0, b.n, l, r) }
 
 ### linkcut
 --idea
@@ -5245,6 +7282,133 @@ struct LinkCut {
     void setVal(int x, long long v) { access(x); val[x] = v; pull(x); }
     long long pathSum(int x, int y) { makeRoot(x); access(y); return sum[y]; }
 };
+--go
+type LinkCut struct {
+    ch0, ch1, par []int
+    rev           []bool
+    val, sum      []int
+}
+
+func NewLinkCut(n int) *LinkCut { // nodes 1..n, index 0 means none
+    return &LinkCut{make([]int, n+1), make([]int, n+1), make([]int, n+1), make([]bool, n+1), make([]int, n+1), make([]int, n+1)}
+}
+
+func (t *LinkCut) isRoot(x int) bool {
+    return t.par[x] == 0 || (t.ch0[t.par[x]] != x && t.ch1[t.par[x]] != x)
+}
+func (t *LinkCut) pull(x int) { t.sum[x] = t.sum[t.ch0[x]] + t.sum[t.ch1[x]] + t.val[x] }
+
+func (t *LinkCut) push(x int) {
+    if !t.rev[x] {
+        return
+    }
+    t.ch0[x], t.ch1[x] = t.ch1[x], t.ch0[x]
+    if t.ch0[x] != 0 {
+        t.rev[t.ch0[x]] = !t.rev[t.ch0[x]]
+    }
+    if t.ch1[x] != 0 {
+        t.rev[t.ch1[x]] = !t.rev[t.ch1[x]]
+    }
+    t.rev[x] = false
+}
+
+func (t *LinkCut) rotate(x int) {
+    y := t.par[x]
+    z := t.par[y]
+    right := t.ch1[y] == x
+    if !t.isRoot(y) {
+        if t.ch0[z] == y {
+            t.ch0[z] = x
+        } else {
+            t.ch1[z] = x
+        }
+    }
+    t.par[x] = z
+    if right {
+        b := t.ch0[x]
+        t.ch1[y] = b
+        if b != 0 {
+            t.par[b] = y
+        }
+        t.ch0[x] = y
+    } else {
+        b := t.ch1[x]
+        t.ch0[y] = b
+        if b != 0 {
+            t.par[b] = y
+        }
+        t.ch1[x] = y
+    }
+    t.par[y] = x
+    t.pull(y)
+    t.pull(x)
+}
+
+func (t *LinkCut) splay(x int) {
+    stack := []int{x}
+    for y := x; !t.isRoot(y); {
+        y = t.par[y]
+        stack = append(stack, y)
+    }
+    for i := len(stack) - 1; i >= 0; i-- {
+        t.push(stack[i]) // push tags from the splay root down
+    }
+    for !t.isRoot(x) {
+        y := t.par[x]
+        z := t.par[y]
+        if !t.isRoot(y) {
+            if (t.ch0[y] == x) == (t.ch0[z] == y) {
+                t.rotate(y)
+            } else {
+                t.rotate(x)
+            }
+        }
+        t.rotate(x)
+    }
+}
+
+func (t *LinkCut) access(x int) {
+    last := 0
+    for y := x; y != 0; y = t.par[y] {
+        t.splay(y)
+        t.ch1[y] = last
+        t.pull(y)
+        last = y
+    }
+    t.splay(x)
+}
+
+func (t *LinkCut) makeRoot(x int) { t.access(x); t.rev[x] = !t.rev[x] }
+
+func (t *LinkCut) findRoot(x int) int {
+    t.access(x)
+    for {
+        t.push(x)
+        if t.ch0[x] == 0 {
+            break
+        }
+        x = t.ch0[x]
+    }
+    t.splay(x)
+    return x
+}
+
+func (t *LinkCut) connected(x, y int) bool { return t.findRoot(x) == t.findRoot(y) }
+func (t *LinkCut) link(x, y int)           { t.makeRoot(x); t.par[x] = y } // x and y in different trees
+
+// the edge x-y exists
+func (t *LinkCut) cut(x, y int) {
+    t.makeRoot(x)
+    t.access(y)
+    t.push(x)
+    if t.ch0[y] == x && t.ch1[x] == 0 {
+        t.ch0[y], t.par[x] = 0, 0
+        t.pull(y)
+    }
+}
+
+func (t *LinkCut) setVal(x, v int) { t.access(x); t.val[x] = v; t.pull(x) }
+func (t *LinkCut) pathSum(x, y int) int { t.makeRoot(x); t.access(y); return t.sum[y] }
 
 ### lichao
 --idea
@@ -5362,6 +7526,57 @@ struct LiChao {
         }
     }
 };
+--go
+const INF = 4_000_000_000_000_000_000
+
+type LiChao struct {
+    n    int
+    K, B []int
+}
+
+func NewLiChao(n int) *LiChao { // x values 0 .. n-1
+    c := &LiChao{n, make([]int, 4*n), make([]int, 4*n)}
+    for i := range c.B {
+        c.B[i] = INF // every node starts with the empty line
+    }
+    return c
+}
+
+func f(k, b, x int) int { return k*x + b }
+
+func (c *LiChao) add(o, lo, hi, k, b int) {
+    mid := (lo + hi) / 2
+    if f(k, b, mid) < f(c.K[o], c.B[o], mid) { // keep the winner at mid in the node
+        c.K[o], k = k, c.K[o]
+        c.B[o], b = b, c.B[o]
+    }
+    if lo == hi {
+        return
+    }
+    if f(k, b, lo) < f(c.K[o], c.B[o], lo) { // loser can win on the left
+        c.add(2*o, lo, mid, k, b)
+    } else if f(k, b, hi) < f(c.K[o], c.B[o], hi) { // or on the right
+        c.add(2*o+1, mid+1, hi, k, b)
+    }
+}
+
+func (c *LiChao) Add(k, b int) { c.add(1, 0, c.n-1, k, b) }
+
+func (c *LiChao) Query(x int) int { // smallest value at x
+    best, o, lo, hi := INF, 1, 0, c.n-1
+    for {
+        best = min(best, f(c.K[o], c.B[o], x))
+        if lo == hi {
+            return best
+        }
+        mid := (lo + hi) / 2
+        if x <= mid {
+            o, hi = 2*o, mid
+        } else {
+            o, lo = 2*o+1, mid+1
+        }
+    }
+}
 
 ### wavelet
 --idea
@@ -5501,6 +7716,66 @@ struct Wavelet {
         return cnt;
     }
 };
+--go
+type Wavelet struct {
+    B, n int
+    zc   [][]int
+    nz   []int
+}
+
+func NewWavelet(a []int, B int) *Wavelet { // values in [0, 2^B)
+    n := len(a)
+    w := &Wavelet{B: B, n: n, zc: make([][]int, B), nz: make([]int, B)}
+    cur := append([]int{}, a...)
+    for lv, bit := 0, B-1; lv < B; lv, bit = lv+1, bit-1 {
+        w.zc[lv] = make([]int, n+1)
+        var zeros, ones []int
+        for i, v := range cur {
+            one := v>>bit&1 == 1
+            w.zc[lv][i+1] = w.zc[lv][i] // zero bits so far
+            if one {
+                ones = append(ones, v)
+            } else {
+                zeros = append(zeros, v)
+                w.zc[lv][i+1]++
+            }
+        }
+        w.nz[lv] = len(zeros)
+        cur = append(zeros, ones...) // stable split: zeros first
+    }
+    return w
+}
+
+// k-th smallest in a[l, r), k from 0
+func (w *Wavelet) Kth(l, r, k int) int {
+    res := 0
+    for lv, bit := 0, w.B-1; lv < w.B; lv, bit = lv+1, bit-1 {
+        zl, zr := w.zc[lv][l], w.zc[lv][r]
+        if zeros := zr - zl; k < zeros {
+            l, r = zl, zr
+        } else {
+            k -= zeros
+            l, r = w.nz[lv]+(l-zl), w.nz[lv]+(r-zr)
+            res |= 1 << bit
+        }
+    }
+    return res
+}
+
+// values < x in a[l, r)
+func (w *Wavelet) CountLess(l, r, x int) int {
+    cnt := 0
+    for lv, bit := 0, w.B-1; lv < w.B; lv, bit = lv+1, bit-1 {
+        zl, zr := w.zc[lv][l], w.zc[lv][r]
+        if x>>bit&1 == 1 {
+            cnt += zr - zl
+            l, r = w.nz[lv]+(l-zl), w.nz[lv]+(r-zr)
+        } else {
+            l, r = zl, zr
+        }
+    }
+    return cnt
+}
 
 ### kdtree
 --idea
@@ -5631,6 +7906,55 @@ struct KdTree {
 };
 --uses
 u-dist2
+--go
+type kdNode struct {
+    p           [2]int
+    left, right *kdNode
+}
+
+type KdTree struct {
+    root  *kdNode
+    best  [2]int
+    bestD int
+}
+
+func NewKdTree(pts [][2]int) *KdTree { return &KdTree{root: build(pts, 0)} }
+
+func build(pts [][2]int, depth int) *kdNode { // builds from the points in pts
+    if len(pts) == 0 {
+        return nil
+    }
+    axis := depth % 2
+    sort.Slice(pts, func(i, j int) bool { return pts[i][axis] < pts[j][axis] })
+    mid := len(pts) / 2
+    return &kdNode{pts[mid], build(pts[:mid], depth+1), build(pts[mid+1:], depth+1)}
+}
+
+func (t *KdTree) Nearest(qx, qy int) [2]int {
+    t.bestD = math.MaxInt
+    t.search(t.root, qx, qy, 0)
+    return t.best
+}
+
+func (t *KdTree) search(n *kdNode, qx, qy, depth int) {
+    if n == nil {
+        return
+    }
+    if d := dist2(n.p[0], n.p[1], qx, qy); d < t.bestD { // piece u-dist2: squared distance
+        t.bestD, t.best = d, n.p
+    }
+    axis := depth % 2
+    q := [2]int{qx, qy}
+    diff := q[axis] - n.p[axis]
+    near, far := n.right, n.left
+    if diff < 0 {
+        near, far = n.left, n.right
+    }
+    t.search(near, qx, qy, depth+1) // the side the query is on
+    if diff*diff < t.bestD {        // the other side only if it can be closer
+        t.search(far, qx, qy, depth+1)
+    }
+}
 
 ### rope
 --idea
@@ -5825,6 +8149,98 @@ void toText(Node* t, string& out) {
 }
 --uses
 u-rand
+--go
+type Node struct {
+    ch          byte
+    pri, size   int
+    left, right *Node
+}
+
+func newNode(c byte) *Node { return &Node{ch: c, pri: randInt(0, 1_000_000_000), size: 1} } // piece u-rand
+
+func size(t *Node) int {
+    if t == nil {
+        return 0
+    }
+    return t.size
+}
+func upd(t *Node) { t.size = 1 + size(t.left) + size(t.right) }
+
+// split into (first k characters, the rest)
+func split(t *Node, k int) (*Node, *Node) {
+    if t == nil {
+        return nil, nil
+    }
+    if k <= size(t.left) {
+        a, b := split(t.left, k)
+        t.left = b
+        upd(t)
+        return a, t
+    }
+    a, b := split(t.right, k-size(t.left)-1)
+    t.right = a
+    upd(t)
+    return t, b
+}
+
+func merge(a, b *Node) *Node {
+    if a == nil {
+        return b
+    }
+    if b == nil {
+        return a
+    }
+    if a.pri > b.pri {
+        a.right = merge(a.right, b)
+        upd(a)
+        return a
+    }
+    b.left = merge(a, b.left)
+    upd(b)
+    return b
+}
+
+func insert(t *Node, pos int, c byte) *Node {
+    a, b := split(t, pos)
+    return merge(merge(a, newNode(c)), b)
+}
+
+// remove positions [l, r)
+func erase(t *Node, l, r int) *Node {
+    a, rest := split(t, l)
+    _, c := split(rest, r-l) // the middle part is dropped
+    return merge(a, c)
+}
+
+// cut [l, r) and put it first
+func moveToFront(t *Node, l, r int) *Node {
+    a, rest := split(t, l)
+    mid, c := split(rest, r-l)
+    return merge(mid, merge(a, c))
+}
+
+func charAt(t *Node, i int) byte {
+    for {
+        s := size(t.left)
+        if i < s {
+            t = t.left
+        } else if i == s {
+            return t.ch
+        } else {
+            i -= s + 1
+            t = t.right
+        }
+    }
+}
+
+func toText(t *Node, sb *strings.Builder) {
+    if t == nil {
+        return
+    }
+    toText(t.left, sb)
+    sb.WriteByte(t.ch)
+    toText(t.right, sb)
+}
 
 ### veb
 --idea
@@ -6044,6 +8460,129 @@ struct VEB {
 };
 --uses
 u-log2
+--go
+type VEB struct {
+    nb, low, mn, mx int // nb = bits of the universe, mn/mx = -1 when empty
+    summary         *VEB
+    cluster         []*VEB
+}
+
+func newVEB(nb int) *VEB {
+    v := &VEB{nb: nb, mn: -1, mx: -1}
+    if nb > 1 {
+        v.low = nb / 2
+        v.cluster = make([]*VEB, 1<<(nb-v.low))
+    }
+    return v
+}
+func createVEB(universe int) *VEB { return newVEB(floorLog2(universe-1) + 1) } // piece u-log2
+
+func (v *VEB) hi(x int) int { return x >> v.low }
+func (v *VEB) lo(x int) int { return x & (1<<v.low - 1) }
+func (v *VEB) cl(h int) *VEB {
+    if v.cluster[h] == nil {
+        v.cluster[h] = newVEB(v.low)
+    }
+    return v.cluster[h]
+}
+func (v *VEB) sum() *VEB {
+    if v.summary == nil {
+        v.summary = newVEB(v.nb - v.low)
+    }
+    return v.summary
+}
+
+func (v *VEB) contains(x int) bool {
+    if x == v.mn || x == v.mx {
+        return true
+    }
+    if v.nb == 1 || v.cluster[v.hi(x)] == nil {
+        return false
+    }
+    return v.cluster[v.hi(x)].contains(v.lo(x))
+}
+
+func (v *VEB) insert(x int) {
+    if v.mn == -1 {
+        v.mn, v.mx = x, x
+        return
+    }
+    if x == v.mn || x == v.mx {
+        return
+    }
+    if x < v.mn {
+        x, v.mn = v.mn, x // new minimum stays here
+    }
+    if v.nb > 1 {
+        h, l := v.hi(x), v.lo(x)
+        if c := v.cl(h); c.mn == -1 {
+            v.sum().insert(h) // empty cluster: one O(1) step
+            c.mn, c.mx = l, l
+        } else {
+            c.insert(l)
+        }
+    }
+    if x > v.mx {
+        v.mx = x
+    }
+}
+
+// smallest element > x, or -1
+func (v *VEB) successor(x int) int {
+    if v.nb == 1 {
+        if x == 0 && v.mx == 1 {
+            return 1
+        }
+        return -1
+    }
+    if v.mn != -1 && x < v.mn {
+        return v.mn
+    }
+    h, l := v.hi(x), v.lo(x)
+    if c := v.cluster[h]; c != nil && c.mx != -1 && l < c.mx {
+        return h<<v.low | c.successor(l)
+    }
+    if v.summary == nil {
+        return -1
+    }
+    if sh := v.summary.successor(h); sh != -1 {
+        return sh<<v.low | v.cluster[sh].mn
+    }
+    return -1
+}
+
+func (v *VEB) erase(x int) {
+    if !v.contains(x) {
+        return
+    }
+    if v.mn == v.mx {
+        v.mn, v.mx = -1, -1
+        return
+    }
+    if v.nb == 1 {
+        v.mn, v.mx = 1-x, 1-x
+        return
+    }
+    if x == v.mn { // pull the next smallest up to be the minimum
+        first := v.summary.mn
+        x = first<<v.low | v.cluster[first].mn
+        v.mn = x
+    }
+    h := v.hi(x)
+    v.cluster[h].erase(v.lo(x))
+    if v.cluster[h].mn == -1 {
+        v.summary.erase(h)
+        if x == v.mx {
+            if s := v.summary.mx; s == -1 {
+                v.mx = v.mn
+            } else {
+                v.mx = s<<v.low | v.cluster[s].mx
+            }
+        }
+    } else if x == v.mx {
+        v.mx = h<<v.low | v.cluster[h].mx
+    }
+}
 
 ### hll
 --idea
@@ -6156,6 +8695,48 @@ struct HyperLogLog {
 --uses
 u-hashroll
 u-log2
+--go
+const P = 10
+const R = 1 << P // 1024 registers (the piece u-hashroll already uses M)
+
+type HyperLogLog struct{ reg [R]int }
+
+func mix(x uint64) uint64 { // scramble a number into 32 good bits
+    x ^= x >> 16
+    x = (x * 0x85ebca6b) & 0xFFFFFFFF
+    x ^= x >> 13
+    x = (x * 0xc2b2ae35) & 0xFFFFFFFF
+    x ^= x >> 16
+    return x
+}
+
+func (s *HyperLogLog) Add(item string) {
+    hs, _ := buildHash(item) // piece u-hashroll, then scrambled
+    h := mix(uint64(hs[len(item)]))
+    j := int(h >> (32 - P))              // first P bits pick the register
+    w := h & (1<<(32-P) - 1)             // the remaining bits
+    rank := 32 - P + 1
+    if w != 0 {
+        rank = (32 - P) - floorLog2(int(w)) // piece u-log2: leading zeros + 1
+    }
+    s.reg[j] = max(s.reg[j], rank)
+}
+
+func (s *HyperLogLog) Estimate() float64 {
+    alpha := 0.7213 / (1 + 1.079/R)
+    sum, zeros := 0.0, 0
+    for _, r := range s.reg {
+        sum += math.Pow(2, -float64(r))
+        if r == 0 {
+            zeros++
+        }
+    }
+    e := alpha * R * R / sum
+    if e <= 2.5*R && zeros > 0 {
+        e = R * math.Log(float64(R)/float64(zeros)) // few items: linear counting
+    }
+    return e
+}
 
 ### dsurb
 --idea
@@ -6261,6 +8842,53 @@ struct RollbackDSU {
 };
 --uses
 u-dsuunion
+--go
+// the DSU arrays are package-level state, as the piece u-dsuunion expects
+var p, sz []int
+var history []int
+var top int
+
+func initDSU(n int) {
+    p, sz, history, top = make([]int, n), make([]int, n), make([]int, n), 0 // at most n-1 merges are recorded
+    for i := range p {
+        p[i], sz[i] = i, 1
+    }
+}
+
+// no path compression: it could not be undone
+func find(x int) int {
+    for p[x] != x {
+        x = p[x]
+    }
+    return x
+}
+
+func link(a, b int) bool {
+    ra, rb := find(a), find(b)
+    if ra == rb {
+        return false // nothing to record
+    }
+    if sz[ra] < sz[rb] {
+        history[top] = ra // the root that gets hung below
+    } else {
+        history[top] = rb
+    }
+    top++
+    union(a, b) // piece u-dsuunion does the merge
+    return true
+}
+
+func snapshot() int { return top }
+
+func rollback(to int) {
+    for top > to {
+        top--
+        child := history[top]
+        parent := p[child]
+        sz[parent] -= sz[child] // undo the size change
+        p[child] = child        // cut the child loose again
+    }
+}
 
 ### dsparse
 --idea
@@ -6370,4 +8998,49 @@ struct DisjointSparse {
 };
 --uses
 u-log2
+--go
+type DisjointSparse struct {
+    n, N, L int
+    tab     [][]int
+    a       []int
+    op      func(a, b int) int
+}
 
+func NewDisjointSparse(arr []int, op func(a, b int) int) *DisjointSparse {
+    d := &DisjointSparse{op: op, n: len(arr), N: 1}
+    for d.N < d.n {
+        d.N <<= 1
+        d.L++
+    }
+    if d.N == 1 {
+        d.N, d.L = 2, 1 // keep at least one level
+    }
+    d.a = make([]int, d.N) // padding is never read by a valid query
+    copy(d.a, arr)
+    d.tab = make([][]int, d.L+1)
+    for h := 1; h <= d.L; h++ {
+        d.tab[h] = make([]int, d.N)
+        half := 1 << (h - 1)
+        for s := 0; s < d.N; s += 1 << h {
+            mid, t := s+half, d.tab[h]
+            t[mid-1] = d.a[mid-1]
+            for i := mid - 2; i >= s; i-- {
+                t[i] = op(d.a[i], t[i+1]) // left of mid
+            }
+            t[mid] = d.a[mid]
+            for i := mid + 1; i < s+1<<h; i++ {
+                t[i] = op(t[i-1], d.a[i]) // right of mid
+            }
+        }
+    }
+    return d
+}
+
+// inclusive
+func (d *DisjointSparse) Query(l, r int) int {
+    if l == r {
+        return d.a[l]
+    }
+    h := floorLog2(l^r) + 1 // piece u-log2: the level where l and r split
+    return d.op(d.tab[h][l], d.tab[h][r]) // left piece, then right piece
+}

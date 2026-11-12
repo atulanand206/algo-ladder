@@ -69,6 +69,34 @@ pair<int,int> direction(pair<int,int> a, pair<int,int> b) {
     if (g == 0) return {0, 0};
     return {dx / g, dy / g};
 }
+--go
+func abs(x int) int {
+    if x < 0 {
+        return -x
+    }
+    return x
+}
+
+// index of the point in p closest to (qx, qy); calls the dist2 piece
+func nearest(p [][2]int, qx, qy int) int {
+    best := 0
+    for i := 1; i < len(p); i++ {
+        if dist2(p[i][0], p[i][1], qx, qy) < dist2(p[best][0], p[best][1], qx, qy) {
+            best = i
+        }
+    }
+    return best
+}
+
+// direction from a to b in lowest terms; (0,0) when a == b
+func direction(a, b [2]int) [2]int {
+    dx, dy := b[0]-a[0], b[1]-a[1]
+    g := gcd(abs(dx), abs(dy)) // gcd(0,0) is 0
+    if g == 0 {
+        return [2]int{0, 0}
+    }
+    return [2]int{dx / g, dy / g}
+}
 
 ### dotcross
 --idea
@@ -144,6 +172,31 @@ bool isPerpendicular(long long ax, long long ay, long long bx, long long by) { r
 double angle(long long ax, long long ay, long long bx, long long by) {
     return atan2((double)cross(ax, ay, bx, by), (double)dot(ax, ay, bx, by));
 }
+--go
+import "math"
+
+
+// cross of (a - o) and (b - o): positive if o -> a -> b turns left
+func cross3(o, a, b [2]int) int {
+    return cross(a[0]-o[0], a[1]-o[1], b[0]-o[0], b[1]-o[1])
+}
+
+// twice the triangle area, always non-negative and exact
+func area2(a, b, c [2]int) int {
+    v := cross3(a, b, c)
+    if v < 0 {
+        return -v
+    }
+    return v
+}
+
+// are the vectors a and b at a right angle
+func isPerpendicular(ax, ay, bx, by int) bool { return dot(ax, ay, bx, by) == 0 }
+
+// signed angle from vector a to vector b, in radians
+func angle(ax, ay, bx, by int) float64 {
+    return math.Atan2(float64(cross(ax, ay, bx, by)), float64(dot(ax, ay, bx, by)))
+}
 
 ### orient
 --idea
@@ -208,6 +261,27 @@ bool allCollinear(const vector<P>& p) {
     for (size_t i = j + 1; i < p.size(); i++)
         if (turn(p[0], p[j], p[i]) != 0) return false;
     return true;
+}
+--go
+import "cmp"
+
+// +1 left turn, -1 right turn, 0 collinear
+func turn(a, b, c [2]int) int {
+    return cmp.Compare(orient(a[0], a[1], b[0], b[1], c[0], c[1]), 0)
+}
+
+// are all the points on one line (duplicates allowed)
+func allCollinear(p [][2]int) bool {
+    j := 1
+    for j < len(p) && p[j] == p[0] { // first point different from p[0]
+        j++
+    }
+    for i := j + 1; i < len(p); i++ {
+        if turn(p[0], p[j], p[i]) != 0 {
+            return false
+        }
+    }
+    return true
 }
 
 ### seginter
@@ -275,6 +349,23 @@ bool segInter(P a, P b, P c, P d) {
         || onSegment(c.first, c.second, d.first, d.second, a.first, a.second)
         || onSegment(c.first, c.second, d.first, d.second, b.first, b.second);
 }
+--go
+import "cmp"
+
+func sgn(v int) int { return cmp.Compare(v, 0) }
+
+// do closed segments a-b and c-d share a point
+func segInter(a, b, c, d [2]int) bool {
+    o1, o2 := sgn(orient(a[0], a[1], b[0], b[1], c[0], c[1])), sgn(orient(a[0], a[1], b[0], b[1], d[0], d[1]))
+    o3, o4 := sgn(orient(c[0], c[1], d[0], d[1], a[0], a[1])), sgn(orient(c[0], c[1], d[0], d[1], b[0], b[1]))
+    if o1 != o2 && o3 != o4 { // c,d split a-b and a,b split c-d
+        return true
+    }
+    return onSegment(a[0], a[1], b[0], b[1], c[0], c[1]) || // touching or overlapping cases
+        onSegment(a[0], a[1], b[0], b[1], d[0], d[1]) ||
+        onSegment(c[0], c[1], d[0], d[1], a[0], a[1]) ||
+        onSegment(c[0], c[1], d[0], d[1], b[0], b[1])
+}
 
 ### lineinter
 --idea
@@ -337,6 +428,19 @@ bool lineInter(P p1, P p2, P p3, P p4, double& x, double& y) {
     y = p1.second + (double)ry * num / den;
     return true;
 }
+--go
+// intersection of lines p1-p2 and p3-p4; ok is false if parallel or identical.
+// the numerators are computed exactly in ints, only the final division is a float.
+func lineInter(p1, p2, p3, p4 [2]int) (x, y float64, ok bool) {
+    rx, ry := p2[0]-p1[0], p2[1]-p1[1]
+    sx, sy := p4[0]-p3[0], p4[1]-p3[1]
+    den := cross(rx, ry, sx, sy)
+    if den == 0 {
+        return 0, 0, false
+    }
+    num := cross(p3[0]-p1[0], p3[1]-p1[1], sx, sy) // t = num / den
+    return float64(p1[0]) + float64(rx)*float64(num)/float64(den), float64(p1[1]) + float64(ry)*float64(num)/float64(den), true
+}
 
 ### polyarea
 --idea
@@ -380,6 +484,18 @@ long long area2(const vector<long long>& x, const vector<long long>& y) { return
 
 // are the corners listed counter-clockwise
 bool isCounterClockwise(const vector<long long>& x, const vector<long long>& y) { return polygonArea2(x, y) > 0; }
+--go
+// twice the (unsigned) area; exact in integers
+func area2(x, y []int) int {
+    s := polygonArea2(x, y)
+    if s < 0 {
+        s = -s
+    }
+    return s
+}
+
+// are the corners listed counter-clockwise
+func isCounterClockwise(x, y []int) bool { return polygonArea2(x, y) > 0 }
 
 ### manhattan
 --idea
@@ -453,6 +569,27 @@ long long maxManhattan(const vector<pair<int,int>>& p) {
     }
     return max(maxU - minU, maxV - minV);
 }
+--go
+import "math"
+
+
+func manhattan(a, b [2]int) int { return dist(a[0], b[0]) + dist(a[1], b[1]) }
+func cheb(a, b [2]int) int      { return max(dist(a[0], b[0]), dist(a[1], b[1])) }
+
+// one king move from a toward b (each step is -1, 0 or 1)
+func kingStep(a, b [2]int) [2]int { return [2]int{sign(b[0] - a[0]), sign(b[1] - a[1])} }
+
+// largest Manhattan distance between any two points, in O(n)
+func maxManhattan(p [][2]int) int {
+    maxU, minU := math.MinInt, math.MaxInt
+    maxV, minV := math.MinInt, math.MaxInt
+    for _, q := range p {
+        u, v := q[0]+q[1], q[0]-q[1] // rotated coordinates
+        maxU, minU = max(maxU, u), min(minU, u)
+        maxV, minV = max(maxV, v), min(minV, v)
+    }
+    return max(maxU-minU, maxV-minV)
+}
 
 ### pip
 --idea
@@ -524,6 +661,29 @@ int pointInPolygon(const vector<P>& p, P q) {
         }
     }
     return inside ? 1 : 0;
+}
+--go
+// 0 outside, 1 inside, 2 on the boundary
+func pointInPolygon(p [][2]int, q [2]int) int {
+    n := len(p)
+    inside := false
+    for i := 0; i < n; i++ {
+        a, b := p[i], p[(i+1)%n]
+        c := orient(a[0], a[1], b[0], b[1], q[0], q[1])
+        if c == 0 && min(a[0], b[0]) <= q[0] && q[0] <= max(a[0], b[0]) &&
+            min(a[1], b[1]) <= q[1] && q[1] <= max(a[1], b[1]) {
+            return 2
+        }
+        if (a[1] > q[1]) != (b[1] > q[1]) { // edge straddles the ray's height
+            if (b[1] > a[1] && c > 0) || (b[1] < a[1] && c < 0) { // crossing is right of q
+                inside = !inside
+            }
+        }
+    }
+    if inside {
+        return 1
+    }
+    return 0
 }
 
 ### hull
@@ -619,6 +779,41 @@ vector<P> convexHull(vector<P> p) {
     }
     h.pop_back();                                           // last point repeats the first
     return h;
+}
+--go
+import (
+    "cmp"
+    "slices"
+)
+
+// cross of (a - o) and (b - o) using the orient piece
+func turn(o, a, b [2]int) int { return orient(o[0], o[1], a[0], a[1], b[0], b[1]) }
+
+// corners of the convex hull, counter-clockwise, no collinear points
+func convexHull(pts [][2]int) [][2]int {
+    p := slices.Clone(pts)
+    slices.SortFunc(p, func(u, v [2]int) int {
+        return cmp.Or(cmp.Compare(u[0], v[0]), cmp.Compare(u[1], v[1]))
+    })
+    q := slices.Compact(p) // drop duplicates
+    if len(q) < 3 {
+        return q
+    }
+    var h [][2]int
+    for _, x := range q { // lower hull
+        for len(h) >= 2 && turn(h[len(h)-2], h[len(h)-1], x) <= 0 {
+            h = h[:len(h)-1]
+        }
+        h = append(h, x)
+    }
+    t := len(h) + 1
+    for i := len(q) - 2; i >= 0; i-- { // upper hull
+        for len(h) >= t && turn(h[len(h)-2], h[len(h)-1], q[i]) <= 0 {
+            h = h[:len(h)-1]
+        }
+        h = append(h, q[i])
+    }
+    return h[:len(h)-1] // last point repeats the first
 }
 
 ### circle
@@ -720,6 +915,39 @@ bool circumcenter(pair<int,int> a, pair<int,int> b, pair<int,int> c, double& ox,
     oy = a.second + (double)(bx * c2 - cx * b2) / den;
     return true;
 }
+--go
+import "cmp"
+
+// number of common points of two circles: 0, 1, 2, or -1 for identical (infinitely many)
+func commonPoints(x1, y1, r1, x2, y2, r2 int) int {
+    D, S, T := dist2(x1, y1, x2, y2), (r1+r2)*(r1+r2), (r1-r2)*(r1-r2)
+    switch {
+    case D == 0 && r1 == r2:
+        return -1
+    case D > S || D < T:
+        return 0
+    case D == S || D == T:
+        return 1
+    }
+    return 2
+}
+
+// -1 if the point is inside the circle, 0 on it, 1 outside
+func where(px, py, cx, cy, r int) int {
+    return cmp.Compare(dist2(px, py, cx, cy), r*r)
+}
+
+// centre of the circle through three points; ok is false if they are collinear
+func circumcenter(a, b, c [2]int) (x, y float64, ok bool) {
+    bx, by, cx, cy := b[0]-a[0], b[1]-a[1], c[0]-a[0], c[1]-a[1]
+    den := 2 * (bx*cy - by*cx)
+    if den == 0 {
+        return 0, 0, false
+    }
+    b2, c2 := bx*bx+by*by, cx*cx+cy*cy
+    return float64(a[0]) + float64(cy*b2-by*c2)/float64(den),
+        float64(a[1]) + float64(bx*c2-cx*b2)/float64(den), true
+}
 
 ### picks
 --idea
@@ -779,6 +1007,26 @@ pair<long long,long long> picks(const vector<pair<int,int>>& p) {
     }
     a2 = llabs(a2);
     return {(a2 - b + 2) / 2, b};
+}
+--go
+// returns interior points I and boundary points B of a simple lattice polygon
+func picks(p [][2]int) (inner, boundary int) {
+    n := len(p)
+    a2, b := 0, 0
+    for i := range p {
+        j := (i + 1) % n
+        a2 += p[i][0]*p[j][1] - p[i][1]*p[j][0] // shoelace
+        b += gcd(abs(p[j][0]-p[i][0]), abs(p[j][1]-p[i][1])) // points on the edge
+    }
+    a2 = abs(a2)
+    return (a2 - b + 2) / 2, b
+}
+
+func abs(x int) int {
+    if x < 0 {
+        return -x
+    }
+    return x
 }
 
 ### lattice
@@ -863,6 +1111,40 @@ long long floorSum(long long n, long long m, long long a, long long b) {
     }
     return ans;
 }
+--go
+func abs(x int) int {
+    if x < 0 {
+        return -x
+    }
+    return x
+}
+
+// lattice points on the closed segment a-b
+func pointsOnSegment(a, b [2]int) int {
+    return gcd(abs(b[0]-a[0]), abs(b[1]-a[1])) + 1
+}
+
+// sum of floor((a*i + b) / m) for i in [0, n), with a, b >= 0 and m > 0
+func floorSum(n, m, a, b int) int {
+    ans := 0
+    for {
+        if a >= m {
+            ans += n * (n - 1) / 2 * (a / m)
+            a %= m
+        }
+        if b >= m {
+            ans += n * (b / m)
+            b %= m
+        }
+        y := a*n + b
+        if y < m {
+            break
+        }
+        n, b = y/m, y%m // count by rows instead of columns
+        m, a = a, m     // swap the roles
+    }
+    return ans
+}
 
 ### rotation
 --idea
@@ -933,6 +1215,23 @@ pair<double,double> rotateAround(pair<double,double> p, pair<double,double> o, d
     double vx = p.first - o.first, vy = p.second - o.second;
     double c = cos(t), s = sin(t);
     return {o.first + vx * c - vy * s, o.second + vx * s + vy * c};
+}
+--go
+import "math"
+
+// quarter turn anticlockwise, exact
+func rot90(p [2]int) [2]int { return [2]int{-p[1], p[0]} }
+
+// multiply (x + iy) by (c + is): a turn plus a stretch, exact in integers
+func spiral(p [2]int, c, s int) [2]int {
+    return [2]int{cross(p[0], p[1], s, c), p[0]*s + p[1]*c} // x*c - y*s, then x*s + y*c
+}
+
+// rotate p by angle t (radians) anticlockwise around centre o
+func rotateAround(p, o [2]float64, t float64) [2]float64 {
+    vx, vy := p[0]-o[0], p[1]-o[1]
+    sin, cos := math.Sincos(t)
+    return [2]float64{o[0] + vx*cos - vy*sin, o[1] + vx*sin + vy*cos}
 }
 
 ### calipers
@@ -1030,6 +1329,36 @@ long long diameter2(const vector<P>& h) {
         best = max(best, max(sq(h[i], h[j]), sq(h[ni], h[j])));
     }
     return best;
+}
+--go
+// doubled area of triangle o, a, b: how far b is from the line o-a
+func area(o, a, b [2]int) int {
+    return cross(a[0]-o[0], a[1]-o[1], b[0]-o[0], b[1]-o[1])
+}
+
+func sq(a, b [2]int) int {
+    dx, dy := a[0]-b[0], a[1]-b[1]
+    return dx*dx + dy*dy
+}
+
+// squared diameter of a strictly convex polygon given counter-clockwise
+func diameter2(h [][2]int) int {
+    n := len(h)
+    if n == 1 {
+        return 0
+    }
+    if n == 2 {
+        return sq(h[0], h[1])
+    }
+    best, j := 0, 1
+    for i := 0; i < n; i++ {
+        ni := (i + 1) % n
+        for area(h[i], h[ni], h[(j+1)%n]) > area(h[i], h[ni], h[j]) { // advance the far point
+            j = (j + 1) % n
+        }
+        best = max(best, sq(h[i], h[j]), sq(h[ni], h[j]))
+    }
+    return best
 }
 
 ### closest
@@ -1152,6 +1481,60 @@ long long closest(const vector<P>& pts) {
     vector<P> p;
     for (int i : ord) p.push_back(pts[i]);
     return closestRec(p, 0, p.size());
+}
+--go
+import (
+    "cmp"
+    "math"
+    "slices"
+)
+
+func closest(pts [][2]int) int {
+    n := len(pts)
+    xs := make([]int, n)
+    for i, q := range pts {
+        xs[i] = q[0]
+    }
+    p := make([][2]int, n)
+    for i, id := range sortIndices(xs) { // positions ordered by x
+        p[i] = pts[id]
+    }
+    return rec(p, 0, n)
+}
+
+// slice [l, r) of p; returns the best squared distance and leaves the slice sorted by y
+func rec(p [][2]int, l, r int) int {
+    byY := func(u, v [2]int) int { return cmp.Compare(u[1], v[1]) }
+    best := math.MaxInt
+    if r-l <= 3 {
+        for i := l; i < r; i++ {
+            for j := i + 1; j < r; j++ {
+                best = min(best, dist2(p[i][0], p[i][1], p[j][0], p[j][1]))
+            }
+        }
+        slices.SortFunc(p[l:r], byY)
+        return best
+    }
+    m := (l + r) / 2
+    midx := p[m][0]
+    best = min(rec(p, l, m), rec(p, m, r))
+    slices.SortFunc(p[l:r], byY) // merges two sorted runs
+    var strip [][2]int
+    for _, q := range p[l:r] {
+        if d := q[0] - midx; d*d < best {
+            strip = append(strip, q)
+        }
+    }
+    for i := range strip {
+        for j := i + 1; j < len(strip); j++ {
+            dy := strip[j][1] - strip[i][1]
+            if dy*dy >= best {
+                break
+            }
+            best = min(best, dist2(strip[i][0], strip[i][1], strip[j][0], strip[j][1]))
+        }
+    }
+    return best
 }
 
 ### hpi
@@ -1281,6 +1664,67 @@ vector<pair<double,double>> hpi(vector<HP> hs) {
     if (tail - head < 3) return res;
     for (int i = head; i < tail; i++) res.push_back(inter(dq[i], dq[i + 1 < tail ? i + 1 : head]));
     return res;
+}
+--go
+import (
+    "cmp"
+    "math"
+    "slices"
+)
+
+const eps = 1e-9
+
+func cr(ax, ay, bx, by float64) float64 { return ax*by - ay*bx }
+func out(h [4]float64, r [2]float64) bool {
+    return cr(h[2], h[3], r[0]-h[0], r[1]-h[1]) < -eps
+}
+func inter(a, b [4]float64) [2]float64 {
+    t := cr(b[0]-a[0], b[1]-a[1], b[2], b[3]) / cr(a[2], a[3], b[2], b[3])
+    return [2]float64{a[0] + a[2]*t, a[1] + a[3]*t}
+}
+
+// each half-plane is {px, py, dx, dy}; allowed side is the left of the direction.
+// include a big bounding box among them. Returns the corners, or nil.
+func hpi(in [][4]float64) [][2]float64 {
+    hs := slices.Clone(in)
+    slices.SortFunc(hs, func(u, v [4]float64) int {
+        return cmp.Compare(math.Atan2(u[3], u[2]), math.Atan2(v[3], v[2]))
+    })
+    dq := make([][4]float64, len(hs))
+    head, tail := 0, 0
+    for _, h := range hs {
+        for tail-head >= 2 && out(h, inter(dq[tail-1], dq[tail-2])) {
+            tail--
+        }
+        for tail-head >= 2 && out(h, inter(dq[head], dq[head+1])) {
+            head++
+        }
+        if tail-head > 0 && math.Abs(cr(h[2], h[3], dq[tail-1][2], dq[tail-1][3])) < eps {
+            if h[2]*dq[tail-1][2]+h[3]*dq[tail-1][3] < 0 {
+                return nil // opposite directions: empty
+            }
+            if !out(h, [2]float64{dq[tail-1][0], dq[tail-1][1]}) {
+                continue // keep only the stricter line
+            }
+            tail--
+        }
+        dq[tail] = h
+        tail++
+    }
+    for tail-head >= 3 && out(dq[head], inter(dq[tail-1], dq[tail-2])) {
+        tail--
+    }
+    for tail-head >= 3 && out(dq[tail-1], inter(dq[head], dq[head+1])) {
+        head++
+    }
+    if tail-head < 3 {
+        return nil
+    }
+    var res [][2]float64
+    for i := head; i < tail; i++ {
+        res = append(res, inter(dq[i], dq[head+(i+1-head)%(tail-head)]))
+    }
+    return res
 }
 
 ### mec
@@ -1416,6 +1860,59 @@ Circ minEnclosingCircle(vector<Pt> p) {
         }
     }
     return c;
+}
+--go
+import (
+    "math"
+    "math/rand"
+)
+
+func outside(c [3]float64, p [2]float64) bool { // c = {cx, cy, r}
+    return math.Hypot(p[0]-c[0], p[1]-c[1]) > c[2]+1e-9
+}
+func fromTwo(a, b [2]float64) [3]float64 {
+    return [3]float64{(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, math.Hypot(a[0]-b[0], a[1]-b[1]) / 2}
+}
+func fromThree(a, b, c [2]float64) [3]float64 {
+    bx, by, cx, cy := b[0]-a[0], b[1]-a[1], c[0]-a[0], c[1]-a[1]
+    den := 2 * (bx*cy - by*cx)
+    if math.Abs(den) < 1e-12 { // collinear: use the farthest pair
+        best := fromTwo(a, b)
+        for _, t := range [][3]float64{fromTwo(a, c), fromTwo(b, c)} {
+            if t[2] > best[2] {
+                best = t
+            }
+        }
+        return best
+    }
+    b2, c2 := bx*bx+by*by, cx*cx+cy*cy
+    ux, uy := (cy*b2-by*c2)/den, (bx*c2-cx*b2)/den
+    return [3]float64{a[0] + ux, a[1] + uy, math.Hypot(ux, uy)}
+}
+
+// returns {cx, cy, r}; expected O(n) after a random shuffle
+func minEnclosingCircle(pts [][2]float64) [3]float64 {
+    p := append([][2]float64(nil), pts...)
+    rand.New(rand.NewSource(12345)).Shuffle(len(p), func(i, j int) { p[i], p[j] = p[j], p[i] })
+    c := [3]float64{p[0][0], p[0][1], 0}
+    for i := 1; i < len(p); i++ {
+        if !outside(c, p[i]) {
+            continue
+        }
+        c = [3]float64{p[i][0], p[i][1], 0}
+        for j := 0; j < i; j++ {
+            if !outside(c, p[j]) {
+                continue
+            }
+            c = fromTwo(p[i], p[j])
+            for k := 0; k < j; k++ {
+                if outside(c, p[k]) {
+                    c = fromThree(p[i], p[j], p[k])
+                }
+            }
+        }
+    }
+    return c
 }
 
 ### sweepseg
@@ -1598,6 +2095,79 @@ pair<int,int> anyIntersection(vector<array<long long,4>> seg) {
     }
     return {-1, -1};
 }
+--go
+import (
+    "cmp"
+    "slices"
+)
+
+var sg [][4]int // normalised segments {x1, y1, x2, y2}
+
+func sgn(v int) int { return cmp.Compare(v, 0) }
+
+func meet(i, j int) bool { // exact closed segment intersection
+    a, b := sg[i], sg[j]
+    o1, o2 := sgn(orient(a[0], a[1], a[2], a[3], b[0], b[1])), sgn(orient(a[0], a[1], a[2], a[3], b[2], b[3]))
+    o3, o4 := sgn(orient(b[0], b[1], b[2], b[3], a[0], a[1])), sgn(orient(b[0], b[1], b[2], b[3], a[2], a[3]))
+    return o1 != o2 && o3 != o4 ||
+        onSegment(a[0], a[1], a[2], a[3], b[0], b[1]) || onSegment(a[0], a[1], a[2], a[3], b[2], b[3]) ||
+        onSegment(b[0], b[1], b[2], b[3], a[0], a[1]) || onSegment(b[0], b[1], b[2], b[3], a[2], a[3])
+}
+
+func below(i, j int) int { // height order at the later left end
+    x := max(sg[i][0], sg[j][0])
+    da, db := sg[i][2]-sg[i][0], sg[j][2]-sg[j][0]
+    na, nb := sg[i][1], sg[j][1]
+    if da == 0 {
+        da = 1
+    } else {
+        na = na*da + (sg[i][3]-sg[i][1])*(x-sg[i][0])
+    }
+    if db == 0 {
+        db = 1
+    } else {
+        nb = nb*db + (sg[j][3]-sg[j][1])*(x-sg[j][0])
+    }
+    return cmp.Or(cmp.Compare(na*db, nb*da), cmp.Compare(i, j))
+}
+
+// returns the indices of two segments that meet; ok is false if none do.
+// A sorted slice stands in for the balanced tree (inserting costs O(n) moves).
+func anyIntersection(seg [][4]int) (int, int, bool) {
+    sg = slices.Clone(seg)
+    var ev [][3]int // {x, type (0 insert, 1 remove), id}
+    for i, s := range sg {
+        if s[0] > s[2] || (s[0] == s[2] && s[1] > s[3]) {
+            sg[i] = [4]int{s[2], s[3], s[0], s[1]}
+        }
+        ev = append(ev, [3]int{sg[i][0], 0, i}, [3]int{sg[i][2], 1, i})
+    }
+    slices.SortFunc(ev, func(u, v [3]int) int { return cmp.Or(cmp.Compare(u[0], v[0]), cmp.Compare(u[1], v[1])) })
+    var set []int // ids ordered bottom to top
+    for _, e := range ev {
+        id := e[2]
+        pos, found := slices.BinarySearchFunc(set, id, below)
+        up, down := pos, pos-1 // neighbours above and below id
+        if found {
+            up++
+        }
+        if e[1] == 0 {
+            if up < len(set) && meet(set[up], id) {
+                return set[up], id, true
+            }
+            if down >= 0 && meet(set[down], id) {
+                return set[down], id, true
+            }
+            set = slices.Insert(set, pos, id)
+        } else {
+            if up < len(set) && down >= 0 && meet(set[up], set[down]) {
+                return set[down], set[up], true
+            }
+            set = slices.Delete(set, pos, pos+1)
+        }
+    }
+    return 0, 0, false
+}
 
 ### rectunion
 --idea
@@ -1744,6 +2314,66 @@ long long unionArea(const vector<array<long long,4>>& all) {
     }
     return area;
 }
+--go
+import (
+    "slices"
+    "sort"
+)
+
+var ys, cov, cnt []int
+
+func update(o, l, r, a, b, v int) { // leaves [l, r), update [a, b)
+    if b <= l || r <= a {
+        return
+    }
+    if a <= l && r <= b {
+        cnt[o] += v
+    } else {
+        m := (l + r) / 2
+        update(2*o, l, m, a, b, v)
+        update(2*o+1, m, r, a, b, v)
+    }
+    switch {
+    case cnt[o] > 0:
+        cov[o] = ys[r] - ys[l]
+    case r-l == 1:
+        cov[o] = 0
+    default:
+        cov[o] = cov[2*o] + cov[2*o+1]
+    }
+}
+
+// rects[i] = {x1, y1, x2, y2} with x1 < x2 and y1 < y2
+func unionArea(rects [][4]int) int {
+    ys = ys[:0]
+    var ev [][4]int // {x, v, leafLo, leafHi}
+    for _, r := range rects {
+        if r[0] < r[2] && r[1] < r[3] {
+            ys = append(ys, r[1], r[3])
+        }
+    }
+    slices.Sort(ys)
+    ys = slices.Compact(ys)
+    if len(ys) < 2 {
+        return 0
+    }
+    m := len(ys) - 1
+    cnt, cov = make([]int, 4*m), make([]int, 4*m)
+    for _, r := range rects {
+        if r[0] < r[2] && r[1] < r[3] {
+            a, b := sort.SearchInts(ys, r[1]), sort.SearchInts(ys, r[3])
+            ev = append(ev, [4]int{r[0], 1, a, b}, [4]int{r[2], -1, a, b})
+        }
+    }
+    slices.SortFunc(ev, func(u, v [4]int) int { return u[0] - v[0] })
+    area, prev := 0, ev[0][0]
+    for _, e := range ev {
+        area += cov[1] * (e[0] - prev) // covered length times strip width
+        update(1, 0, m, e[2], e[3], e[1])
+        prev = e[0]
+    }
+    return area
+}
 
 ### voronoi
 --idea
@@ -1883,6 +2513,52 @@ int nearestSite(const vector<pair<int,int>>& sites, int qx, int qy) {
         if (dist2(sites[i].first, sites[i].second, qx, qy) < dist2(sites[best].first, sites[best].second, qx, qy)) best = i;
     return best;
 }
+--go
+// keep the part of the convex polygon where a*x + b*y <= c
+func clip(poly [][2]float64, a, b, c float64) [][2]float64 {
+    var res [][2]float64
+    for i, p := range poly {
+        q := poly[(i+1)%len(poly)]
+        fp, fq := a*p[0]+b*p[1]-c, a*q[0]+b*q[1]-c
+        if fp <= 0 {
+            res = append(res, p)
+        }
+        if (fp < 0 && fq > 0) || (fp > 0 && fq < 0) { // the edge crosses the cut line
+            t := fp / (fp - fq)
+            res = append(res, [2]float64{p[0] + (q[0]-p[0])*t, p[1] + (q[1]-p[1])*t})
+        }
+    }
+    return res
+}
+
+// Voronoi cell of site i inside the box (box corners counter-clockwise)
+func voronoiCell(sites [][2]int, i int, box [][2]float64) [][2]float64 {
+    poly := append([][2]float64(nil), box...)
+    s := sites[i]
+    for _, t := range sites {
+        if len(poly) == 0 {
+            break
+        }
+        if t == s { // duplicate site
+            continue
+        }
+        a, b := float64(t[0]-s[0]), float64(t[1]-s[1])
+        c := float64(t[0]*t[0]+t[1]*t[1]-s[0]*s[0]-s[1]*s[1]) / 2
+        poly = clip(poly, a, b, c) // keep the side closer to s
+    }
+    return poly
+}
+
+// index of the site nearest to (qx, qy): which cell the point is in
+func nearestSite(sites [][2]int, qx, qy int) int {
+    best := 0
+    for i := 1; i < len(sites); i++ {
+        if dist2(sites[i][0], sites[i][1], qx, qy) < dist2(sites[best][0], sites[best][1], qx, qy) {
+            best = i
+        }
+    }
+    return best
+}
 
 ### delaunay
 --idea
@@ -2009,6 +2685,64 @@ vector<Tri> delaunay(const vector<pair<long long,long long>>& pts) {
             res.push_back(t);
     return res;
 }
+--go
+import "math"
+
+// in-circle test for a counter-clockwise triangle: true if p is strictly inside its circumcircle
+func inCircle(a, b, c, p [2]float64) bool {
+    ax, ay, bx, by, cx, cy := a[0]-p[0], a[1]-p[1], b[0]-p[0], b[1]-p[1], c[0]-p[0], c[1]-p[1]
+    det := (ax*ax+ay*ay)*(bx*cy-cx*by) -
+        (bx*bx+by*by)*(ax*cy-cx*ay) +
+        (cx*cx+cy*cy)*(ax*by-bx*ay)
+    return det > 1e-9
+}
+
+// returns triangles as index triples into pts (counter-clockwise); pts must be distinct
+func delaunay(pts [][2]int) [][3]int {
+    n := len(pts)
+    P := make([][2]float64, n, n+3)
+    big := 0.0
+    for i, q := range pts {
+        P[i] = [2]float64{float64(q[0]), float64(q[1])}
+        big = max(big, math.Abs(P[i][0]), math.Abs(P[i][1]))
+    }
+    big = 100 * (big + 1)
+    P = append(P, [2]float64{-big, -big}, [2]float64{big, -big}, [2]float64{0, big}) // super-triangle
+    tris := [][3]int{{n, n + 1, n + 2}}
+    for i := 0; i < n; i++ {
+        var keep, bad [][3]int
+        for _, t := range tris {
+            if inCircle(P[t[0]], P[t[1]], P[t[2]], P[i]) {
+                bad = append(bad, t)
+            } else {
+                keep = append(keep, t)
+            }
+        }
+        edges := map[[2]int]bool{} // directed edges of the bad triangles
+        for _, t := range bad {
+            for k := 0; k < 3; k++ {
+                edges[[2]int{t[k], t[(k+1)%3]}] = true
+            }
+        }
+        for _, t := range bad {
+            for k := 0; k < 3; k++ {
+                u, v := t[k], t[(k+1)%3]
+                if !edges[[2]int{v, u}] { // boundary edge of the hole
+                    keep = append(keep, [3]int{u, v, i})
+                }
+            }
+        }
+        tris = keep
+    }
+    var res [][3]int
+    for _, t := range tris {
+        if t[0] < n && t[1] < n && t[2] < n &&
+            orient(pts[t[0]][0], pts[t[0]][1], pts[t[1]][0], pts[t[1]][1], pts[t[2]][0], pts[t[2]][1]) > 0 {
+            res = append(res, t)
+        }
+    }
+    return res
+}
 
 ### triang
 --idea
@@ -2127,6 +2861,56 @@ vector<array<int,3>> triangulate(const vector<long long>& x, const vector<long l
     res.push_back({idx[0], idx[1], idx[2]});
     return res;
 }
+--go
+import "slices"
+
+// triangulate a simple polygon (either direction); returns index triples, ok false if no ear is found
+func triangulate(x, y []int) (res [][3]int, ok bool) {
+    n := len(x)
+    idx := make([]int, n)
+    ccw := polygonArea2(x, y) > 0 // reverse a clockwise polygon
+    for i := range idx {
+        idx[i] = i
+        if !ccw {
+            idx[i] = n - 1 - i
+        }
+    }
+    for len(idx) > 3 {
+        m, cut := len(idx), false
+        for k := 0; k < m && !cut; k++ {
+            a, b, c := idx[(k+m-1)%m], idx[k], idx[(k+1)%m]
+            cr := orient(x[a], y[a], x[b], y[b], x[c], y[c])
+            if cr < 0 { // reflex corner, never an ear
+                continue
+            }
+            ear := true
+            if cr > 0 {
+                for _, q := range idx {
+                    if q == a || q == b || q == c {
+                        continue
+                    }
+                    if orient(x[a], y[a], x[b], y[b], x[q], y[q]) >= 0 && orient(x[b], y[b], x[c], y[c], x[q], y[q]) >= 0 &&
+                        orient(x[c], y[c], x[a], y[a], x[q], y[q]) >= 0 {
+                        ear = false
+                        break
+                    }
+                }
+            }
+            if !ear {
+                continue
+            }
+            if cr > 0 { // cr == 0: flat corner, drop silently
+                res = append(res, [3]int{a, b, c})
+            }
+            idx = slices.Delete(idx, k, k+1)
+            cut = true
+        }
+        if !cut {
+            return nil, false
+        }
+    }
+    return append(res, [3]int{idx[0], idx[1], idx[2]}), true
+}
 
 ### geomdual
 --idea
@@ -2204,4 +2988,31 @@ vector<pair<long long,long long>> upperEnvelope(const vector<pair<long long,long
     }
     return h;
 }
+--go
+import (
+    "maps"
+    "slices"
+)
 
+// lines are {m, c} for y = m*x + c. Returns the lines of the upper envelope, by increasing slope.
+func upperEnvelope(lines [][2]int) [][2]int {
+    best := map[int]int{} // per slope keep the highest c
+    for _, l := range lines {
+        if c, ok := best[l[0]]; !ok || l[1] > c {
+            best[l[0]] = l[1]
+        }
+    }
+    var h [][2]int
+    for _, m := range slices.Sorted(maps.Keys(best)) {
+        p := [2]int{m, best[m]}
+        for len(h) >= 2 {
+            s1, s2 := h[len(h)-2], h[len(h)-1]
+            if cross(s2[0]-s1[0], s2[1]-s1[1], p[0]-s1[0], p[1]-s1[1]) < 0 {
+                break // s2 is on top somewhere
+            }
+            h = h[:len(h)-1]
+        }
+        h = append(h, p)
+    }
+    return h
+}

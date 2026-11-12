@@ -66,6 +66,39 @@ int bestMove(int pile) {                              // Max to move: pick the m
     }
     return move;
 }
+--go
+func value(pile int, maximizing bool) int {
+    if pile == 0 { // the player who just moved took the last stone and won
+        if maximizing {
+            return -1
+        }
+        return 1
+    }
+    best := 2
+    if maximizing {
+        best = -2
+    }
+    for take := 1; take <= 3 && take <= pile; take++ {
+        v := value(pile-take, !maximizing) // opponent moves next, so flip the level
+        if maximizing {
+            best = max(best, v)
+        } else {
+            best = min(best, v)
+        }
+    }
+    return best
+}
+
+// Max to move: pick the move with the highest value
+func bestMove(pile int) int {
+    move, bestVal := 1, -2
+    for take := 1; take <= 3 && take <= pile; take++ {
+        if v := value(pile-take, false); v > bestVal {
+            bestVal, move = v, take
+        }
+    }
+    return move
+}
 
 ### alphabeta
 --idea
@@ -126,6 +159,34 @@ int alphaBeta(int pile, bool maximizing, int alpha = -2, int beta = 2) {
         if (alpha >= beta) break;                        // cutoff: the player above will never allow this position
     }
     return best;
+}
+--go
+// call: alphaBeta(pile, true, -2, 2)
+func alphaBeta(pile int, maximizing bool, alpha, beta int) int {
+    if pile == 0 { // previous mover took the last stone
+        if maximizing {
+            return -1
+        }
+        return 1
+    }
+    best := 2
+    if maximizing {
+        best = -2
+    }
+    for take := 1; take <= 3 && take <= pile; take++ {
+        v := alphaBeta(pile-take, !maximizing, alpha, beta)
+        if maximizing {
+            best = max(best, v)
+            alpha = max(alpha, best)
+        } else {
+            best = min(best, v)
+            beta = min(beta, best)
+        }
+        if alpha >= beta { // cutoff: the player above will never allow this position
+            break
+        }
+    }
+    return best
 }
 
 ### mcts
@@ -256,7 +317,68 @@ int mcts(int pile, int iters) {            // pile >= 1, player 0 to move
     for (Node* c : root->kids) if (c->n > best->n) best = c;           // most visited child
     return best->move;
 }
-### pagerank
+--go
+// needs math
+type Node struct {
+    pile, mover, move, n int
+    w                    float64
+    parent               *Node
+    kids                 []*Node
+    untried              []int
+}
+
+func newNode(pile, mover int, parent *Node, move int) *Node {
+    nd := &Node{pile: pile, mover: mover, parent: parent, move: move}
+    for t := 1; t <= 3 && t <= pile; t++ {
+        nd.untried = append(nd.untried, t)
+    }
+    return nd
+}
+
+func mcts(pile, iters int) int { // pile >= 1, player 0 to move
+    root := newNode(pile, 1, nil, 0)
+    for it := 0; it < iters; it++ {
+        node := root
+        for len(node.untried) == 0 && len(node.kids) > 0 { // selection by UCT
+            var pick *Node
+            bestScore := math.Inf(-1)
+            for _, c := range node.kids {
+                s := c.w/float64(c.n) + 1.4*math.Sqrt(math.Log(float64(node.n))/float64(c.n))
+                if s > bestScore {
+                    bestScore, pick = s, c
+                }
+            }
+            node = pick
+        }
+        if len(node.untried) > 0 { // expansion
+            i := randInt(0, len(node.untried)-1) // piece u-rand
+            m := node.untried[i]
+            node.untried = append(node.untried[:i], node.untried[i+1:]...)
+            child := newNode(node.pile-m, 1-node.mover, node, m)
+            node.kids = append(node.kids, child)
+            node = child
+        }
+        p, turn := node.pile, 1-node.mover // simulation
+        for p > 0 {
+            p -= randInt(1, min(3, p))
+            turn = 1 - turn
+        }
+        winner := 1 - turn // the one who took the last stone
+        for x := node; x != nil; x = x.parent { // backpropagation
+            x.n++
+            if x.mover == winner {
+                x.w++
+            }
+        }
+    }
+    best := root.kids[0]
+    for _, c := range root.kids {
+        if c.n > best.n { // most visited child
+            best = c
+        }
+    }
+    return best.move
+}### pagerank
 --idea
 PageRank scores pages by who links to them, with the twist that a link from an important page counts for more. Imagine a person who browses at random: on each page they click one of its links at random, and now and then (with probability 0.15) they get bored and jump to a random page. After a very long time, the share of the time they spend on each page is its PageRank.
 That share can be found without simulating anyone. Start by giving every page an equal score. Then repeat: every page splits its current score equally among the pages it links to, and each page's new score is the sum of what it receives (mixed with the random jump). The scores settle down to a fixed point after a few dozen rounds. This repeated multiplication is called power iteration.
@@ -326,6 +448,33 @@ vector<double> pageRank(const vector<vector<int>>& adj, double d = 0.85, int rou
         rank = next;
     }
     return rank;
+}
+--go
+func pageRank(adj [][]int, d float64, rounds int) []float64 {
+    n := len(adj)
+    rank := make([]float64, n)
+    for i := range rank {
+        rank[i] = 1.0 / float64(n) // start equal
+    }
+    for r := 0; r < rounds; r++ {
+        next := make([]float64, n)
+        for i := range next {
+            next[i] = (1 - d) / float64(n) // the random-jump share
+        }
+        for u, out := range adj {
+            if len(out) == 0 { // dangling page: spread its score over everyone
+                for v := range next {
+                    next[v] += d * rank[u] / float64(n)
+                }
+            } else {
+                for _, v := range out { // split score over out-links
+                    next[v] += d * rank[u] / float64(len(out))
+                }
+            }
+        }
+        rank = next
+    }
+    return rank
 }
 
 ### kmeans
@@ -421,8 +570,55 @@ pair<vector<vector<double>>, vector<int>> kmeans(const vector<vector<double>>& p
     }
     return {c, label};
 }
-
-### knn
+--go
+// needs math
+// label must be filled with -1 before the first call
+func kmeans(pts [][]float64, k, maxRounds int, label []int) [][]float64 {
+    n, dim := len(pts), len(pts[0])
+    c := make([][]float64, k)
+    for j := range c {
+        c[j] = append([]float64{}, pts[j]...) // start: the first k points
+    }
+    for round := 0; round < maxRounds; round++ {
+        changed := false
+        for i := 0; i < n; i++ { // assignment: nearest centre
+            best, bd := 0, math.MaxFloat64
+            for j := 0; j < k; j++ {
+                d := 0.0
+                for x := 0; x < dim; x++ {
+                    d += (pts[i][x] - c[j][x]) * (pts[i][x] - c[j][x])
+                }
+                if d < bd {
+                    bd, best = d, j
+                }
+            }
+            if label[i] != best {
+                label[i], changed = best, true
+            }
+        }
+        if !changed && round > 0 {
+            break
+        }
+        sum, cnt := make([][]float64, k), make([]int, k)
+        for j := range sum {
+            sum[j] = make([]float64, dim)
+        }
+        for i := 0; i < n; i++ { // update: move each centre to the mean
+            cnt[label[i]]++
+            for x := 0; x < dim; x++ {
+                sum[label[i]][x] += pts[i][x]
+            }
+        }
+        for j := 0; j < k; j++ {
+            if cnt[j] > 0 {
+                for x := 0; x < dim; x++ {
+                    c[j][x] = sum[j][x] / float64(cnt[j])
+                }
+            }
+        }
+    }
+    return c
+}### knn
 --uses
 u-dist2
 u-sortidx
@@ -481,6 +677,24 @@ int classify(const vector<int>& xs, const vector<int>& ys, const vector<int>& la
     for (int j = 0; j < k && j < (int)order.size(); j++)    // ties go to the nearest neighbour's label
         if (votes[labels[order[j]]] == top) return labels[order[j]];
     return -1;
+}
+--go
+func classify(xs, ys, labels []int, qx, qy, k int) int {
+    d := make([]int, len(xs))
+    for i := range xs {
+        d[i] = dist2(xs[i], ys[i], qx, qy) // squared distance
+    }
+    order := sortIndices(d) // nearest first
+    votes := map[int]int{}
+    bestLabel, bestCount := labels[order[0]], 0
+    for j := 0; j < k && j < len(order); j++ {
+        lab := labels[order[j]]
+        votes[lab]++
+        if votes[lab] > bestCount {
+            bestLabel, bestCount = lab, votes[lab]
+        }
+    }
+    return bestLabel
 }
 
 ### anneal
@@ -551,6 +765,26 @@ double anneal(function<double(double)> f, double start, int steps) {
         T *= 0.999;                                         // cool down
     }
     return best;
+}
+--go
+// needs math and math/rand
+func anneal(f func(float64) float64, start float64, steps int) float64 {
+    x, fx := start, f(start)
+    best, fbest := x, fx
+    T := 10.0
+    for i := 0; i < steps; i++ {
+        y := x + rand.NormFloat64()*0.5 // neighbour: a small random nudge
+        fy := f(y)
+        delta := fy - fx
+        if delta <= 0 || float64(randInt(0, 999999))/1e6 < math.Exp(-delta/T) { // accept worse moves while T is high
+            x, fx = y, fy
+            if fx < fbest {
+                best, fbest = x, fx
+            }
+        }
+        T *= 0.999 // cool down
+    }
+    return best
 }
 ### genetic
 --uses
@@ -656,6 +890,71 @@ vector<int> genetic(const vector<int>& target, int popSize, int gens, double mut
         pop = next;
     }
     return pop[fittest()];
+}
+--go
+func genetic(target []int, popSize, gens int, mut float64) []int {
+    n := len(target)
+    fit := func(g []int) int { // how many bits match the target
+        s := 0
+        for i := range g {
+            if g[i] == target[i] {
+                s++
+            }
+        }
+        return s
+    }
+    fittest := func(pop [][]int) []int {
+        best := pop[0]
+        for _, g := range pop {
+            if fit(g) > fit(best) {
+                best = g
+            }
+        }
+        return best
+    }
+    pop := make([][]int, popSize)
+    for p := range pop {
+        pop[p] = make([]int, n)
+        for i := range pop[p] {
+            pop[p][i] = randInt(0, 1)
+        }
+    }
+    for gen := 0; gen < gens; gen++ {
+        best := fittest(pop)
+        if fit(best) == n {
+            return best
+        }
+        next := make([][]int, popSize)
+        next[0] = append([]int{}, best...) // elitism
+        for c := 1; c < popSize; c++ {
+            a, b := tournament(pop, fit), tournament(pop, fit)
+            cut := randInt(1, n-1) // crossover point
+            child := make([]int, n)
+            for i := range child {
+                child[i] = b[i]
+                if i < cut {
+                    child[i] = a[i]
+                }
+                if randInt(0, 9999) < int(mut*10000) {
+                    child[i] ^= 1 // mutation
+                }
+            }
+            next[c] = child
+        }
+        pop = next
+    }
+    return fittest(pop)
+}
+
+// the fittest of 3 random candidates
+func tournament(pop [][]int, fit func([]int) int) []int {
+    best := pop[randInt(0, len(pop)-1)]
+    for t := 0; t < 2; t++ {
+        if c := pop[randInt(0, len(pop)-1)]; fit(c) > fit(best) {
+            best = c
+        }
+    }
+    return best
 }
 
 ### lz
@@ -795,6 +1094,65 @@ string lzDecode(const vector<array<int, 3>>& tokens) {
     }
     return out;
 }
+--go
+// token = {offset, length, char}; length 0 means a literal character
+func lzEncode(s string, window int) [][3]int {
+    var out [][3]int
+    table := map[int][]int{} // hash of a 3-char piece -> earlier positions
+    h, pw := buildHash(s)    // piece u-hashroll: prefix hashes
+    i, n := 0, len(s)
+    for i < n {
+        bestLen, bestOff := 0, 0
+        if i+3 <= n {
+            cand := table[piece(h, pw, i)]
+            for c := len(cand) - 1; c >= 0; c-- { // most recent first
+                j := cand[c]
+                if i-j > window {
+                    break
+                }
+                l := 0
+                for i+l < n && s[j+l] == s[i+l] { // may overlap position i
+                    l++
+                }
+                if l > bestLen {
+                    bestLen, bestOff = l, i-j
+                }
+            }
+        }
+        step := 1
+        if bestLen >= 3 {
+            out = append(out, [3]int{bestOff, bestLen, 0})
+            step = bestLen
+        } else {
+            out = append(out, [3]int{0, 0, int(s[i])})
+        }
+        for k := i; k < i+step && k+3 <= n; k++ {
+            hk := piece(h, pw, k)
+            table[hk] = append(table[hk], k)
+        }
+        i += step
+    }
+    return out
+}
+
+// hash of s[p:p+3]
+func piece(h, pw []int, p int) int {
+    return ((h[p+3]-h[p]*pw[3])%M + M) % M
+}
+
+func lzDecode(tokens [][3]int) string {
+    var sb []byte
+    for _, t := range tokens {
+        if t[1] == 0 {
+            sb = append(sb, byte(t[2]))
+        } else {
+            for k := 0; k < t[1]; k++ { // one char at a time
+                sb = append(sb, sb[len(sb)-t[0]])
+            }
+        }
+    }
+    return string(sb)
+}
 
 ### reservoir
 --uses
@@ -856,6 +1214,20 @@ vector<typename iterator_traits<It>::value_type> sample(It first, It last, int k
     }
     return res;
 }
+--go
+func sample(stream <-chan int, k int) []int {
+    res := make([]int, 0, k)
+    seen := 0
+    for x := range stream {
+        seen++
+        if seen <= k { // fill the reservoir first
+            res = append(res, x)
+        } else if j := randInt(0, seen-1); j < k { // uniform in 0 .. seen-1: kept with probability k/seen
+            res[j] = x
+        }
+    }
+    return res
+}
 
 ### shuffle
 --uses
@@ -894,6 +1266,13 @@ vector<int> deal(vector<int> deck, int k, mt19937& rng) {   // a random hand of 
     shuffleArray(deck, rng);                                // the piece: Fisher-Yates, i from n-1 down to 1, j in 0..i
     deck.resize(k);                                         // the first k are a uniform sample without replacement
     return deck;
+}
+--go
+// needs math/rand: rnd := rand.New(rand.NewSource(seed))
+func deal(deck []int, k int, rnd *rand.Rand) []int { // a random hand of k cards
+    hand := append([]int{}, deck...)
+    shuffle(hand, rnd) // the piece: Fisher-Yates, i from n-1 down to 1, j in 0..i
+    return hand[:k]    // the first k are a uniform sample without replacement
 }
 
 ### crc
@@ -959,6 +1338,30 @@ uint32_t crc32(const string& data) {                              // call buildC
     for (unsigned char b : data) crc = crcTable[(crc ^ b) & 0xFF] ^ (crc >> 8);   // one byte per lookup
     return crc ^ 0xFFFFFFFFu;                                     // final flip
 }
+--go
+var table [256]uint32
+
+func init() {
+    for n := range table {
+        c := uint32(n)
+        for k := 0; k < 8; k++ { // one bit of division
+            if getBit(int(c), 0) {
+                c = c>>1 ^ 0xEDB88320
+            } else {
+                c >>= 1
+            }
+        }
+        table[n] = c
+    }
+}
+
+func crc32(data []byte) uint32 {
+    crc := uint32(0xFFFFFFFF) // start as all ones
+    for _, b := range data {
+        crc = table[byte(crc)^b] ^ crc>>8 // one byte per lookup
+    }
+    return crc ^ 0xFFFFFFFF // final flip
+}
 
 ### gradient
 --idea
@@ -1011,6 +1414,24 @@ vector<double> gradientDescent(function<vector<double>(const vector<double>&)> g
         for (size_t i = 0; i < x.size(); i++) x[i] -= lr * g[i];   // step downhill
     }
     return x;
+}
+--go
+func gradientDescent(grad func([]float64) []float64, x0 []float64, lr float64, steps int) []float64 {
+    x := append([]float64{}, x0...)
+    for s := 0; s < steps; s++ {
+        g := grad(x) // slopes at the current point
+        norm := 0.0
+        for _, v := range g {
+            norm += v * v
+        }
+        if norm < 1e-18 { // flat ground: stop
+            break
+        }
+        for i := range x {
+            x[i] -= lr * g[i] // step downhill
+        }
+    }
+    return x
 }
 
 ### lfu
@@ -1149,6 +1570,70 @@ struct LFUCache {
         minFreq = 1;
     }
 };
+--go
+// needs container/list
+type LFUCache struct {
+    cap, minFreq int
+    val, freq    map[int]int
+    buckets      map[int]*list.List     // count -> keys, oldest first
+    pos          map[int]*list.Element // key -> its place in its bucket
+}
+
+func newLFU(cap int) *LFUCache {
+    return &LFUCache{cap: cap, val: map[int]int{}, freq: map[int]int{},
+        buckets: map[int]*list.List{}, pos: map[int]*list.Element{}}
+}
+
+func (c *LFUCache) add(k, f int) { // put key k in the bucket for count f, as the newest
+    if c.buckets[f] == nil {
+        c.buckets[f] = list.New()
+    }
+    c.pos[k] = c.buckets[f].PushBack(k)
+    c.freq[k] = f
+}
+
+func (c *LFUCache) drop(k int) { // take key k out of its bucket
+    f := getOrDefault(c.freq, k, 0) // piece u-hget
+    c.buckets[f].Remove(c.pos[k])
+    if c.buckets[f].Len() == 0 {
+        delete(c.buckets, f)
+        if c.minFreq == f {
+            c.minFreq = f + 1
+        }
+    }
+}
+
+func (c *LFUCache) get(k int) int {
+    v, ok := c.val[k]
+    if !ok {
+        return -1
+    }
+    f := c.freq[k]
+    c.drop(k)
+    c.add(k, f+1)
+    return v
+}
+
+func (c *LFUCache) put(k, v int) {
+    if c.cap == 0 {
+        return
+    }
+    if _, ok := c.val[k]; ok {
+        c.val[k] = v
+        c.get(k) // counts as a use
+        return
+    }
+    if len(c.val) >= c.cap { // evict: oldest key among the least used
+        old := c.buckets[c.minFreq].Front().Value.(int)
+        c.drop(old)
+        delete(c.val, old)
+        delete(c.freq, old)
+        delete(c.pos, old)
+    }
+    c.val[k] = v
+    c.add(k, 1)
+    c.minFreq = 1
+}
 
 ### ratelimit
 --idea
@@ -1207,3 +1692,23 @@ struct TokenBucket {
         return false;
     }
 };
+--go
+// needs math
+type TokenBucket struct {
+    capacity, rate float64 // rate: tokens added per second
+    tokens, last   float64
+}
+
+func newTokenBucket(capacity, rate float64) *TokenBucket {
+    return &TokenBucket{capacity: capacity, rate: rate, tokens: capacity}
+}
+
+func (b *TokenBucket) allow(now, cost float64) bool {
+    b.tokens = math.Min(b.capacity, b.tokens+(now-b.last)*b.rate) // lazy refill, capped
+    b.last = now
+    if b.tokens >= cost {
+        b.tokens -= cost
+        return true
+    }
+    return false
+}

@@ -129,6 +129,56 @@ struct BTreeIndex {
 
     bool containsHash(int key) const { return hash.count(key) > 0; }   // exact match in one probe
 };
+--go
+import "sort"
+
+type BTreeIndex struct {
+	B         int
+	levels    [][][]int   // levels[0] = leaf pages; the last level is the root page
+	hash      map[int]int // hash index: key -> row position
+	pagesRead int
+}
+
+func newBTreeIndex(sorted []int, B int) *BTreeIndex {
+	t := &BTreeIndex{B: B, hash: map[int]int{}}
+	for i, k := range sorted {
+		t.hash[k] = i
+	}
+	cur := sorted
+	for {
+		var pages [][]int
+		var firsts []int
+		for i := 0; i < len(cur); i += B {
+			pages = append(pages, cur[i:min(i+B, len(cur))])
+			firsts = append(firsts, cur[i]) // signpost for the level above
+		}
+		t.levels = append(t.levels, pages)
+		if len(pages) == 1 {
+			break
+		}
+		cur = firsts
+	}
+	return t
+}
+
+func (t *BTreeIndex) contains(key int) bool { // B-tree descent, one page per level
+	page := 0
+	for lv := len(t.levels) - 1; lv >= 0; lv-- {
+		keys := t.levels[lv][page]
+		t.pagesRead++
+		idx := sort.Search(len(keys), func(i int) bool { return keys[i] > key }) - 1 // last entry <= key
+		if lv == 0 {
+			return idx >= 0 && keys[idx] == key
+		}
+		page = page*t.B + max(idx, 0) // child page number
+	}
+	return false
+}
+
+func (t *BTreeIndex) containsHash(key int) bool { // exact match in one probe
+	_, ok := t.hash[key]
+	return ok
+}
 
 ### lsm
 --idea
@@ -349,6 +399,116 @@ struct LSM {
         if (!merged.empty()) tables.emplace_back(merged);
     }
 };
+--go
+import "sort"
+
+type entry struct {
+	v    string
+	dead bool // tombstone: a deleted key
+}
+
+type bloom struct{ bits []bool }
+
+func (b *bloom) spots(key string) [3]int {
+	h := uint64(0xcbf29ce484222325)
+	for i := 0; i < len(key); i++ {
+		h ^= uint64(key[i])
+		h *= 0x100000001b3
+	}
+	h ^= h >> 29
+	h *= 0xbf58476d1ce4e5b9
+	h ^= h >> 32
+	a, step := h&0x7fffffff, (h>>32&0x7fffffff)|1
+	var r [3]int
+	for i := range r {
+		r[i] = int((a + uint64(i)*step) % uint64(len(b.bits)))
+	}
+	return r
+}
+func (b *bloom) add(key string) {
+	for _, p := range b.spots(key) {
+		b.bits[p] = true
+	}
+}
+func (b *bloom) mightHave(key string) bool {
+	for _, p := range b.spots(key) {
+		if !b.bits[p] {
+			return false
+		}
+	}
+	return true
+}
+
+type table struct { // one immutable sorted file plus its Bloom filter
+	keys  []string
+	vals  []entry
+	bloom bloom
+}
+
+func newTable(m map[string]entry) *table {
+	t := &table{bloom: bloom{make([]bool, 1024)}}
+	for k := range m {
+		t.keys = append(t.keys, k)
+	}
+	sort.Strings(t.keys)
+	for _, k := range t.keys {
+		t.vals = append(t.vals, m[k])
+		t.bloom.add(k)
+	}
+	return t
+}
+
+type LSM struct {
+	mem    map[string]entry // memtable (sorted when flushed)
+	tables []*table         // oldest first
+	limit  int
+}
+
+func newLSM(limit int) *LSM { return &LSM{mem: map[string]entry{}, limit: limit} }
+
+func (l *LSM) put(k, v string) { l.set(k, entry{v: v}) }
+func (l *LSM) del(k string)    { l.set(k, entry{dead: true}) }
+func (l *LSM) set(k string, e entry) {
+	l.mem[k] = e
+	if len(l.mem) >= l.limit {
+		l.tables = append(l.tables, newTable(l.mem))
+		l.mem = map[string]entry{}
+	}
+}
+
+func (l *LSM) get(k string) (string, bool) {
+	if e, ok := l.mem[k]; ok {
+		return e.v, !e.dead
+	}
+	for t := len(l.tables) - 1; t >= 0; t-- { // newest first
+		tb := l.tables[t]
+		if !tb.bloom.mightHave(k) { // definitely absent: skip the file
+			continue
+		}
+		if i := sort.SearchStrings(tb.keys, k); i < len(tb.keys) && tb.keys[i] == k {
+			return tb.vals[i].v, !tb.vals[i].dead
+		}
+	}
+	return "", false
+}
+
+func (l *LSM) compact() { // merge every table, newest wins, drop tombstones
+	merged := map[string]entry{}
+	for _, tb := range l.tables { // oldest first, so newer entries overwrite
+		for i, k := range tb.keys {
+			merged[k] = tb.vals[i]
+		}
+	}
+	for k, e := range merged {
+		if e.dead {
+			delete(merged, k)
+		}
+	}
+	l.tables = nil
+	if len(merged) > 0 {
+		l.tables = []*table{newTable(merged)}
+	}
+}
 
 ### queryplan
 --idea
@@ -442,6 +602,49 @@ double bestJoinOrder(const vector<double>& card, const vector<vector<double>>& s
     for (int m = full; m; m ^= 1 << last[m]) order.push_back(last[m]);   // walk the choices backwards
     reverse(order.begin(), order.end());
     return cost[full];
+}
+--go
+import "math"
+
+// card[i]: estimated rows; sel[i][j]: join selectivity (1.0 = no predicate). Returns the cost and the join order.
+func bestJoinOrder(card []float64, sel [][]float64) (float64, []int) {
+	n := len(card)
+	full := 1<<n - 1
+	size := make([]float64, 1<<n)
+	cost := make([]float64, 1<<n)
+	last := make([]int, 1<<n)
+	for m := range cost {
+		cost[m] = math.Inf(1)
+	}
+	for t := 0; t < n; t++ {
+		size[1<<t], cost[1<<t], last[1<<t] = card[t], 0, t
+	}
+	for mask := 1; mask <= full; mask++ {
+		if mask&(mask-1) == 0 { // single table: already set
+			continue
+		}
+		for t := 0; t < n; t++ {
+			if mask>>t&1 == 0 {
+				continue
+			}
+			rest := mask ^ 1<<t
+			sz := size[rest] * card[t] // join table t onto the set rest
+			for j := 0; j < n; j++ {
+				if rest>>j&1 != 0 {
+					sz *= sel[t][j]
+				}
+			}
+			if c := cost[rest] + sz; c < cost[mask] {
+				cost[mask], size[mask], last[mask] = c, sz, t
+			}
+		}
+	}
+	order := make([]int, n)
+	for i, m := n-1, full; i >= 0; i-- { // walk the choices backwards
+		order[i] = last[m]
+		m ^= 1 << last[m]
+	}
+	return cost[full], order
 }
 
 ### joins
@@ -561,6 +764,69 @@ Rows mergeJoin(Rows A, Rows B) {
         }
     }
     return out;
+}
+--go
+import "sort"
+
+// rows are {key, payload}; results are {payloadA, payloadB}
+func nestedLoop(A, B [][2]int) [][2]int {
+	var out [][2]int
+	for _, a := range A {
+		for _, b := range B {
+			if a[0] == b[0] {
+				out = append(out, [2]int{a[1], b[1]})
+			}
+		}
+	}
+	return out
+}
+
+func hashJoin(A, B [][2]int) [][2]int {
+	table := map[int][]int{} // build on A
+	for _, a := range A {
+		table[a[0]] = append(table[a[0]], a[1])
+	}
+	var out [][2]int
+	for _, b := range B { // probe with B
+		for _, pa := range table[b[0]] {
+			out = append(out, [2]int{pa, b[1]})
+		}
+	}
+	return out
+}
+
+func mergeJoin(A, B [][2]int) [][2]int {
+	a := append([][2]int(nil), A...) // sort copies, leave the inputs alone
+	b := append([][2]int(nil), B...)
+	byKey := func(r [][2]int) { sort.Slice(r, func(i, j int) bool { return r[i][0] < r[j][0] }) }
+	byKey(a)
+	byKey(b)
+	var out [][2]int
+	i, j := 0, 0
+	for i < len(a) && j < len(b) {
+		switch {
+		case a[i][0] < b[j][0]:
+			i++
+		case a[i][0] > b[j][0]:
+			j++
+		default: // equal: pair the whole run on each side
+			k := a[i][0]
+			i2, j2 := i, j
+			for i2 < len(a) && a[i2][0] == k {
+				i2++
+			}
+			for j2 < len(b) && b[j2][0] == k {
+				j2++
+			}
+			for x := i; x < i2; x++ {
+				for y := j; y < j2; y++ {
+					out = append(out, [2]int{a[x][1], b[y][1]})
+				}
+			}
+			i, j = i2, j2
+		}
+	}
+	return out
 }
 
 ### txn
@@ -704,6 +970,80 @@ vector<int> serialOrder(int n, const vector<Op>& ops) {
     }
     return order.size() == (size_t)n ? order : vector<int>();
 }
+--go
+// waits[t] = transactions that t waits for. Returns the cycle (a deadlock) or nil.
+func findDeadlock(waits [][]int) []int {
+	color := make([]int, len(waits)) // 0 new, 1 on path, 2 done
+	var path []int
+	var dfs func(u int) []int
+	dfs = func(u int) []int {
+		color[u] = 1
+		path = append(path, u)
+		for _, v := range waits[u] {
+			if color[v] == 1 { // back edge: cycle from v to u
+				for i, x := range path {
+					if x == v {
+						return append([]int(nil), path[i:]...)
+					}
+				}
+			}
+			if color[v] == 0 {
+				if c := dfs(v); c != nil {
+					return c
+				}
+			}
+		}
+		color[u] = 2
+		path = path[:len(path)-1]
+		return nil
+	}
+	for s := range waits {
+		if color[s] == 0 {
+			if c := dfs(s); c != nil {
+				return c
+			}
+		}
+	}
+	return nil
+}
+
+// ops: {txn, isWrite (0/1), item}. Returns a serial order, or nil if not conflict serializable.
+func serialOrder(n int, ops [][3]int) []int {
+	adj := make([][]int, n)
+	indeg := make([]int, n)
+	seen := map[[2]int]bool{}
+	for i := range ops {
+		for j := i + 1; j < len(ops); j++ {
+			a, b := ops[i], ops[j]
+			conflict := a[0] != b[0] && a[2] == b[2] && (a[1] == 1 || b[1] == 1)
+			if conflict && !seen[[2]int{a[0], b[0]}] { // earlier op must stay before the later one
+				seen[[2]int{a[0], b[0]}] = true
+				adj[a[0]] = append(adj[a[0]], b[0])
+				indeg[b[0]]++
+			}
+		}
+	}
+	var q, order []int
+	for t := 0; t < n; t++ {
+		if indeg[t] == 0 {
+			q = append(q, t)
+		}
+	}
+	for len(q) > 0 { // Kahn's topological sort
+		u := q[0]
+		q = q[1:]
+		order = append(order, u)
+		for _, v := range adj[u] {
+			if indeg[v]--; indeg[v] == 0 {
+				q = append(q, v)
+			}
+		}
+	}
+	if len(order) == n {
+		return order
+	}
+	return nil
+}
 
 ### colstore
 --idea
@@ -794,6 +1134,42 @@ int andCount(const vector<uint64_t>& a, const vector<uint64_t>& b) {   // rows m
     int c = 0;
     for (size_t i = 0; i < a.size(); i++) c += __builtin_popcountll(a[i] & b[i]);
     return c;
+}
+--go
+import "math/bits"
+
+func rleEncode(col []int) [][2]int { // runs as {value, length}
+	var runs [][2]int
+	for _, v := range col {
+		if n := len(runs); n > 0 && runs[n-1][0] == v {
+			runs[n-1][1]++
+		} else {
+			runs = append(runs, [2]int{v, 1})
+		}
+	}
+	return runs
+}
+
+func filterEq(runs [][2]int, v, n int) []uint64 { // bitset of rows where column == v, built from runs
+	bitset := make([]uint64, (n+63)/64)
+	pos := 0
+	for _, r := range runs {
+		if r[0] == v {
+			for p := pos; p < pos+r[1]; p++ {
+				bitset[p>>6] |= 1 << (p & 63)
+			}
+		}
+		pos += r[1] // a non-matching run is skipped in one step
+	}
+	return bitset
+}
+
+func andCount(a, b []uint64) int { // rows matching both filters
+	c := 0
+	for i := range a {
+		c += bits.OnesCount64(a[i] & b[i])
+	}
+	return c
 }
 ### cache
 --idea
@@ -890,6 +1266,49 @@ struct Cache {
         return value;
     }
 };
+--go
+import "container/list"
+
+type item struct {
+	key, value int
+	expires    float64
+}
+
+type Cache struct {
+	capacity     int
+	ttl          float64
+	loader       func(int) int // the slow source
+	hits, misses int
+	data         map[int]*list.Element // hash table: key -> node
+	order        *list.List            // linked list, most recently used at the front
+}
+
+func newCache(capacity int, ttl float64, loader func(int) int) *Cache {
+	return &Cache{capacity: capacity, ttl: ttl, loader: loader, data: map[int]*list.Element{}, order: list.New()}
+}
+
+func (c *Cache) get(key int, now float64) int {
+	el, ok := c.data[key]
+	if ok {
+		c.order.MoveToFront(el) // any access makes it the most recent
+		if it := el.Value.(*item); it.expires > now {
+			c.hits++
+			return it.value
+		}
+	}
+	c.misses++
+	v := c.loader(key) // cache-aside: fetch from the source
+	if ok {            // expired entry: refresh it in place
+		*el.Value.(*item) = item{key, v, now + c.ttl}
+		return v
+	}
+	c.data[key] = c.order.PushFront(&item{key, v, now + c.ttl})
+	if c.order.Len() > c.capacity { // evict the least recently used
+		old := c.order.Remove(c.order.Back()).(*item)
+		delete(c.data, old.key)
+	}
+	return v
+}
 
 ### loadbal
 --idea
@@ -992,6 +1411,59 @@ int randomChoice(int n, int m, mt19937& rng) {
     vector<int> load(n, 0);
     for (int r = 0; r < m; r++) load[rng() % n]++;
     return *max_element(load.begin(), load.end());
+}
+--go
+import (
+	"container/heap"
+	"math/rand"
+)
+
+type servers [][2]int // {load, server}, a min-heap ordered by load then id
+
+func (s servers) Len() int           { return len(s) }
+func (s servers) Less(i, j int) bool { return s[i][0] < s[j][0] || s[i][0] == s[j][0] && s[i][1] < s[j][1] }
+func (s servers) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+func (s *servers) Push(x any)        { *s = append(*s, x.([2]int)) }
+func (s *servers) Pop() any          { o := *s; x := o[len(o)-1]; *s = o[:len(o)-1]; return x }
+
+func leastConnections(n, m int) int { // returns the maximum load after m requests
+	h := make(servers, n)
+	for i := range h {
+		h[i] = [2]int{0, i}
+	}
+	maxLoad := 0
+	for r := 0; r < m; r++ {
+		h[0][0]++ // the root is the least loaded server: give it the request
+		maxLoad = max(maxLoad, h[0][0])
+		heap.Fix(&h, 0) // sift the changed root back down
+	}
+	return maxLoad
+}
+
+func twoChoices(n, m int, rnd *rand.Rand) int { // power of two choices
+	load := make([]int, n)
+	maxLoad := 0
+	for r := 0; r < m; r++ {
+		a, b := rnd.Intn(n), rnd.Intn(n)
+		pick := b
+		if load[a] <= load[b] { // the less loaded of two random servers
+			pick = a
+		}
+		load[pick]++
+		maxLoad = max(maxLoad, load[pick])
+	}
+	return maxLoad
+}
+
+func randomChoice(n, m int, rnd *rand.Rand) int {
+	load := make([]int, n)
+	maxLoad := 0
+	for r := 0; r < m; r++ {
+		i := rnd.Intn(n)
+		load[i]++
+		maxLoad = max(maxLoad, load[i])
+	}
+	return maxLoad
 }
 
 ### sharding
@@ -1097,6 +1569,65 @@ double movedFraction(const vector<string>& keys, function<string(const string&)>
     int moved = 0;
     for (auto& k : keys) if (before(k) != after(k)) moved++;   // data that must be copied
     return (double)moved / keys.size();
+}
+--go
+import (
+	"fmt"
+	"sort"
+)
+
+func hash64(s string) uint64 { // FNV-1a, then a final mix
+	h := uint64(0xcbf29ce484222325)
+	for i := 0; i < len(s); i++ {
+		h ^= uint64(s[i])
+		h *= 0x100000001b3
+	}
+	h ^= h >> 30
+	h *= 0xbf58476d1ce4e5b9
+	h ^= h >> 27
+	h *= 0x94d049bb133111eb
+	return h ^ h>>31
+}
+
+type Ring struct {
+	pos   []uint64          // sorted positions on the ring
+	owner map[uint64]string // position -> shard
+}
+
+func buildRing(shards []string, vnodes int) *Ring {
+	r := &Ring{owner: map[uint64]string{}}
+	for _, s := range shards {
+		for i := 0; i < vnodes; i++ { // virtual nodes
+			p := hash64(fmt.Sprintf("%s#%d", s, i))
+			r.pos = append(r.pos, p)
+			r.owner[p] = s
+		}
+	}
+	sort.Slice(r.pos, func(i, j int) bool { return r.pos[i] < r.pos[j] })
+	return r
+}
+
+func routeRing(r *Ring, key string) string {
+	h := hash64(key)
+	i := sort.Search(len(r.pos), func(i int) bool { return r.pos[i] >= h }) // first position >= hash
+	if i == len(r.pos) {
+		i = 0 // wrap around
+	}
+	return r.owner[r.pos[i]]
+}
+
+func routeMod(shards []string, key string) string {
+	return shards[hash64(key)%uint64(len(shards))]
+}
+
+func movedFraction(keys []string, before, after func(string) string) float64 {
+	moved := 0
+	for _, k := range keys {
+		if before(k) != after(k) { // data that must be copied
+			moved++
+		}
+	}
+	return float64(moved) / float64(len(keys))
 }
 
 ### merkle
@@ -1252,6 +1783,72 @@ vector<int> diff(const vector<vector<u64>>& A, const vector<vector<u64>>& B, int
     sort(out.begin(), out.end());
     return out;
 }
+--go
+import "sort"
+
+const gold = 0x9E3779B97F4A7C15
+
+func mix(x uint64) uint64 { // 64-bit bit mixer (not cryptographic)
+	x ^= x >> 30
+	x *= 0xbf58476d1ce4e5b9
+	x ^= x >> 27
+	x *= 0x94d049bb133111eb
+	return x ^ x>>31
+}
+
+func leafHash(chunk string) uint64 {
+	h := uint64(0xcbf29ce484222325)
+	for i := 0; i < len(chunk); i++ {
+		h ^= uint64(chunk[i])
+		h *= 0x100000001b3
+	}
+	return mix(h)
+}
+
+func combine(a, b uint64) uint64 { return mix(a*gold ^ mix(b)) } // order sensitive
+
+func build(chunks []string) [][]uint64 { // levels[0] = leaves, last = {root}
+	cur := make([]uint64, len(chunks))
+	for i, c := range chunks {
+		cur[i] = leafHash(c)
+	}
+	levels := [][]uint64{cur}
+	for len(cur) > 1 {
+		next := make([]uint64, (len(cur)+1)/2)
+		for i := range next {
+			r := cur[2*i]
+			if 2*i+1 < len(cur) { // an odd node pairs with itself
+				r = cur[2*i+1]
+			}
+			next[i] = combine(cur[2*i], r)
+		}
+		levels = append(levels, next)
+		cur = next
+	}
+	return levels
+}
+
+// both trees have the same shape. Returns indices of differing chunks and the hash comparisons made.
+func diff(A, B [][]uint64) (out []int, compared int) {
+	stack := [][2]int{{len(A) - 1, 0}} // {level, index}: start at the root
+	for len(stack) > 0 {
+		t := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		compared++
+		if A[t[0]][t[1]] == B[t[0]][t[1]] { // identical subtree: skip it
+			continue
+		}
+		if t[0] == 0 { // a differing chunk
+			out = append(out, t[1])
+			continue
+		}
+		for c := 2 * t[1]; c <= 2*t[1]+1 && c < len(A[t[0]-1]); c++ {
+			stack = append(stack, [2]int{t[0] - 1, c})
+		}
+	}
+	sort.Ints(out)
+	return
+}
 
 ### dht
 --idea
@@ -1384,6 +1981,62 @@ pair<int, int> lookup(const Tables& tables, int start, int target, int k = 8) { 
     }
     return {shortlist[0], hops};
 }
+--go
+import (
+	"math/bits"
+	"math/rand"
+	"slices"
+)
+
+// tables[node] = contacts of that node. Returns the closest id found and the hops used.
+func lookup(tables map[int][]int, start, target, k int) (closest, hops int) {
+	byDist := func(a, b int) int { return (a ^ target) - (b ^ target) } // XOR distance
+	shortlist := closestKnown(tables, start, target, k)
+	asked := map[int]bool{start: true}
+	for {
+		next, found := 0, false
+		for _, c := range shortlist {
+			if !asked[c] { // closest peer not yet asked
+				next, found = c, true
+				break
+			}
+		}
+		if !found {
+			break
+		}
+		asked[next] = true
+		hops++
+		merged := append(slices.Clone(shortlist), closestKnown(tables, next, target, k)...)
+		slices.SortFunc(merged, byDist)
+		merged = slices.Compact(merged) // equal ids have equal distance, so they sit side by side
+		shortlist = merged[:min(k, len(merged))]
+	}
+	return shortlist[0], hops
+}
+
+func closestKnown(tables map[int][]int, node, target, k int) []int {
+	c := append(slices.Clone(tables[node]), node)
+	slices.SortFunc(c, func(a, b int) int { return (a ^ target) - (b ^ target) })
+	return c[:min(k, len(c))]
+}
+
+func buildTables(ids []int, nbits, k int, rnd *rand.Rand) map[int][]int {
+	tables := map[int][]int{}
+	for _, a := range ids {
+		bucket := make([][]int, nbits)
+		for _, b := range ids {
+			if b != a {
+				i := bits.Len(uint(a^b)) - 1 // highest differing bit
+				bucket[i] = append(bucket[i], b)
+			}
+		}
+		for _, bk := range bucket {
+			rnd.Shuffle(len(bk), func(i, j int) { bk[i], bk[j] = bk[j], bk[i] })
+			tables[a] = append(tables[a], bk[:min(k, len(bk))]...)
+		}
+	}
+	return tables
+}
 ### gossip
 --idea
 A gossip protocol spreads information through a group of machines the way a rumour spreads through people. A machine that learns something new tells a few randomly chosen peers each round. Those peers tell a few others, and so on. There is no central coordinator and no machine needs to know the whole group, yet the news reaches everyone quickly and the scheme keeps working when machines fail.
@@ -1491,6 +2144,57 @@ int gossipRounds(const vector<vector<int>>& adj, int start, int fanout, mt19937&
     }
     return rounds;
 }
+--go
+import "math/rand"
+
+func bfsDepth(adj [][]int, start int) int { // reference: fewest hops to the farthest node
+	dist := make([]int, len(adj))
+	for i := range dist {
+		dist[i] = -1
+	}
+	dist[start] = 0
+	q, depth := []int{start}, 0
+	for len(q) > 0 {
+		u := q[0]
+		q = q[1:]
+		for _, v := range adj[u] {
+			if dist[v] < 0 {
+				dist[v] = dist[u] + 1
+				depth = max(depth, dist[v])
+				q = append(q, v)
+			}
+		}
+	}
+	return depth
+}
+
+func gossipRounds(adj [][]int, start, fanout int, rnd *rand.Rand, maxRounds int) int {
+	n := len(adj)
+	informed := make([]bool, n)
+	informed[start] = true
+	count, rounds := 1, 0
+	for count < n {
+		if rounds++; rounds > maxRounds { // not connected, or unlucky
+			return -1
+		}
+		var fresh []int
+		for u := 0; u < n; u++ {
+			if !informed[u] || len(adj[u]) == 0 {
+				continue
+			}
+			for f := 0; f < fanout; f++ {
+				fresh = append(fresh, adj[u][rnd.Intn(len(adj[u]))]) // tell a random peer
+			}
+		}
+		for _, v := range fresh { // merge after the round
+			if !informed[v] {
+				informed[v] = true
+				count++
+			}
+		}
+	}
+	return rounds
+}
 
 ### ratelimiter
 --idea
@@ -1594,6 +2298,48 @@ struct SlidingCounter {
         return false;
     }
 };
+--go
+import "math"
+
+type SlidingLog struct {
+	limit  int
+	window float64
+	times  []float64 // accepted request times, oldest first
+}
+
+func (s *SlidingLog) allow(now float64) bool {
+	for len(s.times) > 0 && s.times[0] <= now-s.window { // left the window
+		s.times = s.times[1:]
+	}
+	if len(s.times) < s.limit {
+		s.times = append(s.times, now)
+		return true
+	}
+	return false
+}
+
+type SlidingCounter struct {
+	limit                int
+	window               float64
+	curStart, cur, prev float64
+}
+
+func (s *SlidingCounter) allow(now float64) bool {
+	start := math.Floor(now/s.window) * s.window // start of the current fixed window
+	if start != s.curStart {
+		s.prev = 0
+		if start == s.curStart+s.window { // adjacent window: it becomes the previous one
+			s.prev = s.cur
+		}
+		s.cur, s.curStart = 0, start
+	}
+	estimate := s.prev*(1-(now-start)/s.window) + s.cur // weighted count over the sliding window
+	if estimate < float64(s.limit) {
+		s.cur++
+		return true
+	}
+	return false
+}
 
 ### routing
 --idea
@@ -1733,6 +2479,83 @@ vector<vector<int>> rip(int n, const vector<Edge>& edges) {          // distance
     }
     return dist;
 }
+--go
+import "container/heap"
+
+const INF = 1_000_000_000
+
+type pq [][2]int // {distance, node}, a min-heap on distance
+
+func (p pq) Len() int           { return len(p) }
+func (p pq) Less(i, j int) bool { return p[i][0] < p[j][0] }
+func (p pq) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+func (p *pq) Push(x any)        { *p = append(*p, x.([2]int)) }
+func (p *pq) Pop() any          { o := *p; x := o[len(o)-1]; *p = o[:len(o)-1]; return x }
+
+// edges: {u, v, w}, undirected. Returns dist and the first router on each path.
+func ospf(n int, edges [][3]int, src int) (dist, hop []int) {
+	adj := make([][][2]int, n)
+	for _, e := range edges {
+		adj[e[0]] = append(adj[e[0]], [2]int{e[1], e[2]})
+		adj[e[1]] = append(adj[e[1]], [2]int{e[0], e[2]})
+	}
+	dist, hop = make([]int, n), make([]int, n)
+	for i := range dist {
+		dist[i], hop[i] = INF, -1
+	}
+	dist[src] = 0
+	h := &pq{{0, src}}
+	for h.Len() > 0 {
+		t := heap.Pop(h).([2]int)
+		u := t[1]
+		if t[0] > dist[u] { // stale entry
+			continue
+		}
+		for _, e := range adj[u] {
+			if dist[u]+e[1] < dist[e[0]] {
+				dist[e[0]] = dist[u] + e[1]
+				hop[e[0]] = hop[u] // first router on the path
+				if u == src {
+					hop[e[0]] = e[0]
+				}
+				heap.Push(h, [2]int{dist[e[0]], e[0]})
+			}
+		}
+	}
+	return
+}
+
+func rip(n int, edges [][3]int) [][]int { // distance vector: dist[u][dst]
+	dist := make([][]int, n)
+	for i := range dist {
+		dist[i] = make([]int, n)
+		for j := range dist[i] {
+			dist[i][j] = INF
+		}
+		dist[i][i] = 0
+	}
+	for round := 0; round < n-1; round++ {
+		changed := false
+		for _, e := range edges {
+			for dir := 0; dir < 2; dir++ {
+				u, v := e[0], e[1]
+				if dir == 1 {
+					u, v = v, u
+				}
+				for dst := 0; dst < n; dst++ { // u hears v's table
+					if dist[v][dst] < INF && e[2]+dist[v][dst] < dist[u][dst] {
+						dist[u][dst] = e[2] + dist[v][dst]
+						changed = true
+					}
+				}
+			}
+		}
+		if !changed {
+			break
+		}
+	}
+	return dist
+}
 
 ### tcp
 --idea
@@ -1816,6 +2639,34 @@ pair<int, int> goBackN(int total, int W, double loss, mt19937& rng) {
         base = expected;                                            // window slides forward
     }
     return {sent, rounds};
+}
+--go
+import "math/rand"
+
+// Go-Back-N over a lossy channel. Returns packets sent and rounds. Every round is one round trip.
+func goBackN(total, W int, loss float64, rnd *rand.Rand) (sent, rounds int) {
+	buf := make([]int, W) // circular buffer of unacknowledged packets
+	var inflight []int    // queue of sent, unacknowledged packets
+	base, expected := 0, 0
+	for base < total {
+		rounds++
+		hi := min(base+W, total)
+		inflight = inflight[:0]
+		for seq := base; seq < hi; seq++ { // send the whole window
+			sent++
+			buf[seq%W] = seq
+			inflight = append(inflight, seq)
+			lost := rnd.Float64() < loss
+			if !lost && seq == expected { // receiver takes only the next in-order packet
+				expected++
+			}
+		}
+		for len(inflight) > 0 && inflight[0] < expected { // cumulative ack
+			inflight = inflight[1:]
+		}
+		base = expected // window slides forward
+	}
+	return
 }
 
 ### sched
@@ -1945,6 +2796,70 @@ vector<int> roundRobin(const vector<int>& bursts, int quantum) {     // all jobs
     }
     return finish;
 }
+--go
+import (
+	"container/heap"
+	"sort"
+)
+
+type ready [][3]int // {burst, arrival, id}: a min-heap, shortest burst first
+
+func (r ready) Len() int { return len(r) }
+func (r ready) Less(i, j int) bool {
+	a, b := r[i], r[j]
+	return a[0] < b[0] || a[0] == b[0] && (a[1] < b[1] || a[1] == b[1] && a[2] < b[2])
+}
+func (r ready) Swap(i, j int) { r[i], r[j] = r[j], r[i] }
+func (r *ready) Push(x any)   { *r = append(*r, x.([3]int)) }
+func (r *ready) Pop() any     { o := *r; x := o[len(o)-1]; *r = o[:len(o)-1]; return x }
+
+// jobs: {arrival, burst}. Returns the order the jobs run and each job's waiting time.
+func sjf(jobs [][2]int) (order, wait []int) {
+	byArrival := make([]int, len(jobs))
+	for i := range byArrival {
+		byArrival[i] = i
+	}
+	sort.SliceStable(byArrival, func(a, b int) bool { return jobs[byArrival[a]][0] < jobs[byArrival[b]][0] })
+	wait = make([]int, len(jobs))
+	q := &ready{}
+	t, i := 0, 0
+	for i < len(jobs) || q.Len() > 0 {
+		if q.Len() == 0 && t < jobs[byArrival[i]][0] { // idle: jump to the next arrival
+			t = jobs[byArrival[i]][0]
+		}
+		for i < len(jobs) && jobs[byArrival[i]][0] <= t {
+			j := byArrival[i]
+			heap.Push(q, [3]int{jobs[j][1], jobs[j][0], j})
+			i++
+		}
+		job := heap.Pop(q).([3]int) // shortest ready job
+		order = append(order, job[2])
+		wait[job[2]] = t - job[1]
+		t += job[0]
+	}
+	return
+}
+
+func roundRobin(bursts []int, quantum int) []int { // all jobs arrive at time 0
+	finish := make([]int, len(bursts))
+	var q [][2]int // {id, remaining}
+	for i, b := range bursts {
+		q = append(q, [2]int{i, b})
+	}
+	t := 0
+	for len(q) > 0 {
+		job := q[0]
+		q = q[1:]
+		run := min(quantum, job[1])
+		t += run
+		if job[1] > run {
+			q = append(q, [2]int{job[0], job[1] - run}) // back of the queue
+		} else {
+			finish[job[0]] = t
+		}
+	}
+	return finish
+}
 ### build
 --idea
 A build system (make, Bazel, Gradle, npm scripts) turns source files into programs by running steps in the right order, and re-runs only the steps whose inputs changed. Every target (a file to produce) lists what it depends on: `app` needs `main.o` and `util.o`, and `main.o` needs `main.c` and `util.h`. These rules form a directed graph, and a valid build order is a topological order: everything a target needs is built before it.
@@ -2031,6 +2946,46 @@ vector<string> buildPlan(const map<string, vector<string>>& deps, const set<stri
     };
     for (auto& kv : deps) visit(kv.first);
     return order;
+}
+--go
+import "fmt"
+
+// deps: target -> its dependencies. dirty: changed source files. Returns targets to rebuild, in a valid order.
+func buildPlan(deps map[string][]string, dirty map[string]bool) ([]string, error) {
+	state := map[string]int{} // 1 = on the path, 2 = done
+	changed := map[string]bool{}
+	var order, path []string
+	var visit func(t string) (bool, error)
+	visit = func(t string) (bool, error) {
+		switch state[t] {
+		case 2:
+			return changed[t], nil
+		case 1:
+			return false, fmt.Errorf("cycle through %s (path %v)", t, path)
+		}
+		state[t] = 1
+		path = append(path, t)
+		ch := dirty[t]
+		for _, d := range deps[t] {
+			c, err := visit(d)
+			if err != nil {
+				return false, err
+			}
+			ch = ch || c // a changed dependency makes t stale
+		}
+		path = path[:len(path)-1]
+		state[t], changed[t] = 2, ch
+		if ch && len(deps[t]) > 0 { // post-order: dependencies were added first
+			order = append(order, t)
+		}
+		return ch, nil
+	}
+	for t := range deps {
+		if _, err := visit(t); err != nil {
+			return nil, err
+		}
+	}
+	return order, nil
 }
 
 ### pkg
@@ -2131,6 +3086,58 @@ bool solve(const Repo& pkgs, const map<string, pair<int, int>>& req, map<string,
         if (solve(pkgs, next, c2, result)) return true;                              // go deeper; false means backtrack
     }
     return false;
+}
+--go
+import (
+	"maps"
+	"math"
+	"slices"
+)
+
+type rng = [2]int // {lo, hi}, inclusive
+
+// pkgs: name -> version -> (dependency -> range). req: name -> range. Returns name -> version, or nil.
+func solve(pkgs map[string]map[int]map[string]rng, req map[string]rng, chosen map[string]int) map[string]int {
+	name := ""
+	for _, n := range slices.Sorted(maps.Keys(req)) {
+		if _, done := chosen[n]; !done {
+			name = n
+			break
+		}
+	}
+	if name == "" { // every requirement has a version
+		return chosen
+	}
+	versions := slices.Sorted(maps.Keys(pkgs[name]))
+	slices.Reverse(versions) // newest first
+	for _, v := range versions {
+		if v < req[name][0] || v > req[name][1] {
+			continue
+		}
+		next := maps.Clone(req)
+		ok := true
+		for dep, r := range pkgs[name][v] {
+			cur, has := next[dep]
+			if !has {
+				cur = rng{0, math.MaxInt}
+			}
+			l, h := max(cur[0], r[0]), min(cur[1], r[1]) // propagate: narrow the range
+			if fixed, set := chosen[dep]; l > h || set && (fixed < l || fixed > h) {
+				ok = false // conflict
+				break
+			}
+			next[dep] = rng{l, h}
+		}
+		if !ok {
+			continue
+		}
+		c2 := maps.Clone(chosen)
+		c2[name] = v
+		if r := solve(pkgs, next, c2); r != nil { // go deeper; nil means backtrack
+			return r
+		}
+	}
+	return nil
 }
 
 ### hashmapimpl
@@ -2307,6 +3314,78 @@ struct MyMap {
         }
     }
 };
+--go
+type node struct {
+	key, val int
+	next     *node
+}
+
+type MyMap struct {
+	buckets []*node
+	size    int
+	moves   int // counts relinks done by resizing
+}
+
+func newMyMap() *MyMap { return &MyMap{buckets: make([]*node, 8)} }
+
+func index(key, capacity int) int {
+	h := uint32(key) * 2654435761 // scatter nearby keys (wraps mod 2^32), then reduce modulo the capacity
+	return int(h % uint32(capacity))
+}
+
+func (m *MyMap) get(key int) (int, bool) {
+	for n := m.buckets[index(key, len(m.buckets))]; n != nil; n = n.next {
+		if n.key == key {
+			return n.val, true
+		}
+	}
+	return 0, false
+}
+
+func (m *MyMap) put(key, val int) {
+	i := index(key, len(m.buckets))
+	for n := m.buckets[i]; n != nil; n = n.next {
+		if n.key == key {
+			n.val = val
+			return
+		}
+	}
+	m.buckets[i] = &node{key, val, m.buckets[i]} // insert at the head of the chain
+	if m.size++; float64(m.size) > 0.75*float64(len(m.buckets)) {
+		m.resize()
+	}
+}
+
+func (m *MyMap) remove(key int) bool {
+	i := index(key, len(m.buckets))
+	var prev *node
+	for n := m.buckets[i]; n != nil; prev, n = n, n.next {
+		if n.key == key {
+			if prev == nil {
+				m.buckets[i] = n.next
+			} else {
+				prev.next = n.next
+			}
+			m.size--
+			return true
+		}
+	}
+	return false
+}
+
+func (m *MyMap) resize() { // double the buckets and relink every node
+	old := m.buckets
+	m.buckets = make([]*node, len(old)*2)
+	for _, n := range old {
+		for n != nil {
+			next := n.next
+			i := index(n.key, len(m.buckets))
+			n.next, m.buckets[i] = m.buckets[i], n
+			m.moves++
+			n = next
+		}
+	}
+}
 
 ### gc
 --idea
@@ -2429,6 +3508,53 @@ vector<vector<int>> copyCollect(const vector<vector<int>>& heap, const vector<in
     }
     return to;
 }
+--go
+// heap[i] = objects referenced by i. Returns the ids of garbage objects (mark and sweep).
+func markSweep(heap [][]int, roots []int) []int {
+	marked := make([]bool, len(heap))
+	stack := append([]int(nil), roots...)
+	for len(stack) > 0 { // mark: DFS from the roots
+		u := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		if marked[u] {
+			continue
+		}
+		marked[u] = true
+		stack = append(stack, heap[u]...)
+	}
+	var freed []int
+	for i, m := range marked { // sweep
+		if !m {
+			freed = append(freed, i)
+		}
+	}
+	return freed
+}
+
+// Cheney copying collection. Returns the new heap (compact, BFS order) and the roots' new ids.
+func copyCollect(heap [][]int, roots []int) (to [][]int, newRoots []int) {
+	forward := map[int]int{} // old id -> new id
+	var order []int          // old ids in copy order (the queue)
+	copyObj := func(obj int) int {
+		if f, ok := forward[obj]; ok { // already copied: reuse the forwarding entry
+			return f
+		}
+		forward[obj] = len(order)
+		order = append(order, obj)
+		return len(order) - 1
+	}
+	for _, r := range roots {
+		newRoots = append(newRoots, copyObj(r))
+	}
+	for scan := 0; scan < len(order); scan++ { // scan pointer chases the end of the queue
+		var refs []int
+		for _, c := range heap[order[scan]] {
+			refs = append(refs, copyObj(c))
+		}
+		to = append(to, refs)
+	}
+	return
+}
 
 ### paging
 --idea
@@ -2541,6 +3667,52 @@ int clockFaults(const vector<int>& refs, int frames) {
         hand = (hand + 1) % frames;
     }
     return faults;
+}
+--go
+import "slices"
+
+func lruFaults(refs []int, frames int) int {
+	var mem []int // least recently used first
+	faults := 0
+	for _, p := range refs {
+		if i := slices.Index(mem, p); i >= 0 {
+			mem = slices.Delete(mem, i, i+1) // hit: pull it out, it goes back at the end
+		} else {
+			faults++
+			if len(mem) == frames {
+				mem = mem[1:] // evict the LRU page
+			}
+		}
+		mem = append(mem, p) // most recent at the end
+	}
+	return faults
+}
+
+func clockFaults(refs []int, frames int) int {
+	page := make([]int, frames)
+	ref := make([]bool, frames)
+	for i := range page {
+		page[i] = -1
+	}
+	where := map[int]int{} // page -> frame
+	hand, faults := 0, 0
+	for _, p := range refs {
+		if f, ok := where[p]; ok {
+			ref[f] = true // hit: set the reference bit
+			continue
+		}
+		faults++
+		for page[hand] != -1 && ref[hand] { // second chance
+			ref[hand] = false
+			hand = (hand + 1) % frames
+		}
+		if page[hand] != -1 {
+			delete(where, page[hand]) // evict the victim
+		}
+		page[hand], ref[hand], where[p] = p, true, hand
+		hand = (hand + 1) % frames
+	}
+	return faults
 }
 ### filesys
 --idea
@@ -2751,6 +3923,95 @@ struct FileSystem {
         return true;
     }
 };
+--go
+import "strings"
+
+const block = 4096
+
+type extent [2]int      // a file is a run of blocks {start, n}
+type dir map[string]any // a directory maps names to a dir or an extent
+
+type FileSystem struct {
+	used []bool // free-space map: true = block in use
+	root dir
+}
+
+func newFS(nblocks int) *FileSystem { return &FileSystem{used: make([]bool, nblocks), root: dir{}} }
+
+func (fs *FileSystem) alloc(n int) (extent, bool) { // first fit: a run of n free blocks
+	run := 0
+	for i, u := range fs.used {
+		if u {
+			run = 0
+		} else {
+			run++
+		}
+		if run == n {
+			for j := i - n + 1; j <= i; j++ {
+				fs.used[j] = true
+			}
+			return extent{i - n + 1, n}, true
+		}
+	}
+	return extent{}, false
+}
+
+func (fs *FileSystem) walk(path string) (dir, string) { // the directory holding the last name
+	parts := strings.Split(strings.TrimLeft(path, "/"), "/")
+	d := fs.root
+	for _, p := range parts[:len(parts)-1] {
+		sub, ok := d[p].(dir)
+		if !ok {
+			return nil, ""
+		}
+		d = sub
+	}
+	return d, parts[len(parts)-1]
+}
+
+func (fs *FileSystem) mkdir(path string) bool {
+	d, name := fs.walk(path)
+	if _, exists := d[name]; d == nil || exists {
+		return false
+	}
+	d[name] = dir{}
+	return true
+}
+
+func (fs *FileSystem) create(path string, size int) bool {
+	d, name := fs.walk(path)
+	if _, exists := d[name]; d == nil || exists {
+		return false
+	}
+	e, ok := extent{}, true
+	if n := (size + block - 1) / block; n > 0 { // whole blocks, rounded up
+		e, ok = fs.alloc(n)
+	}
+	if !ok { // disk full or too fragmented
+		return false
+	}
+	d[name] = e
+	return true
+}
+
+func (fs *FileSystem) lookup(path string) (extent, bool) {
+	d, name := fs.walk(path)
+	e, ok := d[name].(extent)
+	return e, ok
+}
+
+func (fs *FileSystem) remove(path string) bool {
+	e, ok := fs.lookup(path)
+	if !ok {
+		return false
+	}
+	for i := e[0]; i < e[0]+e[1]; i++ { // blocks become free again
+		fs.used[i] = false
+	}
+	d, name := fs.walk(path)
+	delete(d, name)
+	return true
+}
 
 ### compiler
 --idea
@@ -2957,6 +4218,119 @@ vector<int> colorRegisters(const vector<vector<int>>& adj, int k) {   // greedy 
     }
     return color;
 }
+--go
+import (
+	"sort"
+	"strconv"
+	"strings"
+)
+
+func lex(src string) []string { // finite automaton: digits stay in the "number" state
+	var toks []string
+	for i := 0; i < len(src); {
+		if c := src[i]; c >= '0' && c <= '9' {
+			j := i
+			for j < len(src) && src[j] >= '0' && src[j] <= '9' {
+				j++
+			}
+			toks = append(toks, src[i:j])
+			i = j
+		} else {
+			if c != ' ' {
+				toks = append(toks, string(c))
+			}
+			i++
+		}
+	}
+	return toks
+}
+
+type Parser struct { // recursive descent: expr -> term -> factor
+	toks []string
+	pos  int
+	code []string
+}
+
+func (p *Parser) peek() string {
+	if p.pos < len(p.toks) {
+		return p.toks[p.pos]
+	}
+	return ""
+}
+
+func (p *Parser) binary(next func(), ops string) {
+	next()
+	for t := p.peek(); t != "" && strings.Contains(ops, t); t = p.peek() {
+		p.pos++
+		next()
+		p.code = append(p.code, t) // post-order: operator after operands
+	}
+}
+func (p *Parser) expr() { p.binary(p.term, "+-") }
+func (p *Parser) term() { p.binary(p.factor, "*/") }
+func (p *Parser) factor() {
+	t := p.toks[p.pos]
+	p.pos++
+	if t == "(" {
+		p.expr()
+		p.pos++ // skip ")"
+	} else {
+		p.code = append(p.code, "push "+t)
+	}
+}
+
+func run(code []string) int { // stack machine
+	var st []int
+	for _, ins := range code {
+		if n, ok := strings.CutPrefix(ins, "push "); ok {
+			v, _ := strconv.Atoi(n)
+			st = append(st, v)
+			continue
+		}
+		a, b := st[len(st)-2], st[len(st)-1]
+		st = st[:len(st)-2]
+		switch ins {
+		case "+":
+			a += b
+		case "-":
+			a -= b
+		case "*":
+			a *= b
+		default:
+			a /= b
+		}
+		st = append(st, a)
+	}
+	return st[0]
+}
+
+func colorRegisters(adj [][]int, k int) []int { // greedy graph colouring; nil if a value must spill
+	order := make([]int, len(adj))
+	color := make([]int, len(adj))
+	for i := range order {
+		order[i], color[i] = i, -1
+	}
+	sort.SliceStable(order, func(a, b int) bool { return len(adj[order[a]]) > len(adj[order[b]]) }) // busiest first
+	for _, v := range order {
+		taken := make([]bool, k)
+		for _, u := range adj[v] {
+			if color[u] >= 0 {
+				taken[color[u]] = true
+			}
+		}
+		c := 0
+		for c < k && taken[c] {
+			c++
+		}
+		if c == k {
+			return nil
+		}
+		color[v] = c
+	}
+	return color
+}
+
+// usage: p := &Parser{toks: lex("2+3*(4-1)")}; p.expr(); run(p.code) == 11
 
 ### regex
 --idea
@@ -3070,7 +4444,56 @@ bool matchNfa(const string& p, const string& t) {               // simulate all 
     }
     return cur[m];
 }
+--go
+func matchBacktrack(p string, pi int, t string, ti int) bool {
+	if pi == len(p) {
+		return ti == len(t)
+	}
+	first := ti < len(t) && (p[pi] == '.' || p[pi] == t[ti])
+	if pi+1 < len(p) && p[pi+1] == '*' { // star: skip the token, or use one character and stay
+		return matchBacktrack(p, pi+2, t, ti) || first && matchBacktrack(p, pi, t, ti+1)
+	}
+	return first && matchBacktrack(p, pi+1, t, ti+1)
+}
 
+func matchNfa(p, t string) bool { // simulate all choices at once
+	var ch []byte
+	var star []bool
+	for i := 0; i < len(p); i++ {
+		s := i+1 < len(p) && p[i+1] == '*'
+		ch, star = append(ch, p[i]), append(star, s)
+		if s {
+			i++
+		}
+	}
+	m := len(ch)
+	cur := make([]bool, m+1) // cur[i]: the automaton may be before token i
+	cur[0] = true
+	closure(cur, star)
+	for k := 0; k < len(t); k++ {
+		nxt := make([]bool, m+1)
+		for i := 0; i < m; i++ {
+			if cur[i] && (ch[i] == '.' || ch[i] == t[k]) {
+				if star[i] {
+					nxt[i] = true // a starred token can eat more
+				} else {
+					nxt[i+1] = true
+				}
+			}
+		}
+		closure(nxt, star)
+		cur = nxt
+	}
+	return cur[m]
+}
+
+func closure(s, star []bool) { // free moves: skip a starred token
+	for i := range star {
+		if s[i] && star[i] {
+			s[i+1] = true
+		}
+	}
+}
 ### diff
 --idea
 A diff tool shows how two versions of a text differ: which lines were removed, which were added, and which stayed. It is behind `git diff`, code review screens and merge tools. The natural way to define "the smallest set of changes" is to find the longest common subsequence (LCS) of the two files: the longest list of lines that appear in both, in the same order. Everything in the old file outside it is a deletion, and everything in the new file outside it is an insertion.
@@ -3167,6 +4590,62 @@ vector<string> diff(const vector<string>& a, const vector<string>& b) {
     while (i < n) out.push_back("- " + a[i++]);
     while (j < m) out.push_back("+ " + b[j++]);
     return out;
+}
+--go
+func lineHash(s string) uint32 { // FNV-1a, 32 bit
+	h := uint32(0x811c9dc5)
+	for i := 0; i < len(s); i++ {
+		h ^= uint32(s[i])
+		h *= 16777619
+	}
+	return h
+}
+
+func diff(a, b []string) []string {
+	n, m := len(a), len(b)
+	ha, hb := make([]uint32, n), make([]uint32, m)
+	for i := range a {
+		ha[i] = lineHash(a[i])
+	}
+	for j := range b {
+		hb[j] = lineHash(b[j])
+	}
+	same := func(i, j int) bool { return ha[i] == hb[j] && a[i] == b[j] } // cheap hash test first
+	dp := make([][]int, n+1)                                              // LCS length of a[i:] and b[j:]
+	for i := range dp {
+		dp[i] = make([]int, m+1)
+	}
+	for i := n - 1; i >= 0; i-- {
+		for j := m - 1; j >= 0; j-- {
+			if same(i, j) {
+				dp[i][j] = 1 + dp[i+1][j+1]
+			} else {
+				dp[i][j] = max(dp[i+1][j], dp[i][j+1])
+			}
+		}
+	}
+	var out []string
+	i, j := 0, 0
+	for i < n && j < m {
+		switch {
+		case same(i, j): // kept line
+			out = append(out, "  "+a[i])
+			i, j = i+1, j+1
+		case dp[i+1][j] >= dp[i][j+1]: // deletion
+			out = append(out, "- "+a[i])
+			i++
+		default: // insertion
+			out = append(out, "+ "+b[j])
+			j++
+		}
+	}
+	for ; i < n; i++ {
+		out = append(out, "- "+a[i])
+	}
+	for ; j < m; j++ {
+		out = append(out, "+ "+b[j])
+	}
+	return out
 }
 
 ### git
@@ -3342,6 +4821,106 @@ struct Repo {
         return out;
     }
 };
+--go
+import (
+	"fmt"
+	"slices"
+)
+
+func mix(x uint64) uint64 {
+	x ^= x >> 30
+	x *= 0xbf58476d1ce4e5b9
+	x ^= x >> 27
+	x *= 0x94d049bb133111eb
+	return x ^ x>>31
+}
+
+type Repo struct {
+	parents map[string][]string
+	message map[string]string
+}
+
+func newRepo() *Repo { return &Repo{map[string][]string{}, map[string]string{}} }
+
+func (r *Repo) commit(ps []string, msg string) string { // id = hash of parents and message
+	h := uint64(0xcbf29ce484222325)
+	for _, p := range ps {
+		for i := 0; i < len(p); i++ {
+			h = mix(h ^ uint64(p[i]))
+		}
+	}
+	for i := 0; i < len(msg); i++ {
+		h = mix(h ^ uint64(msg[i]))
+	}
+	id := fmt.Sprintf("%x", h)
+	r.parents[id], r.message[id] = ps, msg
+	return id
+}
+
+func (r *Repo) ancestors(id string) map[string]bool { // every commit reachable via parent links
+	seen := map[string]bool{}
+	stack := []string{id}
+	for len(stack) > 0 {
+		c := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		if !seen[c] {
+			seen[c] = true
+			stack = append(stack, r.parents[c]...)
+		}
+	}
+	return seen
+}
+
+func (r *Repo) mergeBase(a, b string) string { // a best common ancestor, "" if none
+	ancB := r.ancestors(b)
+	common := map[string]bool{}
+	for c := range r.ancestors(a) {
+		if ancB[c] {
+			common[c] = true
+		}
+	}
+	shadowed := map[string]bool{} // ancestors of other common commits
+	for c := range common {
+		for _, p := range r.parents[c] {
+			for x := range r.ancestors(p) {
+				shadowed[x] = true
+			}
+		}
+	}
+	var best []string
+	for c := range common {
+		if !shadowed[c] {
+			best = append(best, c)
+		}
+	}
+	slices.Sort(best)
+	if len(best) == 0 {
+		return ""
+	}
+	return best[0]
+}
+
+func (r *Repo) log(head string) []string { // children before parents
+	reach := r.ancestors(head)
+	kids := map[string]int{}
+	for c := range reach {
+		for _, p := range r.parents[c] {
+			kids[p]++
+		}
+	}
+	ready, out := []string{head}, []string{}
+	for len(ready) > 0 { // Kahn's topological sort
+		c := ready[0]
+		ready = ready[1:]
+		out = append(out, c)
+		for _, p := range r.parents[c] {
+			if kids[p]--; kids[p] == 0 {
+				ready = append(ready, p)
+			}
+		}
+	}
+	return out
+}
 ### autocomplete
 --idea
 Autocomplete suggests words as you type, and spell check suggests the word you probably meant. Both need to look through a large dictionary fast. A trie (prefix tree) makes the first easy: each node is a letter, and a path from the root spells a prefix. To find every word starting with `ap`, walk down `a`, then `p`, and everything below that node is a completion. The cost depends on the length of the prefix, not on the size of the dictionary.
@@ -3511,6 +5090,98 @@ struct Trie {
         return out;
     }
 };
+--go
+import "sort"
+
+type node struct {
+	kids   map[byte]*node
+	weight int // > 0 marks the end of a word
+}
+
+type Trie struct{ root *node }
+
+func newTrie() *Trie { return &Trie{&node{kids: map[byte]*node{}}} }
+
+func (t *Trie) insert(word string, weight int) {
+	n := t.root
+	for i := 0; i < len(word); i++ {
+		if n.kids[word[i]] == nil {
+			n.kids[word[i]] = &node{kids: map[byte]*node{}}
+		}
+		n = n.kids[word[i]]
+	}
+	n.weight = weight
+}
+
+type cand struct {
+	weight int
+	word   string
+}
+
+func (t *Trie) complete(prefix string, k int) []string { // best k words with this prefix, best first
+	n := t.root
+	for i := 0; i < len(prefix) && n != nil; i++ {
+		n = n.kids[prefix[i]]
+	}
+	if n == nil {
+		return nil
+	}
+	var all []cand
+	var collect func(n *node, w string)
+	collect = func(n *node, w string) {
+		if n.weight > 0 {
+			all = append(all, cand{n.weight, w})
+		}
+		for c, kid := range n.kids {
+			collect(kid, w+string(c))
+		}
+	}
+	collect(n, prefix)
+	sort.Slice(all, func(i, j int) bool { // heavier first, ties alphabetical
+		return all[i].weight > all[j].weight || all[i].weight == all[j].weight && all[i].word < all[j].word
+	})
+	var out []string
+	for i := 0; i < len(all) && i < k; i++ {
+		out = append(out, all[i].word)
+	}
+	return out
+}
+
+func (t *Trie) fuzzy(word string, maxd int) []string { // words within edit distance maxd
+	var out []string
+	var walk func(n *node, c byte, w string, prev []int)
+	walk = func(n *node, c byte, w string, prev []int) {
+		row := make([]int, len(prev))
+		row[0] = prev[0] + 1
+		lowest := row[0]
+		for j := 1; j < len(row); j++ { // one row of the edit distance table
+			sub := prev[j-1]
+			if word[j-1] != c {
+				sub++
+			}
+			row[j] = min(prev[j]+1, row[j-1]+1, sub)
+			lowest = min(lowest, row[j])
+		}
+		if n.weight > 0 && row[len(row)-1] <= maxd {
+			out = append(out, w)
+		}
+		if lowest > maxd { // prune: no word below can be close enough
+			return
+		}
+		for c2, kid := range n.kids {
+			walk(kid, c2, w+string(c2), row)
+		}
+	}
+	row := make([]int, len(word)+1)
+	for j := range row {
+		row[j] = j
+	}
+	for c, kid := range t.root.kids {
+		walk(kid, c, string(c), row)
+	}
+	sort.Strings(out)
+	return out
+}
 
 ### undo
 --idea
@@ -3678,6 +5349,101 @@ struct Editor {
     void redo() { if (!redoStack.empty()) { undoStack.push_back(root); root = redoStack.back(); redoStack.pop_back(); } }
     string text() const { string out; textOf(root, out); return out; }
 };
+--go
+import "strings"
+
+type Rope struct { // immutable: a leaf holds text, an inner node joins two ropes
+	s           string
+	left, right *Rope
+	length      int
+}
+
+func leaf(s string) *Rope {
+	if s == "" {
+		return nil
+	}
+	return &Rope{s: s, length: len(s)}
+}
+
+func cat(a, b *Rope) *Rope {
+	if a == nil {
+		return b
+	}
+	if b == nil {
+		return a
+	}
+	return &Rope{left: a, right: b, length: a.length + b.length}
+}
+
+func split(n *Rope, i int) (*Rope, *Rope) { // the first i characters, the rest
+	if n == nil {
+		return nil, nil
+	}
+	if n.left == nil { // leaf
+		return leaf(n.s[:i]), leaf(n.s[i:])
+	}
+	if i <= n.left.length {
+		l, r := split(n.left, i)
+		return l, cat(r, n.right)
+	}
+	l, r := split(n.right, i-n.left.length)
+	return cat(n.left, l), r
+}
+
+func ropeText(n *Rope, sb *strings.Builder) { // in-order walk
+	if n == nil {
+		return
+	}
+	if n.left == nil {
+		sb.WriteString(n.s)
+	} else {
+		ropeText(n.left, sb)
+		ropeText(n.right, sb)
+	}
+}
+
+type Editor struct {
+	root      *Rope
+	undoStack []*Rope // old roots; every edit shares most of its nodes with the old tree
+	redoStack []*Rope
+}
+
+func (e *Editor) edit(next *Rope) {
+	e.undoStack = append(e.undoStack, e.root)
+	e.redoStack = nil
+	e.root = next
+}
+
+func (e *Editor) insert(i int, text string) {
+	l, r := split(e.root, i)
+	e.edit(cat(cat(l, leaf(text)), r))
+}
+
+func (e *Editor) delete(i, j int) { // remove characters i .. j-1
+	a, rest := split(e.root, i)
+	_, b := split(rest, j-i)
+	e.edit(cat(a, b))
+}
+
+func (e *Editor) undo() {
+	if n := len(e.undoStack); n > 0 {
+		e.redoStack = append(e.redoStack, e.root)
+		e.root, e.undoStack = e.undoStack[n-1], e.undoStack[:n-1]
+	}
+}
+
+func (e *Editor) redo() {
+	if n := len(e.redoStack); n > 0 {
+		e.undoStack = append(e.undoStack, e.root)
+		e.root, e.redoStack = e.redoStack[n-1], e.redoStack[:n-1]
+	}
+}
+
+func (e *Editor) text() string {
+	var sb strings.Builder
+	ropeText(e.root, &sb)
+	return sb.String()
+}
 
 ### spreadsheet
 --idea
@@ -3830,6 +5596,79 @@ struct Sheet {
         return post;
     }
 };
+--go
+import (
+	"fmt"
+	"slices"
+	"strconv"
+	"strings"
+)
+
+type Sheet map[string]string // cell name -> formula such as "A1 + B2 + 3"
+
+func (s Sheet) evalAll() (map[string]int, error) {
+	val, inProgress := map[string]int{}, map[string]bool{}
+	var value func(name string) (int, error)
+	value = func(name string) (int, error) {
+		if v, ok := val[name]; ok { // memoised
+			return v, nil
+		}
+		f, ok := s[name]
+		if !ok { // a missing cell counts as 0
+			return 0, nil
+		}
+		if inProgress[name] {
+			return 0, fmt.Errorf("cycle at %s", name)
+		}
+		inProgress[name] = true
+		sum := 0
+		for _, t := range strings.Split(f, "+") {
+			t = strings.TrimSpace(t)
+			v, err := strconv.Atoi(t)
+			if err != nil { // not a number: it names another cell
+				if v, err = value(t); err != nil {
+					return 0, err
+				}
+			}
+			sum += v
+		}
+		inProgress[name] = false
+		val[name] = sum
+		return sum, nil
+	}
+	for name := range s {
+		if _, err := value(name); err != nil {
+			return nil, err
+		}
+	}
+	return val, nil
+}
+
+func (s Sheet) affected(changed string) []string { // cells to recompute, dependencies first
+	usedBy := map[string][]string{}
+	for cell, f := range s {
+		for _, t := range strings.Split(f, "+") {
+			t = strings.TrimSpace(t)
+			usedBy[t] = append(usedBy[t], cell)
+		}
+	}
+	seen := map[string]bool{}
+	var post []string
+	var dfs func(u string)
+	dfs = func(u string) {
+		if seen[u] {
+			return
+		}
+		seen[u] = true
+		for _, v := range usedBy[u] {
+			dfs(v)
+		}
+		post = append(post, u)
+	}
+	dfs(changed)
+	slices.Reverse(post) // reverse post-order = topological order
+	return post
+}
 
 ### searcheng
 --idea
@@ -3980,6 +5819,76 @@ vector<pair<int, double>> search(const Index& index, int nDocs, const string& qu
     while (!heap.empty()) { out.insert(out.begin(), {-heap.top().second, heap.top().first}); heap.pop(); }
     return out;
 }
+--go
+import (
+	"math"
+	"sort"
+	"strings"
+)
+
+type posting struct{ doc, tf int }
+type hit struct {
+	doc   int
+	score float64
+}
+
+func buildIndex(docs []string) map[string][]posting { // term -> postings, sorted by doc
+	index := map[string][]posting{}
+	for d, text := range docs {
+		tf := map[string]int{}
+		for _, w := range strings.Fields(strings.ToLower(text)) {
+			tf[w]++
+		}
+		for w, n := range tf {
+			index[w] = append(index[w], posting{d, n})
+		}
+	}
+	return index
+}
+
+func search(index map[string][]posting, nDocs int, query string, k int) []hit {
+	var lists [][]hit
+	for _, t := range strings.Fields(strings.ToLower(query)) {
+		post, ok := index[t]
+		if !ok { // AND: a missing term means no results
+			return nil
+		}
+		idf := math.Log(1 + float64(nDocs)/float64(len(post)))
+		var scored []hit
+		for _, p := range post {
+			scored = append(scored, hit{p.doc, float64(p.tf) * idf}) // tf * idf
+		}
+		lists = append(lists, scored)
+	}
+	if len(lists) == 0 {
+		return nil
+	}
+	sort.Slice(lists, func(i, j int) bool { return len(lists[i]) < len(lists[j]) }) // shortest list first
+	cur := lists[0]
+	for _, l := range lists[1:] {
+		cur = mergeAnd(cur, l)
+	}
+	sort.Slice(cur, func(i, j int) bool { // best score first, ties by doc id
+		return cur[i].score > cur[j].score || cur[i].score == cur[j].score && cur[i].doc < cur[j].doc
+	})
+	return cur[:min(k, len(cur))] // a size-k heap would avoid sorting every match
+}
+
+func mergeAnd(a, b []hit) []hit { // two-pointer merge of lists sorted by doc
+	var out []hit
+	for i, j := 0, 0; i < len(a) && j < len(b); {
+		switch {
+		case a[i].doc == b[j].doc:
+			out = append(out, hit{a[i].doc, a[i].score + b[j].score})
+			i, j = i+1, j+1
+		case a[i].doc < b[j].doc:
+			i++
+		default:
+			j++
+		}
+	}
+	return out
+}
 
 ### crawler
 --idea
@@ -4099,6 +6008,75 @@ vector<string> crawl(const map<string, vector<string>>& web, const string& seed,
             if (!seen.mightHave(link)) { seen.add(link); frontier.push({depth + 1, counter++, link}); }
     }
     return fetched;
+}
+--go
+import "container/heap"
+
+type Bloom struct {
+	bits []bool
+	k    int
+}
+
+func newBloom(m, k int) *Bloom { return &Bloom{make([]bool, m), k} }
+
+func (b *Bloom) spot(s string, i int) int { // double hashing: h1 + i * h2
+	h := uint64(0xcbf29ce484222325)
+	for c := 0; c < len(s); c++ {
+		h ^= uint64(s[c])
+		h *= 0x100000001b3
+	}
+	h ^= h >> 29
+	h *= 0xbf58476d1ce4e5b9
+	h ^= h >> 32
+	h1, h2 := h&0x7fffffff, (h>>32&0x7fffffff)|1
+	return int((h1 + uint64(i)*h2) % uint64(len(b.bits)))
+}
+func (b *Bloom) add(s string) {
+	for i := 0; i < b.k; i++ {
+		b.bits[b.spot(s, i)] = true
+	}
+}
+func (b *Bloom) mightHave(s string) bool {
+	for i := 0; i < b.k; i++ {
+		if !b.bits[b.spot(s, i)] {
+			return false
+		}
+	}
+	return true
+}
+
+type page struct {
+	depth, order int
+	url          string
+}
+type frontier []page // a min-heap: by depth, then insertion order
+
+func (f frontier) Len() int { return len(f) }
+func (f frontier) Less(i, j int) bool {
+	return f[i].depth < f[j].depth || f[i].depth == f[j].depth && f[i].order < f[j].order
+}
+func (f frontier) Swap(i, j int) { f[i], f[j] = f[j], f[i] }
+func (f *frontier) Push(x any)   { *f = append(*f, x.(page)) }
+func (f *frontier) Pop() any     { o := *f; x := o[len(o)-1]; *f = o[:len(o)-1]; return x }
+
+func crawl(web map[string][]string, seed string, limit int) []string {
+	seen := newBloom(1<<16, 3)
+	counter := 1
+	seen.add(seed)
+	fr := &frontier{{0, 0, seed}}
+	var fetched []string
+	for fr.Len() > 0 && len(fetched) < limit {
+		e := heap.Pop(fr).(page)
+		fetched = append(fetched, e.url) // "download" the page
+		for _, link := range web[e.url] {
+			if !seen.mightHave(link) {
+				seen.add(link)
+				heap.Push(fr, page{e.depth + 1, counter, link})
+				counter++
+			}
+		}
+	}
+	return fetched
 }
 ### recsys
 --idea
@@ -4245,6 +6223,98 @@ pair<vector<vector<double>>, vector<vector<double>>> factorize(const vector<Rati
         }
     }
     return {P, Q};
+}
+--go
+import (
+	"math"
+	"math/rand"
+	"sort"
+)
+
+func cosine(a, b map[int]float64) float64 {
+	dot, na, nb := 0.0, 0.0, 0.0
+	for k, v := range a {
+		na += v * v
+		dot += v * b[k] // a missing rating is 0
+	}
+	for _, v := range b {
+		nb += v * v
+	}
+	if na == 0 || nb == 0 {
+		return 0
+	}
+	return dot / math.Sqrt(na*nb)
+}
+
+type scored struct {
+	id    int
+	score float64
+}
+
+func topN(xs []scored, n int) []scored { // best score first, ties by id
+	sort.Slice(xs, func(i, j int) bool {
+		return xs[i].score > xs[j].score || xs[i].score == xs[j].score && xs[i].id < xs[j].id
+	})
+	return xs[:min(n, len(xs))]
+}
+
+func recommend(ratings map[int]map[int]float64, user, kNeighbours, n int) []int {
+	var sims []scored
+	for o := range ratings {
+		if o != user {
+			sims = append(sims, scored{o, cosine(ratings[user], ratings[o])})
+		}
+	}
+	acc := map[int][2]float64{}                 // item -> {sum sim*rating, sum |sim|}
+	for _, s := range topN(sims, kNeighbours) { // the k most similar users
+		for item, r := range ratings[s.id] {
+			if _, seen := ratings[user][item]; seen || s.score <= 0 { // skip seen items and dissimilar users
+				continue
+			}
+			a := acc[item]
+			acc[item] = [2]float64{a[0] + s.score*r, a[1] + math.Abs(s.score)}
+		}
+	}
+	var items []scored
+	for item, a := range acc {
+		items = append(items, scored{item, a[0] / a[1]})
+	}
+	var out []int
+	for _, s := range topN(items, n) {
+		out = append(out, s.id)
+	}
+	return out
+}
+
+// triples: {user, item} with rating r[t]. Returns the user factors P and item factors Q.
+func factorize(triples [][2]int, r []float64, nu, ni, k int, lr, reg float64, epochs int, rnd *rand.Rand) (P, Q [][]float64) {
+	init := func(rows int) [][]float64 {
+		m := make([][]float64, rows)
+		for i := range m {
+			m[i] = make([]float64, k)
+			for f := range m[i] {
+				m[i][f] = 0.1 * rnd.Float64()
+			}
+		}
+		return m
+	}
+	P, Q = init(nu), init(ni)
+	for ep := 0; ep < epochs; ep++ {
+		for t, tr := range triples {
+			u, i := tr[0], tr[1]
+			pred := 0.0
+			for f := 0; f < k; f++ {
+				pred += P[u][f] * Q[i][f]
+			}
+			err := r[t] - pred
+			for f := 0; f < k; f++ { // gradient step on both vectors
+				pu, qi := P[u][f], Q[i][f]
+				P[u][f] += lr * (err*qi - reg*pu)
+				Q[i][f] += lr * (err*pu - reg*qi)
+			}
+		}
+	}
+	return
 }
 
 ### dedup
@@ -4396,6 +6466,85 @@ set<pair<int, int>> candidates(const vector<vector<u64>>& sigs, int bands) {   /
                 pairs.insert({kv.second[i], kv.second[j]});
     }
     return pairs;
+}
+--go
+import (
+	"fmt"
+	"math"
+	"slices"
+	"strings"
+)
+
+const P = 2147483647 // a prime; a*x stays below 2^62
+
+func shingleHash(s string) uint64 {
+	h := uint64(0xcbf29ce484222325)
+	for i := 0; i < len(s); i++ {
+		h ^= uint64(s[i])
+		h *= 0x100000001b3
+	}
+	return (h ^ h>>29) % P
+}
+
+func shingles(text string, k int) map[uint64]bool { // set of hashed k-word shingles
+	w := strings.Fields(strings.ToLower(text))
+	out := map[uint64]bool{}
+	for i := 0; i+k <= len(w); i++ {
+		out[shingleHash(strings.Join(w[i:i+k], " "))] = true
+	}
+	if len(out) == 0 { // text shorter than k words: one shingle for all of it
+		out[shingleHash(strings.Join(w, " "))] = true
+	}
+	return out
+}
+
+func minhash(shs map[uint64]bool, n int) []uint64 { // n hash functions h_j(x) = (a*x + b) mod P
+	sig := make([]uint64, n)
+	for j := range sig {
+		a := 1 + (uint64(j)*1103515245+12345)%(P-1)
+		b := (uint64(j)*69069 + 1) % P
+		best := uint64(math.MaxUint64)
+		for x := range shs {
+			best = min(best, (a*x+b)%P)
+		}
+		sig[j] = best
+	}
+	return sig
+}
+
+func similarity(a, b []uint64) float64 { // fraction of equal positions
+	same := 0
+	for j := range a {
+		if a[j] == b[j] {
+			same++
+		}
+	}
+	return float64(same) / float64(len(a))
+}
+
+func candidates(sigs [][]uint64, bands int) [][2]int { // LSH: documents sharing any whole band
+	rows := len(sigs[0]) / bands
+	seen := map[[2]int]bool{}
+	for b := 0; b < bands; b++ {
+		buckets := map[string][]int{}
+		for d, sig := range sigs {
+			key := fmt.Sprint(sig[b*rows : (b+1)*rows])
+			buckets[key] = append(buckets[key], d)
+		}
+		for _, ds := range buckets {
+			for i := range ds {
+				for j := i + 1; j < len(ds); j++ {
+					seen[[2]int{ds[i], ds[j]}] = true
+				}
+			}
+		}
+	}
+	pairs := make([][2]int, 0, len(seen))
+	for p := range seen {
+		pairs = append(pairs, p)
+	}
+	slices.SortFunc(pairs, func(a, b [2]int) int { return a[0]*1000000 + a[1] - b[0]*1000000 - b[1] })
+	return pairs
 }
 
 ### analytics
@@ -4563,6 +6712,109 @@ struct RunningMedian {
     }
     double median() const { return low.size() > high.size() ? low.top() : (low.top() + high.top()) / 2.0; }
 };
+--go
+import (
+	"container/heap"
+	"math"
+	"math/bits"
+)
+
+func mix(x uint64) uint64 {
+	x ^= x >> 30
+	x *= 0xbf58476d1ce4e5b9
+	x ^= x >> 27
+	x *= 0x94d049bb133111eb
+	return x ^ x>>31
+}
+
+func hash64(s string) uint64 {
+	h := uint64(0xcbf29ce484222325)
+	for i := 0; i < len(s); i++ {
+		h ^= uint64(s[i])
+		h *= 0x100000001b3
+	}
+	return mix(h)
+}
+
+type CountMin struct{ table [][]int64 }
+
+func newCountMin(width, depth int) *CountMin {
+	t := make([][]int64, depth)
+	for r := range t {
+		t[r] = make([]int64, width)
+	}
+	return &CountMin{t}
+}
+
+func (c *CountMin) col(key string, row int) int {
+	return int(mix(hash64(key)+uint64(row)*0x9E3779B97F4A7C15) % uint64(len(c.table[row])))
+}
+func (c *CountMin) add(key string) {
+	for r := range c.table {
+		c.table[r][c.col(key, r)]++
+	}
+}
+func (c *CountMin) estimate(key string) int64 { // never below the true count
+	best := int64(math.MaxInt64)
+	for r := range c.table {
+		best = min(best, c.table[r][c.col(key, r)])
+	}
+	return best
+}
+
+type HyperLogLog struct {
+	p, m int
+	reg  []int
+}
+
+func newHLL(p int) *HyperLogLog { return &HyperLogLog{p, 1 << p, make([]int, 1<<p)} }
+
+func (h *HyperLogLog) add(key string) {
+	x := hash64(key)
+	idx := int(x >> (64 - h.p))                          // top p bits choose a register
+	rank := min(bits.LeadingZeros64(x<<h.p), 64-h.p) + 1 // position of the first 1 bit in the rest
+	h.reg[idx] = max(h.reg[idx], rank)
+}
+
+func (h *HyperLogLog) estimate() float64 {
+	sum, zeros, m := 0.0, 0, float64(h.m)
+	for _, v := range h.reg {
+		sum += math.Pow(2, -float64(v))
+		if v == 0 {
+			zeros++
+		}
+	}
+	e := 0.7213 / (1 + 1.079/m) * m * m / sum
+	if e <= 2.5*m && zeros > 0 { // small range: linear counting
+		return m * math.Log(m/float64(zeros))
+	}
+	return e
+}
+
+type minHeap []int
+
+func (h minHeap) Len() int           { return len(h) }
+func (h minHeap) Less(i, j int) bool { return h[i] < h[j] }
+func (h minHeap) Swap(i, j int)      { h[i], h[j] = h[j], h[i] }
+func (h *minHeap) Push(x any)        { *h = append(*h, x.(int)) }
+func (h *minHeap) Pop() any          { o := *h; x := o[len(o)-1]; *h = o[:len(o)-1]; return x }
+
+type RunningMedian struct{ low, high minHeap } // low stores negated values, so it acts as a max-heap
+
+func (r *RunningMedian) add(x int) {
+	heap.Push(&r.low, -x)
+	heap.Push(&r.high, -heap.Pop(&r.low).(int)) // route through both heaps
+	if r.high.Len() > r.low.Len() {             // keep low the same size or one larger
+		heap.Push(&r.low, -heap.Pop(&r.high).(int))
+	}
+}
+
+func (r *RunningMedian) median() float64 {
+	if r.low.Len() > r.high.Len() {
+		return float64(-r.low[0])
+	}
+	return float64(-r.low[0]+r.high[0]) / 2
+}
 
 ### abuse
 --idea
@@ -4723,6 +6975,104 @@ struct AbuseDetector {
         return rate > limit;
     }
 };
+--go
+import "math"
+
+func mix(x uint64) uint64 {
+	x ^= x >> 30
+	x *= 0xbf58476d1ce4e5b9
+	x ^= x >> 27
+	x *= 0x94d049bb133111eb
+	return x ^ x>>31
+}
+
+func hash64(s string) uint64 {
+	h := uint64(0xcbf29ce484222325)
+	for i := 0; i < len(s); i++ {
+		h ^= uint64(s[i])
+		h *= 0x100000001b3
+	}
+	return mix(h)
+}
+
+type CountMin struct{ t [][]int64 }
+
+func newCountMin(width, depth int) *CountMin {
+	t := make([][]int64, depth)
+	for r := range t {
+		t[r] = make([]int64, width)
+	}
+	return &CountMin{t}
+}
+func (c *CountMin) col(k string, r int) int {
+	return int(mix(hash64(k)+uint64(r)*0x9E3779B97F4A7C15) % uint64(len(c.t[r])))
+}
+func (c *CountMin) add(k string) {
+	for r := range c.t {
+		c.t[r][c.col(k, r)]++
+	}
+}
+func (c *CountMin) estimate(k string) int64 {
+	b := int64(math.MaxInt64)
+	for r := range c.t {
+		b = min(b, c.t[r][c.col(k, r)])
+	}
+	return b
+}
+
+type Bloom struct{ bits []bool }
+
+func (b *Bloom) spot(s string, i int) int {
+	h := hash64(s)
+	h1, h2 := h&0x7fffffff, (h>>32&0x7fffffff)|1
+	return int((h1 + uint64(i)*h2) % uint64(len(b.bits)))
+}
+func (b *Bloom) add(s string) {
+	for i := 0; i < 3; i++ {
+		b.bits[b.spot(s, i)] = true
+	}
+}
+func (b *Bloom) mightHave(s string) bool {
+	for i := 0; i < 3; i++ {
+		if !b.bits[b.spot(s, i)] {
+			return false
+		}
+	}
+	return true
+}
+
+type AbuseDetector struct {
+	window, limit float64
+	width, depth  int
+	cur, prev     *CountMin
+	curStart      float64
+	blocked       *Bloom
+}
+
+func newAbuseDetector(window, limit float64, width, depth int) *AbuseDetector {
+	return &AbuseDetector{window: window, limit: limit, width: width, depth: depth,
+		cur: newCountMin(width, depth), prev: newCountMin(width, depth), blocked: &Bloom{make([]bool, 1<<14)}}
+}
+
+func (d *AbuseDetector) block(key string) { d.blocked.add(key) }
+
+func (d *AbuseDetector) hit(key string, now float64) bool { // true = flag this event
+	if d.blocked.mightHave(key) {
+		return true
+	}
+	start := math.Floor(now/d.window) * d.window
+	if start != d.curStart {
+		if start == d.curStart+d.window { // adjacent window: it becomes the previous one
+			d.prev = d.cur
+		} else {
+			d.prev = newCountMin(d.width, d.depth)
+		}
+		d.cur, d.curStart = newCountMin(d.width, d.depth), start
+	}
+	d.cur.add(key)
+	rate := float64(d.prev.estimate(key))*(1-(now-start)/d.window) + float64(d.cur.estimate(key)) // weighted sliding count
+	return rate > d.limit
+}
 
 ### compress
 --idea
@@ -4992,6 +7342,158 @@ string ibwt(const string& last) {
     for (auto& row : table) if (row.back() == '\0') return row.substr(0, n - 1);
     return "";
 }
+--go
+import (
+	"container/heap"
+	"sort"
+	"strings"
+)
+
+func lzTokens(s string) [][3]int { // {offset, length, char}; length 0 = literal
+	var out [][3]int
+	for i := 0; i < len(s); {
+		bestLen, bestOff := 0, 0
+		for j := max(0, i-4096); j < i; j++ {
+			l := 0
+			for i+l < len(s) && s[j+l] == s[i+l] {
+				l++
+			}
+			if l > bestLen {
+				bestLen, bestOff = l, i-j
+			}
+		}
+		if bestLen >= 3 {
+			out = append(out, [3]int{bestOff, bestLen, 0})
+			i += bestLen
+		} else {
+			out = append(out, [3]int{0, 0, int(s[i])})
+			i++
+		}
+	}
+	return out
+}
+
+type hnode struct {
+	sym, freq int
+	l, r      *hnode
+}
+type hheap []*hnode // min-heap: rarest first, ties by symbol
+
+func (h hheap) Len() int { return len(h) }
+func (h hheap) Less(i, j int) bool {
+	return h[i].freq < h[j].freq || h[i].freq == h[j].freq && h[i].sym < h[j].sym
+}
+func (h hheap) Swap(i, j int) { h[i], h[j] = h[j], h[i] }
+func (h *hheap) Push(x any)   { *h = append(*h, x.(*hnode)) }
+func (h *hheap) Pop() any     { o := *h; x := o[len(o)-1]; *h = o[:len(o)-1]; return x }
+
+func huffmanCodes(freq map[int]int) map[int]string {
+	h := &hheap{}
+	for sym, f := range freq {
+		heap.Push(h, &hnode{sym: sym, freq: f})
+	}
+	for h.Len() > 1 { // merge the two rarest
+		a, b := heap.Pop(h).(*hnode), heap.Pop(h).(*hnode)
+		heap.Push(h, &hnode{sym: min(a.sym, b.sym), freq: a.freq + b.freq, l: a, r: b})
+	}
+	codes := map[int]string{}
+	var walk func(n *hnode, code string)
+	walk = func(n *hnode, code string) {
+		if n.l == nil {
+			if code == "" {
+				code = "0"
+			}
+			codes[n.sym] = code
+			return
+		}
+		walk(n.l, code+"0")
+		walk(n.r, code+"1")
+	}
+	walk(heap.Pop(h).(*hnode), "")
+	return codes
+}
+
+// returns the bit string, the match offsets and the code table
+func deflateLike(s string) (string, []int, map[int]string) {
+	var syms, offsets []int
+	freq := map[int]int{}
+	for _, t := range lzTokens(s) {
+		sym := t[2]
+		if t[1] > 0 {
+			sym = 256 + t[1]
+			offsets = append(offsets, t[0])
+		}
+		syms = append(syms, sym)
+		freq[sym]++
+	}
+	if len(syms) == 0 {
+		return "", nil, nil
+	}
+	codes := huffmanCodes(freq)
+	var bits strings.Builder
+	for _, sym := range syms {
+		bits.WriteString(codes[sym])
+	}
+	return bits.String(), offsets, codes
+}
+
+func inflateLike(bits string, offsets []int, codes map[int]string) string {
+	rev := map[string]int{}
+	for sym, c := range codes {
+		rev[c] = sym
+	}
+	var out []byte
+	cur, oi := "", 0
+	for _, b := range bits {
+		cur += string(b)
+		sym, ok := rev[cur]
+		if !ok { // prefix-free: the first match is the symbol
+			continue
+		}
+		cur = ""
+		if sym < 256 {
+			out = append(out, byte(sym))
+		} else {
+			off := offsets[oi]
+			oi++
+			for k := 0; k < sym-256; k++ {
+				out = append(out, out[len(out)-off]) // may overlap itself, so copy one byte at a time
+			}
+		}
+	}
+	return string(out)
+}
+
+func bwt(s string) string { // s must not contain "\x00", the end marker
+	t := s + "\x00"
+	rot := make([]string, len(t))
+	for i := range t {
+		rot[i] = t[i:] + t[:i]
+	}
+	sort.Strings(rot)
+	last := make([]byte, len(t))
+	for i, r := range rot {
+		last[i] = r[len(r)-1]
+	}
+	return string(last)
+}
+
+func ibwt(last string) string {
+	n := len(last)
+	table := make([]string, n)
+	for k := 0; k < n; k++ {
+		for i := range table {
+			table[i] = string(last[i]) + table[i] // prepend the column
+		}
+		sort.Strings(table)
+	}
+	for _, row := range table {
+		if strings.HasSuffix(row, "\x00") {
+			return row[:n-1]
+		}
+	}
+	return ""
+}
 ### codecs
 --idea
 Image, audio and video codecs make media small by throwing away what people cannot easily see or hear, and then storing what is left compactly. JPEG is the classic case. It cuts the picture into 8 by 8 blocks. For each block it computes a frequency transform, which rewrites the 64 pixel values as 64 numbers that say how much of each pattern, from smooth to fine detail, the block contains. Natural images are mostly smooth, so most of the fine-detail numbers are tiny.
@@ -5121,6 +7623,65 @@ vector<double> decodeBlock(const vector<pair<int, int>>& pairs, const vector<int
     size_t k = 0;
     for (auto& p : pairs) { k += p.first; X[k] = p.second * q[k]; k++; }   // expand runs, dequantise
     return idct(X);
+}
+--go
+import "math"
+
+func dct(x []float64) []float64 { // orthonormal DCT-II
+	n := len(x)
+	out := make([]float64, n)
+	for k := range out {
+		s := 0.0
+		for i, v := range x {
+			s += v * math.Cos(math.Pi/float64(n)*(float64(i)+0.5)*float64(k))
+		}
+		out[k] = s * scale(k, n)
+	}
+	return out
+}
+
+func scale(k, n int) float64 {
+	if k == 0 {
+		return math.Sqrt(1 / float64(n))
+	}
+	return math.Sqrt(2 / float64(n))
+}
+
+func idct(X []float64) []float64 { // the inverse transform
+	n := len(X)
+	out := make([]float64, n)
+	for i := range out {
+		for k, v := range X {
+			out[i] += scale(k, n) * v * math.Cos(math.Pi/float64(n)*(float64(i)+0.5)*float64(k))
+		}
+	}
+	return out
+}
+
+func encodeBlock(x []float64, q []int) [][2]int { // pairs {zeros before, value}
+	var pairs [][2]int
+	zeros := 0
+	for k, c := range dct(x) {
+		v := int(math.Floor(c/float64(q[k]) + 0.5)) // quantise: the only lossy step
+		if v == 0 {
+			zeros++
+		} else {
+			pairs = append(pairs, [2]int{zeros, v})
+			zeros = 0
+		}
+	}
+	return pairs // trailing zeros are implied
+}
+
+func decodeBlock(pairs [][2]int, q []int) []float64 {
+	X := make([]float64, len(q))
+	k := 0
+	for _, p := range pairs { // expand runs, dequantise
+		k += p[0]
+		X[k] = float64(p[1] * q[k])
+		k++
+	}
+	return idct(X)
 }
 
 ### genome
@@ -5313,6 +7874,97 @@ pair<int, int> align(const FM& fm, const string& read, int k) {                 
     }
     return best;
 }
+--go
+import (
+	"slices"
+	"sort"
+)
+
+type FM struct {
+	text string
+	sa   []int      // suffix array
+	C    [128]int   // C[c] = number of characters smaller than c
+	occ  [128][]int // occ[c][i] = copies of c among the first i BWT characters
+	n    int
+}
+
+func newFM(genome string) *FM {
+	f := &FM{text: genome + "$"}
+	f.n = len(f.text)
+	f.sa = make([]int, f.n)
+	for i := range f.sa {
+		f.sa[i] = i
+	}
+	sort.Slice(f.sa, func(a, b int) bool { return f.text[f.sa[a]:] < f.text[f.sa[b]:] }) // suffix array (naive)
+	for c := range f.occ {
+		f.occ[c] = make([]int, f.n+1)
+	}
+	var count [128]int
+	for i := 0; i < f.n; i++ {
+		b := f.text[(f.sa[i]+f.n-1)%f.n] // BWT character
+		for c := range f.occ {
+			f.occ[c][i+1] = f.occ[c][i]
+			if int(b) == c {
+				f.occ[c][i+1]++
+			}
+		}
+		count[f.text[i]]++
+	}
+	for c := 1; c < 128; c++ {
+		f.C[c] = f.C[c-1] + count[c-1]
+	}
+	return f
+}
+
+func (f *FM) rng(pat string) (int, int) { // backward search: rows [lo, hi)
+	lo, hi := 0, f.n
+	for i := len(pat) - 1; i >= 0 && lo < hi; i-- {
+		c := pat[i]
+		lo, hi = f.C[c]+f.occ[c][lo], f.C[c]+f.occ[c][hi]
+	}
+	return lo, max(lo, hi)
+}
+
+func (f *FM) locate(pat string) []int {
+	lo, hi := f.rng(pat)
+	out := append([]int(nil), f.sa[lo:hi]...)
+	sort.Ints(out)
+	return out
+}
+
+func semiGlobal(read, window string) int { // read may align anywhere in the window
+	prev, cur := make([]int, len(window)+1), make([]int, len(window)+1) // row 0: all zeros
+	for i := 1; i <= len(read); i++ {
+		cur[0] = i
+		for j := 1; j <= len(window); j++ {
+			sub := prev[j-1]
+			if read[i-1] != window[j-1] {
+				sub++
+			}
+			cur[j] = min(prev[j]+1, cur[j-1]+1, sub)
+		}
+		prev, cur = cur, prev
+	}
+	return slices.Min(prev)
+}
+
+func align(fm *FM, read string, k int) (dist, start int, ok bool) { // best placement within k edits
+	pieces := k + 1
+	size := len(read) / pieces
+	for p := 0; p < pieces; p++ { // pigeonhole: one piece is exact
+		off, end := p*size, p*size+size
+		if p == pieces-1 {
+			end = len(read)
+		}
+		for _, pos := range fm.locate(read[off:end]) {
+			s, e := max(0, pos-off-k), min(fm.n-1, pos-off+len(read)+k)
+			if d := semiGlobal(read, fm.text[s:e]); d <= k && (!ok || d < dist) {
+				dist, start, ok = d, s, true
+			}
+		}
+	}
+	return
+}
 
 ### ecc
 --idea
@@ -5461,6 +8113,75 @@ long long recoverErasures(const vector<long long>& H, long long word, const vect
     }
     for (int j = 0; j < u; j++) if (rows[j] >> u & 1) word |= 1LL << erased[j];
     return word;
+}
+--go
+import "math/bits"
+
+func hammingEncode(d [4]int) [7]int { // 4 data bits -> 7-bit code, index 0 = position 1
+	var c [8]int // use positions 1..7
+	c[3], c[5], c[6], c[7] = d[0], d[1], d[2], d[3]
+	c[1] = c[3] ^ c[5] ^ c[7] // covers positions with bit 0 set
+	c[2] = c[3] ^ c[6] ^ c[7] // covers positions with bit 1 set
+	c[4] = c[5] ^ c[6] ^ c[7] // covers positions with bit 2 set
+	return [7]int(c[1:])
+}
+
+func hammingDecode(code [7]int) [4]int { // corrects one flipped bit
+	var c [8]int
+	copy(c[1:], code[:])
+	syndrome := 0
+	for i := 1; i <= 7; i++ {
+		if c[i] == 1 {
+			syndrome ^= i // XOR of the positions holding a 1
+		}
+	}
+	if syndrome != 0 {
+		c[syndrome] ^= 1 // the syndrome names the wrong position
+	}
+	return [4]int{c[3], c[5], c[6], c[7]}
+}
+
+// H rows are bitmasks over n bits; word has the known bits set, erased positions are listed in erased.
+// Returns the repaired word, or ok=false if the erasures cannot be solved uniquely.
+func recoverErasures(H []uint64, word uint64, erased []int) (uint64, bool) {
+	var erasedMask uint64
+	for _, e := range erased {
+		erasedMask |= 1 << e
+	}
+	u := len(erased)
+	rows := make([]uint64, len(H)) // low u bits: coefficients; bit u: right-hand side
+	for r, h := range H {
+		for j, e := range erased {
+			rows[r] |= (h >> e & 1) << j
+		}
+		rows[r] |= uint64(bits.OnesCount64(h&word&^erasedMask)%2) << u
+	}
+	rank := 0
+	for col := 0; col < u; col++ { // Gaussian elimination over GF(2)
+		piv := -1
+		for r := rank; r < len(rows); r++ {
+			if rows[r]>>col&1 == 1 {
+				piv = r
+				break
+			}
+		}
+		if piv < 0 {
+			return 0, false
+		}
+		rows[piv], rows[rank] = rows[rank], rows[piv]
+		for r := range rows {
+			if r != rank && rows[r]>>col&1 == 1 {
+				rows[r] ^= rows[rank]
+			}
+		}
+		rank++
+	}
+	for j, e := range erased {
+		if rows[j]>>u&1 == 1 {
+			word |= 1 << e
+		}
+	}
+	return word, true
 }
 
 ### rsa
@@ -5655,6 +8376,103 @@ u64 decryptCrt(u64 c, u64 p, u64 q, u64 d) {                       // Chinese re
     u64 h = mulmod(inverse(q, p), (m1 + p - m2 % p) % p, p);
     return m2 + h * q;
 }
+--go
+import (
+	"math/bits"
+	"math/rand"
+)
+
+func mulmod(a, b, m int64) int64 { // (a * b) mod m without overflow: a 128-bit product, then a 128-bit remainder
+	hi, lo := bits.Mul64(uint64(a), uint64(b))
+	return int64(bits.Rem64(hi, lo, uint64(m)))
+}
+
+func modpow(b, e, m int64) int64 { // fast power: square, and multiply on set bits
+	r := int64(1)
+	b %= m
+	for ; e > 0; e >>= 1 {
+		if e&1 == 1 {
+			r = mulmod(r, b, m)
+		}
+		b = mulmod(b, b, m)
+	}
+	return r
+}
+
+var bases = []int64{2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37}
+
+func isPrime(n int64) bool { // Miller-Rabin with fixed bases
+	if n < 2 {
+		return false
+	}
+	for _, p := range bases {
+		if n == p {
+			return true
+		}
+		if n%p == 0 {
+			return false
+		}
+	}
+	t, s := n-1, 0
+	for t&1 == 0 { // n - 1 = 2^s * t
+		t >>= 1
+		s++
+	}
+	for _, a := range bases {
+		x := modpow(a, t, n)
+		if x == 1 || x == n-1 {
+			continue
+		}
+		composite := true
+		for i := 1; i < s && composite; i++ {
+			if x = mulmod(x, x, n); x == n-1 {
+				composite = false
+			}
+		}
+		if composite {
+			return false
+		}
+	}
+	return true
+}
+
+func randomPrime(nbits int, rnd *rand.Rand) int64 {
+	for {
+		c := int64(1)<<(nbits-1) | rnd.Int63()&(int64(1)<<(nbits-1)-1) | 1 // top bit and low bit set
+		if isPrime(c) {
+			return c
+		}
+	}
+}
+
+func extGcd(a, b int64) (g, x, y int64) { // a*x + b*y = g
+	if b == 0 {
+		return a, 1, 0
+	}
+	g, x1, y1 := extGcd(b, a%b)
+	return g, y1, x1 - a/b*y1
+}
+
+func inverse(a, m int64) int64 { // a^-1 mod m, or -1 if none
+	g, x, _ := extGcd(a%m, m)
+	if g != 1 {
+		return -1
+	}
+	return (x%m + m) % m
+}
+
+// returns n, e, d from two primes; ok=false if e is not coprime to phi
+func keygen(p, q, e int64) (n, ee, d int64, ok bool) {
+	phi := (p - 1) * (q - 1)
+	d = inverse(e, phi)
+	return p * q, e, d, d >= 0
+}
+
+func decryptCrt(c, p, q, d int64) int64 { // Chinese remainder theorem: two small powers
+	m1, m2 := modpow(c%p, d%(p-1), p), modpow(c%q, d%(q-1), q)
+	h := mulmod(inverse(q, p), ((m1-m2)%p+p)%p, p)
+	return m2 + h*q
+}
 
 ### cryptohash
 --idea
@@ -5819,6 +8637,83 @@ string slowHash(const string& password, const string& salt, int rounds = 10000) 
     string h = sha256(salt + password);
     for (int i = 1; i < rounds; i++) h = sha256(h);
     return h;
+}
+--go
+import (
+	"encoding/binary"
+	"math"
+	"math/bits"
+)
+
+var K, H0 = roundConstants()
+
+func roundConstants() (k [64]uint32, h [8]uint32) { // fractional parts of cube and square roots of the first primes
+	var primes []int
+	for n := 2; len(primes) < 64; n++ {
+		ok := true
+		for d := 2; d*d <= n; d++ {
+			if n%d == 0 {
+				ok = false
+			}
+		}
+		if ok {
+			primes = append(primes, n)
+		}
+	}
+	frac := func(r float64) uint32 { return uint32((r - math.Floor(r)) * 4294967296) }
+	for i, p := range primes {
+		k[i] = frac(math.Cbrt(float64(p)))
+		if i < 8 {
+			h[i] = frac(math.Sqrt(float64(p)))
+		}
+	}
+	return
+}
+
+func rotr(x uint32, n int) uint32 { return bits.RotateLeft32(x, -n) }
+
+func sha256(msg []byte) []byte {
+	padLen := ((len(msg)+8)/64 + 1) * 64
+	data := make([]byte, padLen)
+	copy(data, msg)
+	data[len(msg)] = 0x80                                           // padding
+	binary.BigEndian.PutUint64(data[padLen-8:], uint64(len(msg))*8) // length in bits
+	h := H0
+	for off := 0; off < padLen; off += 64 {
+		var w [64]uint32
+		for i := 0; i < 16; i++ {
+			w[i] = binary.BigEndian.Uint32(data[off+4*i:])
+		}
+		for i := 16; i < 64; i++ { // message schedule
+			s0 := rotr(w[i-15], 7) ^ rotr(w[i-15], 18) ^ w[i-15]>>3
+			s1 := rotr(w[i-2], 17) ^ rotr(w[i-2], 19) ^ w[i-2]>>10
+			w[i] = w[i-16] + s0 + w[i-7] + s1
+		}
+		a, b, c, d, e, f, g, hh := h[0], h[1], h[2], h[3], h[4], h[5], h[6], h[7]
+		for i := 0; i < 64; i++ { // 64 rounds
+			S1 := rotr(e, 6) ^ rotr(e, 11) ^ rotr(e, 25)
+			t1 := hh + S1 + (e&f ^ ^e&g) + K[i] + w[i]
+			S0 := rotr(a, 2) ^ rotr(a, 13) ^ rotr(a, 22)
+			t2 := S0 + (a&b ^ a&c ^ b&c)
+			hh, g, f, e, d, c, b, a = g, f, e, d+t1, c, b, a, t1+t2
+		}
+		for i, v := range [8]uint32{a, b, c, d, e, f, g, hh} { // feed-forward
+			h[i] += v
+		}
+	}
+	out := make([]byte, 32)
+	for i, v := range h {
+		binary.BigEndian.PutUint32(out[4*i:], v)
+	}
+	return out
+}
+
+func slowHash(password, salt []byte, rounds int) []byte { // salted and iterated
+	h := sha256(append(append([]byte{}, salt...), password...))
+	for i := 1; i < rounds; i++ {
+		h = sha256(h)
+	}
+	return h
 }
 ### dh
 --idea
@@ -6013,6 +8908,118 @@ Pt ecMul(u64 k, Pt P, u64 a, u64 p) {                                     // dou
     while (k) { if (k & 1) r = ecAdd(r, P, a, p); P = ecAdd(P, P, a, p); k >>= 1; }
     return r;
 }
+--go
+import (
+	"math"
+	"math/bits"
+)
+
+func mulmod(a, b, m int64) int64 { // 128-bit product, then remainder: no overflow
+	hi, lo := bits.Mul64(uint64(a), uint64(b))
+	return int64(bits.Rem64(hi, lo, uint64(m)))
+}
+
+func modpow(b, e, m int64) int64 {
+	r := int64(1)
+	b %= m
+	for ; e > 0; e >>= 1 {
+		if e&1 == 1 {
+			r = mulmod(r, b, m)
+		}
+		b = mulmod(b, b, m)
+	}
+	return r
+}
+
+func findGenerator(p int64) int64 { // a primitive root of the prime p
+	var qs []int64
+	n := p - 1
+	for d := int64(2); d*d <= n; d++ {
+		if n%d == 0 {
+			qs = append(qs, d)
+			for n%d == 0 {
+				n /= d
+			}
+		}
+	}
+	if n > 1 {
+		qs = append(qs, n)
+	}
+	for g := int64(2); ; g++ {
+		ok := true
+		for _, q := range qs {
+			if modpow(g, (p-1)/q, p) == 1 { // order of g is too small
+				ok = false
+				break
+			}
+		}
+		if ok {
+			return g
+		}
+	}
+}
+
+// returns A, B, the secret Alice computes and the secret Bob computes
+func exchange(p, g, a, b int64) (A, B, sa, sb int64) {
+	A, B = modpow(g, a, p), modpow(g, b, p)
+	return A, B, modpow(B, a, p), modpow(A, b, p)
+}
+
+func bsgs(g, h, p int64) int64 { // x with g^x = h (mod p), or -1
+	m := int64(math.Ceil(math.Sqrt(float64(p - 1))))
+	baby := map[int64]int64{}
+	cur := int64(1)
+	for j := int64(0); j < m; j++ { // baby steps g^j
+		if _, seen := baby[cur]; !seen {
+			baby[cur] = j
+		}
+		cur = mulmod(cur, g, p)
+	}
+	factor := modpow(modpow(g, m, p), p-2, p) // g^-m by Fermat's little theorem
+	cur = h % p
+	for i := int64(0); i < m; i++ { // giant steps
+		if j, ok := baby[cur]; ok {
+			return i*m + j
+		}
+		cur = mulmod(cur, factor, p)
+	}
+	return -1
+}
+
+// elliptic curve y^2 = x^3 + a*x + b over F_p. A point is {x, y}; nil is the point at infinity.
+type pt struct{ x, y int64 }
+
+func ecAdd(P, Q *pt, a, p int64) *pt {
+	if P == nil {
+		return Q
+	}
+	if Q == nil {
+		return P
+	}
+	if P.x == Q.x && (P.y+Q.y)%p == 0 { // P + (-P) = infinity
+		return nil
+	}
+	var s int64
+	if P.x == Q.x { // doubling
+		s = mulmod((3*mulmod(P.x, P.x, p)+a)%p, modpow(2*P.y%p, p-2, p), p)
+	} else {
+		s = mulmod(((Q.y-P.y)%p+p)%p, modpow(((Q.x-P.x)%p+p)%p, p-2, p), p)
+	}
+	x := ((mulmod(s, s, p)-P.x-Q.x)%p + 2*p) % p
+	y := ((mulmod(s, ((P.x-x)%p+p)%p, p)-P.y)%p + p) % p
+	return &pt{x, y}
+}
+
+func ecMul(k int64, P *pt, a, p int64) *pt { // double-and-add
+	var r *pt
+	for ; k > 0; k >>= 1 {
+		if k&1 == 1 {
+			r = ecAdd(r, P, a, p)
+		}
+		P = ecAdd(P, P, a, p)
+	}
+	return r
+}
 
 ### blockchain
 --idea
@@ -6165,6 +9172,81 @@ bool verify(const vector<Block>& chain, int difficulty) {
     }
     return true;
 }
+--go
+import "fmt"
+
+func mix(x uint64) uint64 {
+	x ^= x >> 30
+	x *= 0xbf58476d1ce4e5b9
+	x ^= x >> 27
+	x *= 0x94d049bb133111eb
+	return x ^ x>>31
+}
+
+func h64(s string) uint64 { // not secure
+	h := uint64(0xcbf29ce484222325)
+	for i := 0; i < len(s); i++ {
+		h ^= uint64(s[i])
+		h *= 0x100000001b3
+	}
+	return mix(h)
+}
+
+func merkleRoot(txs []string) uint64 {
+	var level []uint64
+	for _, t := range txs {
+		level = append(level, h64(t))
+	}
+	if len(level) == 0 {
+		return 0
+	}
+	for len(level) > 1 {
+		var next []uint64
+		for i := 0; i < len(level); i += 2 {
+			left, right := level[i], level[i] // an odd node pairs with itself
+			if i+1 < len(level) {
+				right = level[i+1]
+			}
+			next = append(next, h64(fmt.Sprintf("%d,%d", left, right)))
+		}
+		level = next
+	}
+	return level[0]
+}
+
+type Block struct {
+	prev, root, nonce, hash uint64
+	txs                     []string
+}
+
+func headerHash(prev, root, nonce uint64) uint64 {
+	return h64(fmt.Sprintf("%d|%d|%d", prev, root, nonce))
+}
+
+func mine(prev uint64, txs []string, difficulty int) *Block { // proof of work: find a nonce
+	b := &Block{prev: prev, txs: txs, root: merkleRoot(txs)}
+	for nonce := uint64(0); ; nonce++ {
+		if h := headerHash(prev, b.root, nonce); h>>(64-difficulty) == 0 { // top bits are zero
+			b.nonce, b.hash = nonce, h
+			return b
+		}
+	}
+}
+
+func verify(chain []*Block, difficulty int) bool {
+	var prev uint64
+	for _, b := range chain {
+		if b.prev != prev || b.root != merkleRoot(b.txs) { // link and transactions intact
+			return false
+		}
+		h := headerHash(b.prev, b.root, b.nonce)
+		if h != b.hash || h>>(64-difficulty) != 0 { // hash correct and work done
+			return false
+		}
+		prev = b.hash
+	}
+	return true
+}
 
 ### neural
 --idea
@@ -6265,6 +9347,54 @@ double predictXor(const XorNet& net, double x0, double x1) {
     double z = net.b2;
     for (size_t j = 0; j < net.W2.size(); j++) z += net.W2[j] * tanh(net.W1[2 * j] * x0 + net.W1[2 * j + 1] * x1 + net.b1[j]);
     return 1 / (1 + exp(-z));
+}
+--go
+import (
+	"math"
+	"math/rand"
+)
+
+type net struct {
+	W1, b1, W2 []float64 // hidden layer: 2 inputs -> h units; output layer: h -> 1
+	b2         float64
+}
+
+// trains a 2-input, h-hidden, 1-output network on XOR
+func trainXor(h, epochs int, lr float64, rnd *rand.Rand) *net {
+	n := &net{make([]float64, 2*h), make([]float64, h), make([]float64, h), 0}
+	for j := 0; j < h; j++ {
+		n.W1[2*j], n.W1[2*j+1], n.W2[j] = rnd.Float64()*2-1, rnd.Float64()*2-1, rnd.Float64()*2-1
+	}
+	X := [][2]float64{{0, 0}, {0, 1}, {1, 0}, {1, 1}}
+	Y := []float64{0, 1, 1, 0}
+	for ep := 0; ep < epochs; ep++ {
+		for i, x := range X {
+			a := make([]float64, h) // forward pass
+			z := n.b2
+			for j := range a {
+				a[j] = math.Tanh(n.W1[2*j]*x[0] + n.W1[2*j+1]*x[1] + n.b1[j])
+				z += n.W2[j] * a[j]
+			}
+			dz := 1/(1+math.Exp(-z)) - Y[i] // backward pass: slope at the output
+			for j := range a {
+				dpre := dz * n.W2[j] * (1 - a[j]*a[j]) // back through tanh
+				n.W2[j] -= lr * dz * a[j]              // gradient descent updates
+				n.W1[2*j] -= lr * dpre * x[0]
+				n.W1[2*j+1] -= lr * dpre * x[1]
+				n.b1[j] -= lr * dpre
+			}
+			n.b2 -= lr * dz
+		}
+	}
+	return n
+}
+
+func (n *net) predict(x0, x1 float64) float64 {
+	z := n.b2
+	for j := range n.b1 {
+		z += n.W2[j] * math.Tanh(n.W1[2*j]*x0+n.W1[2*j+1]*x1+n.b1[j])
+	}
+	return 1 / (1 + math.Exp(-z))
 }
 
 ### dtree
@@ -6469,6 +9599,118 @@ int vote(const vector<unique_ptr<TNode>>& trees, const vector<double>& x, int K)
     for (auto& t : trees) cnt[predictTree(t.get(), x)]++;
     return max_element(cnt.begin(), cnt.end()) - cnt.begin();
 }
+--go
+import (
+	"math"
+	"math/rand"
+	"sort"
+)
+
+type Node struct {
+	feature     int // -1 for a leaf
+	label       int
+	thr         float64
+	left, right *Node
+}
+
+func gini(cnt []int, n int) float64 {
+	if n == 0 {
+		return 0
+	}
+	s := 0.0
+	for _, c := range cnt {
+		s += float64(c) * float64(c) / (float64(n) * float64(n))
+	}
+	return 1 - s
+}
+
+func majority(cnt []int) int {
+	best := 0
+	for c := range cnt {
+		if cnt[c] > cnt[best] {
+			best = c
+		}
+	}
+	return best
+}
+
+func build(X [][]float64, y []int, rows []int, depth, maxDepth, K, featuresPerSplit int, rnd *rand.Rand) *Node {
+	cnt := make([]int, K)
+	for _, r := range rows {
+		cnt[y[r]]++
+	}
+	best := majority(cnt)
+	node := &Node{feature: -1, label: best} // majority label, used if this is a leaf
+	if cnt[best] == len(rows) || depth >= maxDepth || len(rows) < 2 {
+		return node
+	}
+	feats := rnd.Perm(len(X[0])) // forest: a random subset of features
+	bestScore, bestThr, bestF := gini(cnt, len(rows))-1e-12, 0.0, -1
+	for _, f := range feats[:min(featuresPerSplit, len(feats))] {
+		order := append([]int(nil), rows...)
+		sort.Slice(order, func(a, b int) bool { return X[order[a]][f] < X[order[b]][f] })
+		left, right := make([]int, K), append([]int(nil), cnt...)
+		for i := 0; i+1 < len(order); i++ { // sweep: move one row to the left side
+			left[y[order[i]]]++
+			right[y[order[i]]]--
+			a, b := X[order[i]][f], X[order[i+1]][f]
+			if a == b { // no threshold between equal values
+				continue
+			}
+			nl, nr := i+1, len(order)-i-1
+			if score := (float64(nl)*gini(left, nl) + float64(nr)*gini(right, nr)) / float64(len(order)); score < bestScore {
+				bestScore, bestF, bestThr = score, f, (a+b)/2
+			}
+		}
+	}
+	if bestF < 0 {
+		return node
+	}
+	var l, r []int
+	for _, row := range rows {
+		if X[row][bestF] <= bestThr {
+			l = append(l, row)
+		} else {
+			r = append(r, row)
+		}
+	}
+	node.feature, node.thr = bestF, bestThr
+	node.left = build(X, y, l, depth+1, maxDepth, K, featuresPerSplit, rnd)
+	node.right = build(X, y, r, depth+1, maxDepth, K, featuresPerSplit, rnd)
+	return node
+}
+
+func predict(n *Node, x []float64) int {
+	for n.feature >= 0 {
+		if x[n.feature] <= n.thr {
+			n = n.left
+		} else {
+			n = n.right
+		}
+	}
+	return n.label
+}
+
+func forest(X [][]float64, y []int, trees, maxDepth, K int, rnd *rand.Rand) []*Node {
+	var out []*Node
+	fps := max(1, int(math.Sqrt(float64(len(X[0])))))
+	for t := 0; t < trees; t++ {
+		sample := make([]int, len(X))
+		for i := range sample {
+			sample[i] = rnd.Intn(len(X)) // bootstrap sample
+		}
+		out = append(out, build(X, y, sample, 0, maxDepth, K, fps, rnd))
+	}
+	return out
+}
+
+func vote(trees []*Node, x []float64, K int) int { // majority vote of the forest
+	cnt := make([]int, K)
+	for _, t := range trees {
+		cnt[predict(t, x)]++
+	}
+	return majority(cnt)
+}
 
 ### vectorsearch
 --idea
@@ -6609,6 +9851,77 @@ struct IVF {
         return out;
     }
 };
+--go
+import "sort"
+
+func dist2(a, b []float64) float64 {
+	s := 0.0
+	for i := range a {
+		s += (a[i] - b[i]) * (a[i] - b[i])
+	}
+	return s
+}
+
+type IVF struct { // inverted file index: one list of vector ids per k-means cell
+	centres [][]float64
+	lists   [][]int
+}
+
+func newIVF(vecs [][]float64, nlist, rounds int) *IVF {
+	ix := &IVF{centres: make([][]float64, nlist)}
+	for c := range ix.centres {
+		ix.centres[c] = append([]float64(nil), vecs[c*len(vecs)/nlist]...) // evenly spaced starting centres
+	}
+	for r := 0; r < rounds; r++ { // k-means
+		ix.assign(vecs)
+		for c, ids := range ix.lists {
+			if len(ids) == 0 { // keep the old centre
+				continue
+			}
+			m := make([]float64, len(vecs[0]))
+			for _, id := range ids {
+				for d := range m {
+					m[d] += vecs[id][d] / float64(len(ids))
+				}
+			}
+			ix.centres[c] = m
+		}
+	}
+	ix.assign(vecs)
+	return ix
+}
+
+func (ix *IVF) assign(vecs [][]float64) {
+	ix.lists = make([][]int, len(ix.centres))
+	for i, v := range vecs {
+		c := ix.nearest(v)
+		ix.lists[c] = append(ix.lists[c], i)
+	}
+}
+
+func (ix *IVF) nearest(v []float64) int {
+	best := 0
+	for c := 1; c < len(ix.centres); c++ {
+		if dist2(v, ix.centres[c]) < dist2(v, ix.centres[best]) {
+			best = c
+		}
+	}
+	return best
+}
+
+func (ix *IVF) search(vecs [][]float64, q []float64, k, nprobe int) []int {
+	cells := make([]int, len(ix.centres))
+	for c := range cells {
+		cells[c] = c
+	}
+	sort.Slice(cells, func(a, b int) bool { return dist2(q, ix.centres[cells[a]]) < dist2(q, ix.centres[cells[b]]) }) // nearest centres first
+	var cand []int
+	for _, c := range cells[:min(nprobe, len(cells))] { // scan only the probed cells
+		cand = append(cand, ix.lists[c]...)
+	}
+	sort.Slice(cand, func(a, b int) bool { return dist2(q, vecs[cand[a]]) < dist2(q, vecs[cand[b]]) })
+	return cand[:min(k, len(cand))] // a size-k heap would avoid sorting every candidate
+}
 ### viterbi
 --idea
 Speech recognition has to turn a stream of sound measurements into words, though the same sound can come from different words and the sounds are noisy. A hidden Markov model (HMM) describes the situation: there is a hidden sequence of states (the phonemes or words actually spoken) that we cannot see, and at each step the hidden state produces an observation (a sound) that we can see, with some probability. Moving from one hidden state to the next also has probabilities, because some sounds tend to follow others.
@@ -6701,6 +10014,48 @@ vector<int> viterbi(const vector<double>& start, const vector<vector<double>>& t
     vector<int> path(T);
     for (int t = T - 1; t >= 0; t--) { path[t] = last; if (t > 0) last = back[t][last]; }   // follow the pointers backwards
     return path;
+}
+--go
+import "math"
+
+// returns the best path and its log probability (math.Log(0) is -Inf, which is what we want for impossible steps)
+func viterbi(start []float64, trans, emit [][]float64, obs []int) ([]int, float64) {
+	n, T := len(start), len(obs)
+	score := make([][]float64, T)
+	back := make([][]int, T)
+	for t := range score {
+		score[t], back[t] = make([]float64, n), make([]int, n)
+	}
+	for s := 0; s < n; s++ {
+		score[0][s] = math.Log(start[s]) + math.Log(emit[s][obs[0]])
+	}
+	for t := 1; t < T; t++ {
+		for s := 0; s < n; s++ {
+			best, arg := math.Inf(-1), 0
+			for r := 0; r < n; r++ {
+				if v := score[t-1][r] + math.Log(trans[r][s]); v > best { // best path to r, then step r -> s
+					best, arg = v, r
+				}
+			}
+			score[t][s] = best + math.Log(emit[s][obs[t]])
+			back[t][s] = arg // where the best path came from
+		}
+	}
+	last := 0
+	for s := 1; s < n; s++ {
+		if score[T-1][s] > score[T-1][last] {
+			last = s
+		}
+	}
+	logProb := score[T-1][last]
+	path := make([]int, T)
+	for t := T - 1; t >= 0; t-- { // follow the pointers backwards
+		path[t] = last
+		if t > 0 {
+			last = back[t][last]
+		}
+	}
+	return path, logProb
 }
 
 ### llm
@@ -6834,6 +10189,72 @@ vector<int> beamSearch(const vector<vector<double>>& P, int start, int width, in
         beam = next;
     }
     return vector<int>(beam[0].second.begin() + 1, beam[0].second.end());
+}
+--go
+import (
+	"math"
+	"math/rand"
+	"sort"
+)
+
+func withTemperature(p []float64, temp float64) []float64 { // p^(1/T), renormalised
+	q := make([]float64, len(p))
+	sum := 0.0
+	for i, v := range p {
+		q[i] = math.Pow(v, 1/temp)
+		sum += q[i]
+	}
+	for i := range q {
+		q[i] /= sum
+	}
+	return q
+}
+
+func topKSample(probs []float64, k int, temp float64, rnd *rand.Rand) int {
+	p := withTemperature(probs, temp)
+	ids := make([]int, len(p))
+	for i := range ids {
+		ids[i] = i
+	}
+	sort.SliceStable(ids, func(a, b int) bool { return p[ids[a]] > p[ids[b]] }) // best first
+	ids = ids[:min(k, len(ids))]                                                // keep the best k
+	total := 0.0
+	for _, t := range ids {
+		total += p[t]
+	}
+	draw, run := rnd.Float64()*total, 0.0 // renormalise by scaling the draw
+	for _, t := range ids {
+		if run += p[t]; draw < run {
+			return t
+		}
+	}
+	return ids[0]
+}
+
+type beamEntry struct {
+	logProb float64
+	seq     []int
+}
+
+// P[prev][next]. Returns the best sequence of steps tokens after start.
+func beamSearch(P [][]float64, start, width, steps int) []int {
+	beam := []beamEntry{{0, []int{start}}}
+	for s := 0; s < steps; s++ {
+		var next []beamEntry
+		for _, b := range beam {
+			last := b.seq[len(b.seq)-1]
+			for t, pr := range P[last] {
+				if pr == 0 {
+					continue
+				}
+				ext := append(append([]int(nil), b.seq...), t)
+				next = append(next, beamEntry{b.logProb + math.Log(pr), ext}) // add log probabilities
+			}
+		}
+		sort.SliceStable(next, func(a, b int) bool { return next[a].logProb > next[b].logProb })
+		beam = next[:min(width, len(next))] // keep the best width
+	}
+	return beam[0].seq[1:]
 }
 
 ### tokenizer
@@ -6972,6 +10393,71 @@ Syms encodeBpe(const string& word, const vector<pair<string, string>>& merges) {
     for (char c : word) syms.push_back(string(1, c));
     for (auto& ab : merges) syms = mergePair(syms, ab.first, ab.second);
     return syms;
+}
+--go
+import "strings"
+
+// words: the training corpus (repeats count). Returns the merges in order, each as {a, b}.
+func trainBpe(words []string, numMerges int) [][2]string {
+	vocab := map[string]int{} // word as symbols joined by spaces -> count
+	for _, w := range words {
+		syms := []string{}
+		for _, c := range w {
+			syms = append(syms, string(c))
+		}
+		vocab[strings.Join(syms, " ")]++
+	}
+	var merges [][2]string
+	for m := 0; m < numMerges; m++ {
+		pairs := map[[2]string]int{} // adjacent symbol pair -> total count
+		for w, n := range vocab {
+			s := strings.Split(w, " ")
+			for i := 0; i+1 < len(s); i++ {
+				pairs[[2]string{s[i], s[i+1]}] += n
+			}
+		}
+		var best [2]string
+		bc := 1
+		for p, c := range pairs {
+			if c > bc || c == bc && bc > 1 && (p[0] < best[0] || p[0] == best[0] && p[1] < best[1]) {
+				best, bc = p, c
+			}
+		}
+		if bc == 1 { // nothing occurs twice
+			break
+		}
+		merges = append(merges, best)
+		next := map[string]int{}
+		for w, n := range vocab {
+			next[strings.Join(mergePair(strings.Split(w, " "), best[0], best[1]), " ")] += n
+		}
+		vocab = next
+	}
+	return merges
+}
+
+func mergePair(syms []string, a, b string) []string { // left to right, no overlap
+	var out []string
+	for i := 0; i < len(syms); i++ {
+		if i+1 < len(syms) && syms[i] == a && syms[i+1] == b {
+			out = append(out, a+b)
+			i++
+		} else {
+			out = append(out, syms[i])
+		}
+	}
+	return out
+}
+
+func encodeBpe(word string, merges [][2]string) []string { // replay the merges in training order
+	var syms []string
+	for _, c := range word {
+		syms = append(syms, string(c))
+	}
+	for _, ab := range merges {
+		syms = mergePair(syms, ab[0], ab[1])
+	}
+	return syms
 }
 
 ### maps
@@ -7160,6 +10646,115 @@ struct KD {
     }
     int nearest(const array<double, 2>& q) const { return search(root, q, 0, -1); }
 };
+--go
+import (
+	"container/heap"
+	"math"
+	"sort"
+)
+
+type edge struct {
+	to   int
+	cost float64
+}
+type item struct {
+	f, g float64
+	node int
+}              // f = g + estimate
+type pq []item // min-heap on f
+
+func (q pq) Len() int           { return len(q) }
+func (q pq) Less(i, j int) bool { return q[i].f < q[j].f }
+func (q pq) Swap(i, j int)      { q[i], q[j] = q[j], q[i] }
+func (q *pq) Push(x any)        { *q = append(*q, x.(item)) }
+func (q *pq) Pop() any          { o := *q; x := o[len(o)-1]; *q = o[:len(o)-1]; return x }
+
+// cost must be >= the straight-line distance. Returns the cost and the path, or ok=false.
+func astar(adj [][]edge, xy [][2]float64, s, t int) (cost float64, path []int, ok bool) {
+	g, parent := make([]float64, len(adj)), make([]int, len(adj))
+	for i := range g {
+		g[i], parent[i] = math.Inf(1), -1
+	}
+	est := func(v int) float64 { return math.Hypot(xy[v][0]-xy[t][0], xy[v][1]-xy[t][1]) } // straight-line estimate
+	g[s] = 0
+	q := &pq{{est(s), 0, s}}
+	for q.Len() > 0 {
+		top := heap.Pop(q).(item)
+		u := top.node
+		if top.g > g[u] { // stale entry
+			continue
+		}
+		if u == t { // popped the goal: its cost is final
+			break
+		}
+		for _, e := range adj[u] {
+			if g[u]+e.cost < g[e.to] {
+				g[e.to], parent[e.to] = g[u]+e.cost, u
+				heap.Push(q, item{g[e.to] + est(e.to), g[e.to], e.to})
+			}
+		}
+	}
+	if math.IsInf(g[t], 1) {
+		return 0, nil, false
+	}
+	for v := t; v != -1; v = parent[v] {
+		path = append([]int{v}, path...)
+	}
+	return g[t], path, true
+}
+
+type KD struct {
+	pts         [][2]float64
+	left, right []int
+	root        int
+}
+
+func newKD(pts [][2]float64) *KD {
+	k := &KD{pts: pts, left: make([]int, len(pts)), right: make([]int, len(pts))}
+	ids := make([]int, len(pts))
+	for i := range ids {
+		ids[i] = i
+	}
+	k.root = k.build(ids, 0)
+	return k
+}
+
+func (k *KD) build(ids []int, depth int) int {
+	if len(ids) == 0 {
+		return -1
+	}
+	axis := depth % 2
+	sort.Slice(ids, func(a, b int) bool { return k.pts[ids[a]][axis] < k.pts[ids[b]][axis] })
+	mid := len(ids) / 2 // the median splits the points
+	node := ids[mid]
+	k.left[node] = k.build(append([]int(nil), ids[:mid]...), depth+1)
+	k.right[node] = k.build(append([]int(nil), ids[mid+1:]...), depth+1)
+	return node
+}
+
+func d2(a, b [2]float64) float64 { return (a[0]-b[0])*(a[0]-b[0]) + (a[1]-b[1])*(a[1]-b[1]) }
+
+func (k *KD) nearest(q [2]float64) int { return k.search(k.root, q, 0, -1) }
+
+func (k *KD) search(node int, q [2]float64, depth, best int) int {
+	if node < 0 {
+		return best
+	}
+	if best < 0 || d2(k.pts[node], q) < d2(k.pts[best], q) {
+		best = node
+	}
+	axis := depth % 2
+	diff := q[axis] - k.pts[node][axis]
+	near, far := k.right[node], k.left[node]
+	if diff < 0 {
+		near, far = far, near
+	}
+	best = k.search(near, q, depth+1, best)
+	if diff*diff < d2(k.pts[best], q) { // the splitting line is closer than the best point
+		best = k.search(far, q, depth+1, best)
+	}
+	return best
+}
 ### gameai
 --idea
 A game engine's computer opponent chooses its move by looking ahead. It imagines each move it could make, each reply the opponent could make, and so on, building a game tree, then picks the move that leads to the best outcome assuming the opponent also plays well. That is minimax. Looking at every branch is far too slow for real games, so engines use two additions: alpha-beta pruning, which skips branches that cannot change the decision, and sampling, where random games played from a position estimate how good it is.
@@ -7369,6 +10964,108 @@ int monteCarloMove(array<int, 9> b, int player, int n, mt19937& rng) { // flat M
         if (score > bestScore) { bestScore = score; bestM = m; }
     }
     return bestM;
+}
+--go
+import (
+	"math/rand"
+	"slices"
+)
+
+var LINES = [8][3]int{{0, 1, 2}, {3, 4, 5}, {6, 7, 8}, {0, 3, 6}, {1, 4, 7}, {2, 5, 8}, {0, 4, 8}, {2, 4, 6}}
+var ORDER = []int{4, 0, 2, 6, 8, 1, 3, 5, 7} // centre, corners, edges: try likely-best moves first
+var nodes int
+
+func winner(b []int) int {
+	for _, l := range LINES {
+		if b[l[0]] != 0 && b[l[0]] == b[l[1]] && b[l[1]] == b[l[2]] {
+			return b[l[0]]
+		}
+	}
+	return 0
+}
+
+func value(b []int, player, alpha, beta int) int { // negamax with alpha-beta
+	nodes++
+	if winner(b) != 0 { // the previous player completed a line
+		return -1
+	}
+	best, moved := -2, false
+	for _, m := range ORDER {
+		if b[m] != 0 {
+			continue
+		}
+		moved = true
+		b[m] = player
+		v := -value(b, 3-player, -beta, -alpha) // opponent's best result, negated
+		b[m] = 0
+		best = max(best, v)
+		alpha = max(alpha, v)
+		if alpha >= beta { // cutoff: the opponent has a better option elsewhere
+			break
+		}
+	}
+	if !moved { // full board: a draw
+		return 0
+	}
+	return best
+}
+
+func bestMove(b []int, player int) int {
+	bestM, bestV := -1, -2
+	for _, m := range ORDER {
+		if b[m] != 0 {
+			continue
+		}
+		b[m] = player
+		v := -value(b, 3-player, -1, 1)
+		b[m] = 0
+		if v > bestV {
+			bestV, bestM = v, m
+		}
+	}
+	return bestM
+}
+
+func playout(b []int, player int, rnd *rand.Rand) int { // random game to the end: winner, or 0 for a draw
+	c := slices.Clone(b)
+	for winner(c) == 0 {
+		var free []int
+		for i, v := range c {
+			if v == 0 {
+				free = append(free, i)
+			}
+		}
+		if len(free) == 0 {
+			return 0
+		}
+		c[free[rnd.Intn(len(free))]] = player
+		player = 3 - player
+	}
+	return winner(c)
+}
+
+func monteCarloMove(b []int, player, n int, rnd *rand.Rand) int { // flat Monte Carlo: best win rate over n playouts
+	bestM, bestScore := -1, -1
+	for m := 0; m < 9; m++ {
+		if b[m] != 0 {
+			continue
+		}
+		b[m] = player
+		score := 0
+		for i := 0; i < n; i++ {
+			switch w := playout(b, 3-player, rnd); w {
+			case player:
+				score += 2
+			case 0:
+				score++
+			}
+		}
+		b[m] = 0
+		if score > bestScore {
+			bestScore, bestM = score, m
+		}
+	}
+	return bestM
 }
 
 ### robotics
@@ -7581,6 +11278,122 @@ double plan(const Grid& grid, pair<int, int> s, pair<int, int> t, double weight,
     for (int v = t.first * C + t.second; v != -1; v = parent[v / C][v % C]) path.push_back({v / C, v % C});
     reverse(path.begin(), path.end());
     return g[t.first][t.second];
+}
+--go
+import (
+	"container/heap"
+	"math"
+)
+
+var dirs = [4][2]int{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}
+
+func clearance(grid [][]int) [][]int { // multi-source BFS from every obstacle
+	R, C := len(grid), len(grid[0])
+	d := make([][]int, R)
+	var q [][2]int
+	for r := range d {
+		d[r] = make([]int, C)
+		for c := range d[r] {
+			d[r][c] = -1
+			if grid[r][c] == 1 {
+				d[r][c] = 0
+				q = append(q, [2]int{r, c})
+			}
+		}
+	}
+	for len(q) > 0 {
+		u := q[0]
+		q = q[1:]
+		for _, dd := range dirs {
+			r, c := u[0]+dd[0], u[1]+dd[1]
+			if r >= 0 && r < R && c >= 0 && c < C && d[r][c] < 0 {
+				d[r][c] = d[u[0]][u[1]] + 1
+				q = append(q, [2]int{r, c})
+			}
+		}
+	}
+	return d // -1 everywhere if there are no obstacles
+}
+
+func reachable(grid [][]int, s, t [2]int) bool { // flood fill
+	R, C := len(grid), len(grid[0])
+	seen := make([][]bool, R)
+	for r := range seen {
+		seen[r] = make([]bool, C)
+	}
+	q := [][2]int{s}
+	seen[s[0]][s[1]] = true
+	for len(q) > 0 {
+		u := q[0]
+		q = q[1:]
+		for _, dd := range dirs {
+			r, c := u[0]+dd[0], u[1]+dd[1]
+			if r >= 0 && r < R && c >= 0 && c < C && grid[r][c] == 0 && !seen[r][c] {
+				seen[r][c] = true
+				q = append(q, [2]int{r, c})
+			}
+		}
+	}
+	return seen[t[0]][t[1]]
+}
+
+type cell struct {
+	f, g float64
+	r, c int
+}
+type pq []cell // min-heap on f
+
+func (q pq) Len() int           { return len(q) }
+func (q pq) Less(i, j int) bool { return q[i].f < q[j].f }
+func (q pq) Swap(i, j int)      { q[i], q[j] = q[j], q[i] }
+func (q *pq) Push(x any)        { *q = append(*q, x.(cell)) }
+func (q *pq) Pop() any          { o := *q; x := o[len(o)-1]; *q = o[:len(o)-1]; return x }
+
+// A* on the grid with a penalty for cells near obstacles. Returns the cost and the path, or ok=false.
+func plan(grid [][]int, s, t [2]int, weight float64) (cost float64, path [][2]int, ok bool) {
+	if grid[s[0]][s[1]] == 1 || grid[t[0]][t[1]] == 1 || !reachable(grid, s, t) {
+		return 0, nil, false
+	}
+	R, C := len(grid), len(grid[0])
+	clear := clearance(grid)
+	g := make([][]float64, R)
+	parent := make([][]int, R)
+	for r := range g {
+		g[r], parent[r] = make([]float64, C), make([]int, C)
+		for c := range g[r] {
+			g[r][c], parent[r][c] = math.Inf(1), -1
+		}
+	}
+	manhattan := func(r, c int) float64 { return math.Abs(float64(r-t[0])) + math.Abs(float64(c-t[1])) }
+	g[s[0]][s[1]] = 0
+	q := &pq{{manhattan(s[0], s[1]), 0, s[0], s[1]}}
+	for q.Len() > 0 {
+		e := heap.Pop(q).(cell)
+		if e.g > g[e.r][e.c] { // stale entry
+			continue
+		}
+		if e.r == t[0] && e.c == t[1] {
+			break
+		}
+		for _, dd := range dirs {
+			nr, nc := e.r+dd[0], e.c+dd[1]
+			if nr < 0 || nr >= R || nc < 0 || nc >= C || grid[nr][nc] == 1 {
+				continue
+			}
+			ng := g[e.r][e.c] + 1
+			if clear[nr][nc] > 0 { // penalise cells near obstacles
+				ng += weight / float64(clear[nr][nc])
+			}
+			if ng < g[nr][nc] {
+				g[nr][nc], parent[nr][nc] = ng, e.r*C+e.c
+				heap.Push(q, cell{ng + manhattan(nr, nc), ng, nr, nc})
+			}
+		}
+	}
+	for v := t[0]*C + t[1]; v != -1; v = parent[v/C][v%C] {
+		path = append([][2]int{{v / C, v % C}}, path...)
+	}
+	return g[t[0]][t[1]], path, true
 }
 
 ### graphics
@@ -7866,6 +11679,147 @@ vector<pair<int, int>> collisions(const vector<vector<P2>>& bodies) {     // bro
     sort(out.begin(), out.end());
     return out;
 }
+--go
+import (
+	"math"
+	"slices"
+	"sort"
+)
+
+type pt [2]float64
+
+func rotate(p pt, a, cx, cy float64) pt { // rotate by angle a about (cx, cy)
+	dx, dy := p[0]-cx, p[1]-cy
+	return pt{cx + dx*math.Cos(a) - dy*math.Sin(a), cy + dx*math.Sin(a) + dy*math.Cos(a)}
+}
+
+func orient(a, b, c pt) float64 { return (b[0]-a[0])*(c[1]-a[1]) - (b[1]-a[1])*(c[0]-a[0]) }
+
+func hull(pts []pt) []pt { // monotone chain, counter-clockwise
+	p := slices.Clone(pts)
+	sort.Slice(p, func(a, b int) bool { return p[a][0] < p[b][0] || p[a][0] == p[b][0] && p[a][1] < p[b][1] })
+	if len(p) < 3 {
+		return p
+	}
+	var h []pt
+	for pass := 0; pass < 2; pass++ {
+		start := len(h)
+		for _, q := range p {
+			for len(h) >= start+2 && orient(h[len(h)-2], h[len(h)-1], q) <= 0 {
+				h = h[:len(h)-1]
+			}
+			h = append(h, q)
+		}
+		h = h[:len(h)-1] // the last point starts the other half
+		slices.Reverse(p)
+	}
+	return h
+}
+
+func onSeg(a, b, c pt) bool {
+	return min(a[0], b[0]) <= c[0] && c[0] <= max(a[0], b[0]) && min(a[1], b[1]) <= c[1] && c[1] <= max(a[1], b[1])
+}
+
+func segInter(p1, p2, p3, p4 pt) bool {
+	o1, o2, o3, o4 := orient(p1, p2, p3), orient(p1, p2, p4), orient(p3, p4, p1), orient(p3, p4, p2)
+	if o1*o2 < 0 && o3*o4 < 0 { // proper crossing
+		return true
+	}
+	return o1 == 0 && onSeg(p1, p2, p3) || o2 == 0 && onSeg(p1, p2, p4) || o3 == 0 && onSeg(p3, p4, p1) || o4 == 0 && onSeg(p3, p4, p2)
+}
+
+func insideConvex(poly []pt, q pt) bool { // counter-clockwise convex polygon
+	for i := range poly {
+		if orient(poly[i], poly[(i+1)%len(poly)], q) < 0 {
+			return false
+		}
+	}
+	return true
+}
+
+func collide(A, B []pt) bool { // narrow phase for two convex polygons
+	for i := range A {
+		for j := range B {
+			if segInter(A[i], A[(i+1)%len(A)], B[j], B[(j+1)%len(B)]) {
+				return true
+			}
+		}
+	}
+	return insideConvex(B, A[0]) || insideConvex(A, B[0]) // one shape inside the other
+}
+
+type KD struct { // k-d tree over points: radius queries
+	pts         []pt
+	left, right []int
+	root        int
+}
+
+func newKD(pts []pt) *KD {
+	k := &KD{pts: pts, left: make([]int, len(pts)), right: make([]int, len(pts))}
+	ids := make([]int, len(pts))
+	for i := range ids {
+		ids[i] = i
+	}
+	k.root = k.build(ids, 0)
+	return k
+}
+
+func (k *KD) build(ids []int, depth int) int {
+	if len(ids) == 0 {
+		return -1
+	}
+	axis := depth % 2
+	sort.Slice(ids, func(a, b int) bool { return k.pts[ids[a]][axis] < k.pts[ids[b]][axis] })
+	mid := len(ids) / 2
+	node := ids[mid]
+	k.left[node] = k.build(slices.Clone(ids[:mid]), depth+1)
+	k.right[node] = k.build(slices.Clone(ids[mid+1:]), depth+1)
+	return node
+}
+
+func (k *KD) within(node, depth int, q pt, r float64, out *[]int) {
+	if node < 0 {
+		return
+	}
+	if math.Hypot(k.pts[node][0]-q[0], k.pts[node][1]-q[1]) <= r {
+		*out = append(*out, node)
+	}
+	diff := q[depth%2] - k.pts[node][depth%2]
+	if diff-r <= 0 { // the circle reaches the left side
+		k.within(k.left[node], depth+1, q, r, out)
+	}
+	if diff+r >= 0 { // the circle reaches the right side
+		k.within(k.right[node], depth+1, q, r, out)
+	}
+}
+
+func collisions(bodies [][]pt) [][2]int { // broad phase with a k-d tree, then narrow phase
+	n := len(bodies)
+	c, rad, maxR := make([]pt, n), make([]float64, n), 0.0
+	for i, body := range bodies {
+		for _, v := range body {
+			c[i][0] += v[0] / float64(len(body))
+			c[i][1] += v[1] / float64(len(body))
+		}
+		for _, v := range body {
+			rad[i] = max(rad[i], math.Hypot(v[0]-c[i][0], v[1]-c[i][1]))
+		}
+		maxR = max(maxR, rad[i])
+	}
+	tree := newKD(c)
+	var out [][2]int
+	for i := 0; i < n; i++ {
+		var near []int
+		tree.within(tree.root, 0, c[i], rad[i]+maxR, &near)
+		for _, j := range near {
+			if j > i && math.Hypot(c[i][0]-c[j][0], c[i][1]-c[j][1]) <= rad[i]+rad[j] && collide(bodies[i], bodies[j]) {
+				out = append(out, [2]int{i, j})
+			}
+		}
+	}
+	sort.Slice(out, func(a, b int) bool { return out[a][0] < out[b][0] || out[a][0] == out[b][0] && out[a][1] < out[b][1] })
+	return out
+}
 
 ### gis
 --idea
@@ -8106,6 +12060,128 @@ struct IntervalTree {                                                      // im
         if (iv[m].first <= x) stab(x, m + 1, r, out);                       // the right half starts even later
     }
 };
+--go
+import (
+	"math"
+	"slices"
+	"sort"
+)
+
+type pt [2]float64
+
+type KD struct { // k-d tree for rectangle queries
+	pts         []pt
+	left, right []int
+	root        int
+}
+
+func newKD(pts []pt) *KD {
+	k := &KD{pts: pts, left: make([]int, len(pts)), right: make([]int, len(pts))}
+	ids := make([]int, len(pts))
+	for i := range ids {
+		ids[i] = i
+	}
+	k.root = k.build(ids, 0)
+	return k
+}
+
+func (k *KD) build(ids []int, depth int) int {
+	if len(ids) == 0 {
+		return -1
+	}
+	axis := depth % 2
+	sort.Slice(ids, func(a, b int) bool { return k.pts[ids[a]][axis] < k.pts[ids[b]][axis] })
+	mid := len(ids) / 2 // the median splits the points
+	node := ids[mid]
+	k.left[node] = k.build(slices.Clone(ids[:mid]), depth+1)
+	k.right[node] = k.build(slices.Clone(ids[mid+1:]), depth+1)
+	return node
+}
+
+func (k *KD) inBox(node, depth int, lo, hi pt, out *[]int) {
+	if node < 0 {
+		return
+	}
+	p := k.pts[node]
+	if p[0] >= lo[0] && p[0] <= hi[0] && p[1] >= lo[1] && p[1] <= hi[1] {
+		*out = append(*out, node)
+	}
+	axis := depth % 2
+	if lo[axis] <= p[axis] { // the box reaches the left side
+		k.inBox(k.left[node], depth+1, lo, hi, out)
+	}
+	if hi[axis] >= p[axis] { // the box reaches the right side
+		k.inBox(k.right[node], depth+1, lo, hi, out)
+	}
+}
+
+func pointInPolygon(poly []pt, px, py float64) bool { // ray casting: odd crossings = inside
+	inside := false
+	for i, j := 0, len(poly)-1; i < len(poly); j, i = i, i+1 {
+		x1, y1, x2, y2 := poly[j][0], poly[j][1], poly[i][0], poly[i][1]
+		if (y1 > py) != (y2 > py) && px < (x2-x1)*(py-y1)/(y2-y1)+x1 { // half-open at the top
+			inside = !inside
+		}
+	}
+	return inside
+}
+
+func placesInRegion(pts, poly []pt) []int { // filter by bounding box, then refine
+	lo, hi := pt{math.Inf(1), math.Inf(1)}, pt{math.Inf(-1), math.Inf(-1)}
+	for _, v := range poly {
+		for a := 0; a < 2; a++ {
+			lo[a], hi[a] = min(lo[a], v[a]), max(hi[a], v[a])
+		}
+	}
+	tree := newKD(pts)
+	var cand, out []int
+	tree.inBox(tree.root, 0, lo, hi, &cand)
+	for _, id := range cand {
+		if pointInPolygon(poly, pts[id][0], pts[id][1]) {
+			out = append(out, id)
+		}
+	}
+	sort.Ints(out)
+	return out
+}
+
+type IntervalTree struct { // implicit tree over intervals sorted by low end
+	iv    [][2]float64
+	maxHi []float64
+}
+
+func newIntervalTree(intervals [][2]float64) *IntervalTree {
+	t := &IntervalTree{iv: slices.Clone(intervals), maxHi: make([]float64, len(intervals))}
+	sort.Slice(t.iv, func(a, b int) bool { return t.iv[a][0] < t.iv[b][0] })
+	t.fill(0, len(t.iv)-1)
+	return t
+}
+
+func (t *IntervalTree) fill(l, r int) float64 {
+	if l > r {
+		return math.Inf(-1)
+	}
+	m := (l + r) / 2
+	t.maxHi[m] = max(t.iv[m][1], t.fill(l, m-1), t.fill(m+1, r))
+	return t.maxHi[m]
+}
+
+func (t *IntervalTree) stab(x float64, l, r int, out *[][2]float64) { // call with l = 0, r = n - 1
+	if l > r {
+		return
+	}
+	m := (l + r) / 2
+	if t.maxHi[m] < x { // nothing in this subtree reaches x
+		return
+	}
+	t.stab(x, l, m-1, out)
+	if t.iv[m][0] <= x && x <= t.iv[m][1] {
+		*out = append(*out, t.iv[m])
+	}
+	if t.iv[m][0] <= x { // the right half starts even later
+		t.stab(x, m+1, r, out)
+	}
+}
 ### ridematch
 --idea
 A ride-hailing or delivery platform must, every few seconds, decide which driver serves which rider, and in what order a driver should visit several stops. These are two classic optimisation problems. The first is an assignment problem: given the cost (pickup time) of every driver and rider pair, match them one to one so that the total cost is smallest. Matching each rider to the nearest free driver one by one (a greedy rule) can leave later riders with terrible options. The Hungarian algorithm finds the true minimum total.
@@ -8268,6 +12344,93 @@ int tsp(const vector<vector<int>>& dist) {                             // shorte
     for (int last = 0; last < n; last++) if (dp[full][last] < INF) best = min(best, dp[full][last] + dist[last][0]);
     return best;
 }
+--go
+import "slices"
+
+const INF = 1_000_000_000
+
+// cost is n x m with n <= m. Returns the minimum total cost; match[i] = column assigned to row i.
+func hungarian(cost [][]int) (int, []int) {
+	n, m := len(cost), len(cost[0])
+	u, v := make([]int, n+1), make([]int, m+1)   // potentials
+	p, way := make([]int, m+1), make([]int, m+1) // matching, path
+	for i := 1; i <= n; i++ {
+		p[0] = i
+		j0 := 0
+		minv := make([]int, m+1)
+		for j := range minv {
+			minv[j] = INF
+		}
+		used := make([]bool, m+1)
+		for {
+			used[j0] = true
+			i0, delta, j1 := p[j0], INF, 0
+			for j := 1; j <= m; j++ {
+				if used[j] {
+					continue
+				}
+				if cur := cost[i0-1][j-1] - u[i0] - v[j]; cur < minv[j] { // slack of the edge
+					minv[j], way[j] = cur, j0
+				}
+				if minv[j] < delta {
+					delta, j1 = minv[j], j
+				}
+			}
+			for j := 0; j <= m; j++ { // adjust the potentials
+				if used[j] {
+					u[p[j]] += delta
+					v[j] -= delta
+				} else {
+					minv[j] -= delta
+				}
+			}
+			if j0 = j1; p[j0] == 0 {
+				break
+			}
+		}
+		for j0 != 0 { // flip the matching along the path
+			j1 := way[j0]
+			p[j0] = p[j1]
+			j0 = j1
+		}
+	}
+	match := make([]int, n)
+	for j := 1; j <= m; j++ {
+		if p[j] != 0 {
+			match[p[j]-1] = j - 1
+		}
+	}
+	return -v[0], match
+}
+
+func tsp(dist [][]int) int { // shortest tour from stop 0 through all stops
+	n := len(dist)
+	full := 1<<n - 1
+	dp := make([][]int, 1<<n)
+	for mask := range dp {
+		dp[mask] = slices.Repeat([]int{INF}, n)
+	}
+	dp[1][0] = 0
+	for mask := 1; mask <= full; mask++ {
+		for last := 0; last < n; last++ {
+			if dp[mask][last] >= INF || mask>>last&1 == 0 {
+				continue
+			}
+			for nxt := 0; nxt < n; nxt++ {
+				if mask>>nxt&1 == 0 {
+					dp[mask|1<<nxt][nxt] = min(dp[mask|1<<nxt][nxt], dp[mask][last]+dist[last][nxt])
+				}
+			}
+		}
+	}
+	best := INF
+	for last := 0; last < n; last++ {
+		if dp[full][last] < INF {
+			best = min(best, dp[full][last]+dist[last][0])
+		}
+	}
+	return best
+}
 
 ### timetable
 --idea
@@ -8369,6 +12532,56 @@ vector<int> colorExams(const vector<vector<int>>& adj, int k) {
 
 int minSlots(const vector<vector<int>>& adj) {
     for (int k = 1;; k++) if (!colorExams(adj, k).empty()) return k;
+}
+--go
+import "sort"
+
+// adj[i] = exams that conflict with i. Returns the slot of each exam using at most k slots, or nil.
+func colorExams(adj [][]int, k int) []int {
+	n := len(adj)
+	order := make([]int, n)
+	color := make([]int, n)
+	for i := range order {
+		order[i], color[i] = i, -1
+	}
+	sort.SliceStable(order, func(a, b int) bool { return len(adj[order[a]]) > len(adj[order[b]]) }) // most conflicts first
+	var place func(pos, used int) bool
+	place = func(pos, used int) bool {
+		if pos == n {
+			return true
+		}
+		v := order[pos]
+		for c := 0; c <= min(used, k-1); c++ { // at most one new colour at a time
+			ok := true
+			for _, u := range adj[v] {
+				if color[u] == c {
+					ok = false
+					break
+				}
+			}
+			if !ok {
+				continue
+			}
+			color[v] = c
+			if place(pos+1, max(used, c+1)) {
+				return true
+			}
+			color[v] = -1 // backtrack
+		}
+		return false
+	}
+	if place(0, 0) {
+		return color
+	}
+	return nil
+}
+
+func minSlots(adj [][]int) int {
+	for k := 1; ; k++ {
+		if colorExams(adj, k) != nil {
+			return k
+		}
+	}
 }
 
 ### calendar
@@ -8494,6 +12707,60 @@ struct Booked {
     }
     bool book(int s, int e) { if (!canBook(s, e)) return false; meetings[s] = e; return true; }
 };
+--go
+import (
+	"slices"
+	"sort"
+)
+
+// busy: one list of {start, end} per person. Returns the free slots {start, end} of at least minLen within the day.
+func freeSlots(busy [][][2]int, dayStart, dayEnd, minLen int) [][2]int {
+	var events [][2]int // {time, delta}
+	for _, person := range busy {
+		for _, iv := range person {
+			s, e := max(iv[0], dayStart), min(iv[1], dayEnd) // clip to the working day
+			if s < e {
+				events = append(events, [2]int{s, 1}, [2]int{e, -1})
+			}
+		}
+	}
+	sort.Slice(events, func(a, b int) bool { // ends before starts at equal times
+		return events[a][0] < events[b][0] || events[a][0] == events[b][0] && events[a][1] < events[b][1]
+	})
+	var out [][2]int
+	count, freeStart := 0, dayStart
+	for _, ev := range events {
+		if count == 0 && ev[1] == 1 && ev[0]-freeStart >= minLen {
+			out = append(out, [2]int{freeStart, ev[0]})
+		}
+		if count += ev[1]; count == 0 {
+			freeStart = ev[0]
+		}
+	}
+	if dayEnd-freeStart >= minLen {
+		out = append(out, [2]int{freeStart, dayEnd})
+	}
+	return out
+}
+
+type Booked struct{ meetings [][2]int } // {start, end}, kept sorted by start
+
+func (b *Booked) canBook(s, e int) bool {
+	i := sort.Search(len(b.meetings), func(i int) bool { return b.meetings[i][0] > s }) // first meeting starting after s
+	if i > 0 && b.meetings[i-1][1] > s {                                                // the one before runs into s
+		return false
+	}
+	return i == len(b.meetings) || b.meetings[i][0] >= e // the next one must start by e
+}
+
+func (b *Booked) book(s, e int) bool {
+	if !b.canBook(s, e) {
+		return false
+	}
+	i := sort.Search(len(b.meetings), func(i int) bool { return b.meetings[i][0] > s })
+	b.meetings = slices.Insert(b.meetings, i, [2]int{s, e})
+	return true
+}
 
 ### social
 --idea
@@ -8637,6 +12904,81 @@ vector<int> distancesFrom(const vector<vector<int>>& adj, const vector<int>& sou
         for (int v : adj[u]) if (dist[v] < 0) { dist[v] = dist[u] + 1; q.push(v); }
     }
     return dist;
+}
+--go
+import "sort"
+
+func suggestions(adj [][]int, u, k int) []int { // people you may know, most mutual friends first
+	friends := map[int]bool{}
+	for _, f := range adj[u] {
+		friends[f] = true
+	}
+	count := map[int]int{} // candidate -> number of mutual friends
+	for _, f := range adj[u] {
+		for _, g := range adj[f] {
+			if g != u && !friends[g] {
+				count[g]++
+			}
+		}
+	}
+	var cand []int
+	for g := range count {
+		cand = append(cand, g)
+	}
+	sort.Slice(cand, func(a, b int) bool { // more mutual friends first, ties by id
+		return count[cand[a]] > count[cand[b]] || count[cand[a]] == count[cand[b]] && cand[a] < cand[b]
+	})
+	return cand[:min(k, len(cand))]
+}
+
+func components(adj [][]int) []int { // component number of every person
+	comp := make([]int, len(adj))
+	for i := range comp {
+		comp[i] = -1
+	}
+	id := 0
+	for s := range adj {
+		if comp[s] >= 0 {
+			continue
+		}
+		q := []int{s}
+		comp[s] = id
+		for len(q) > 0 { // one BFS finds one whole component
+			u := q[0]
+			q = q[1:]
+			for _, v := range adj[u] {
+				if comp[v] < 0 {
+					comp[v] = id
+					q = append(q, v)
+				}
+			}
+		}
+		id++
+	}
+	return comp
+}
+
+func distancesFrom(adj [][]int, sources []int) []int { // multi-source BFS
+	dist := make([]int, len(adj))
+	for i := range dist {
+		dist[i] = -1
+	}
+	var q []int
+	for _, s := range sources {
+		dist[s] = 0
+		q = append(q, s)
+	}
+	for len(q) > 0 {
+		u := q[0]
+		q = q[1:]
+		for _, v := range adj[u] {
+			if dist[v] < 0 {
+				dist[v] = dist[u] + 1
+				q = append(q, v)
+			}
+		}
+	}
+	return dist
 }
 
 ### orderbook
@@ -8782,6 +13124,93 @@ struct OrderBook {
     int bestBid() { auto t = best(bids); return t ? orders[get<2>(*t)][1] : -1; }
     int bestAsk() { auto t = best(asks); return t ? orders[get<2>(*t)][1] : -1; }
 };
+--go
+import "container/heap"
+
+type order struct{ side, price, qty int } // side: 1 buy, 2 sell
+
+type book [][3]int64 // heap entries {sortKey, seq, id}: a min-heap, so price time priority
+
+func (b book) Len() int { return len(b) }
+func (b book) Less(i, j int) bool {
+	return b[i][0] < b[j][0] || b[i][0] == b[j][0] && b[i][1] < b[j][1]
+}
+func (b book) Swap(i, j int) { b[i], b[j] = b[j], b[i] }
+func (b *book) Push(x any)   { *b = append(*b, x.([3]int64)) }
+func (b *book) Pop() any     { o := *b; x := o[len(o)-1]; *b = o[:len(o)-1]; return x }
+
+type OrderBook struct {
+	bids, asks book
+	orders     map[int]*order // live orders by id
+	seq        int64
+}
+
+func newOrderBook() *OrderBook { return &OrderBook{orders: map[int]*order{}} }
+
+func (ob *OrderBook) best(h *book) ([3]int64, bool) { // top live entry; drop cancelled ones
+	for h.Len() > 0 {
+		if _, live := ob.orders[int((*h)[0][2])]; live {
+			return (*h)[0], true
+		}
+		heap.Pop(h)
+	}
+	return [3]int64{}, false
+}
+
+// returns the trades as {takerId, makerId, price, qty}
+func (ob *OrderBook) add(id, side, price, qty int) [][4]int {
+	var trades [][4]int
+	other := &ob.asks
+	if side == 2 {
+		other = &ob.bids
+	}
+	for qty > 0 {
+		top, ok := ob.best(other)
+		if !ok {
+			break
+		}
+		maker := ob.orders[int(top[2])]
+		if side == 1 && maker.price > price || side == 2 && maker.price < price { // the best resting price does not cross
+			break
+		}
+		q := min(qty, maker.qty)
+		trades = append(trades, [4]int{id, int(top[2]), maker.price, q}) // trade at the resting order's price
+		qty -= q
+		maker.qty -= q
+		if maker.qty == 0 {
+			delete(ob.orders, int(top[2]))
+			heap.Pop(other)
+		}
+	}
+	if qty > 0 { // the rest waits in the book
+		ob.orders[id] = &order{side, price, qty}
+		key, mine := int64(price), &ob.asks
+		if side == 1 {
+			key, mine = -key, &ob.bids // best bid = highest price = smallest negated key
+		}
+		heap.Push(mine, [3]int64{key, ob.seq, int64(id)})
+		ob.seq++
+	}
+	return trades
+}
+
+func (ob *OrderBook) cancel(id int) { delete(ob.orders, id) } // lazy: the heap entry is dropped later
+
+func (ob *OrderBook) bestBid() (int, bool) {
+	t, ok := ob.best(&ob.bids)
+	if !ok {
+		return 0, false
+	}
+	return ob.orders[int(t[2])].price, true
+}
+
+func (ob *OrderBook) bestAsk() (int, bool) {
+	t, ok := ob.best(&ob.asks)
+	if !ok {
+		return 0, false
+	}
+	return ob.orders[int(t[2])].price, true
+}
 
 ### riskmc
 --idea
@@ -8865,6 +13294,41 @@ double binomialCall(double S, double K, double r, double sigma, double T, int n)
     for (int step = n - 1; step >= 0; step--)                                 // work backwards
         for (int j = 0; j <= step; j++) v[j] = disc * (p * v[j + 1] + (1 - p) * v[j]);
     return v[0];
+}
+--go
+import (
+	"math"
+	"math/rand"
+)
+
+func monteCarloCall(S, K, r, sigma, T float64, paths, steps int, rnd *rand.Rand) float64 {
+	dt := T / float64(steps)
+	drift, vol, sum := (r-sigma*sigma/2)*dt, sigma*math.Sqrt(dt), 0.0
+	for i := 0; i < paths; i++ {
+		price := S
+		for s := 0; s < steps; s++ {
+			price *= math.Exp(drift + vol*rnd.NormFloat64()) // one random-walk step
+		}
+		sum += math.Max(price-K, 0) // payoff of this path
+	}
+	return math.Exp(-r*T) * sum / float64(paths) // average, discounted
+}
+
+func binomialCall(S, K, r, sigma, T float64, n int) float64 {
+	dt := T / float64(n)
+	u := math.Exp(sigma * math.Sqrt(dt))
+	d := 1 / u
+	p, disc := (math.Exp(r*dt)-d)/(u-d), math.Exp(-r*dt) // risk-neutral up probability
+	v := make([]float64, n+1)
+	for j := range v { // payoffs at expiry
+		v[j] = math.Max(S*math.Pow(u, float64(j))*math.Pow(d, float64(n-j))-K, 0)
+	}
+	for step := n - 1; step >= 0; step-- { // work backwards
+		for j := 0; j <= step; j++ {
+			v[j] = disc * (p*v[j+1] + (1-p)*v[j])
+		}
+	}
+	return v[0]
 }
 
 ### filesync
@@ -9087,4 +13551,123 @@ int rarestFirst(unsigned long long mine, const vector<unsigned long long>& peers
         if (c > 0 && c < bestCount) { bestCount = c; bestPiece = piece; }
     }
     return bestPiece;
+}
+--go
+import "strings"
+
+const (
+	BASE = 131
+	MOD  = 1_000_000_007
+)
+
+func strong(s string) uint64 { // 64-bit FNV-1a: the strong hash
+	h := uint64(0xcbf29ce484222325)
+	for i := 0; i < len(s); i++ {
+		h ^= uint64(s[i])
+		h *= 0x100000001b3
+	}
+	return h
+}
+
+func weak(s string) uint64 { // polynomial hash of a whole window
+	h := uint64(0)
+	for i := 0; i < len(s); i++ {
+		h = (h*BASE + uint64(s[i])) % MOD
+	}
+	return h
+}
+
+type sig struct {
+	strong uint64
+	index  int
+}
+
+func signatures(old string, B int) map[uint64][]sig { // weak hash -> {strong hash, block index}
+	table := map[uint64][]sig{}
+	for i := 0; i+B <= len(old); i += B {
+		block := old[i : i+B]
+		table[weak(block)] = append(table[weak(block)], sig{strong(block), i / B})
+	}
+	return table
+}
+
+type op struct { // index >= 0 copies old block `index`; index -1 is a literal run
+	index int
+	text  string
+}
+
+func delta(neu string, table map[uint64][]sig, B int) []op {
+	var ops []op
+	var lit strings.Builder
+	pw := uint64(1)
+	for i := 0; i < B-1; i++ {
+		pw = pw * BASE % MOD // BASE^(B-1)
+	}
+	i, h := 0, uint64(0)
+	if len(neu) >= B {
+		h = weak(neu[:B])
+	}
+	for i+B <= len(neu) {
+		found := -1
+		if cand, ok := table[h]; ok {
+			sh := strong(neu[i : i+B])
+			for _, c := range cand {
+				if c.strong == sh {
+					found = c.index
+					break
+				}
+			}
+		}
+		if found >= 0 { // the window equals an old block
+			if lit.Len() > 0 {
+				ops = append(ops, op{-1, lit.String()})
+				lit.Reset()
+			}
+			ops = append(ops, op{found, ""})
+			i += B
+			if i+B <= len(neu) {
+				h = weak(neu[i : i+B])
+			}
+		} else { // slide by one byte: drop neu[i], add neu[i+B]
+			lit.WriteByte(neu[i])
+			if i+B < len(neu) {
+				h = ((h+MOD-uint64(neu[i])*pw%MOD)%MOD*BASE + uint64(neu[i+B])) % MOD
+			}
+			i++
+		}
+	}
+	lit.WriteString(neu[i:])
+	if lit.Len() > 0 {
+		ops = append(ops, op{-1, lit.String()})
+	}
+	return ops
+}
+
+func applyDelta(old string, ops []op, B int) string {
+	var out strings.Builder
+	for _, o := range ops {
+		if o.index >= 0 {
+			out.WriteString(old[o.index*B : o.index*B+B])
+		} else {
+			out.WriteString(o.text)
+		}
+	}
+	return out.String()
+}
+
+func rarestFirst(mine uint64, peers []uint64, n int) int { // bitsets of pieces; returns a piece or -1
+	bestPiece, bestCount := -1, 1<<30
+	for piece := 0; piece < n; piece++ {
+		if mine>>piece&1 == 1 {
+			continue
+		}
+		c := 0
+		for _, p := range peers {
+			c += int(p >> piece & 1)
+		}
+		if c > 0 && c < bestCount {
+			bestCount, bestPiece = c, piece
+		}
+	}
+	return bestPiece
 }
